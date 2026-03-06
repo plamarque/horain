@@ -3,8 +3,13 @@ import { apiGet, apiPost } from '../services/apiClient'
 
 /**
  * Local-first sync engine.
- * Operations are stored locally in IndexedDB and pushed to the backend when possible.
- * Triggers: app start, network online, after local writes, manual sync.
+ *
+ * Data is written to IndexedDB first. Operations are enqueued in sync_queue.
+ * When network is available: pushOperations sends batch to backend, then pullUpdates
+ * fetches server changes. On success, queue is cleared and local sync_status updated.
+ *
+ * Triggers: app start, network online, after local writes (create project/log time), manual sync.
+ * Retry: failed pushes increment retry_count; items exceeding MAX_RETRIES are dropped.
  */
 
 const META_LAST_PULL = 'lastPullTimestamp'
@@ -92,11 +97,12 @@ export async function pushOperations(): Promise<void> {
 
 /**
  * Pull updates from the server since last pull.
+ * Merges server data into local IndexedDB; updates lastPullTimestamp.
  */
 export async function pullUpdates(): Promise<void> {
   const since = await getLastPullTimestamp()
   const res = await apiGet<{
-    projects: Array<{
+    projects?: Array<{
       id: string
       name: string
       description?: string
@@ -104,7 +110,7 @@ export async function pullUpdates(): Promise<void> {
       updatedAt: string
       userId?: string
     }>
-    timeLogs: Array<{
+    timeLogs?: Array<{
       id: string
       projectId: string
       durationMinutes: number
@@ -116,8 +122,8 @@ export async function pullUpdates(): Promise<void> {
   }>(`/sync/pull?since=${since}`)
 
   let maxUpdated = since
-  const projects = res.projects ?? []
-  const timeLogs = res.timeLogs ?? []
+  const projects = Array.isArray(res?.projects) ? res.projects : []
+  const timeLogs = Array.isArray(res?.timeLogs) ? res.timeLogs : []
   for (const p of projects) {
     await db.projects.put({
       id: p.id,

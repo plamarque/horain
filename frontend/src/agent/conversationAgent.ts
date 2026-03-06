@@ -2,22 +2,30 @@ import { listProjects, createProject, logTime } from '../tools'
 
 /**
  * Simple rule-based conversation agent.
+ *
  * Pipeline: transcription → intent detection → entity extraction → tool calls.
  *
  * Intent: LOG_TIME
- * Rule: presence of duration + project mention.
- * Examples: "30 minutes on HatCast", "I spent 45 min on Chrono EPS"
+ *   Detection rule: presence of duration + project mention.
+ *   Examples: "30 minutes on HatCast", "I spent 45 min on Chrono EPS", "1h on Chrono EPS"
+ *
+ * Entity extraction (regex-based):
+ *   - duration_minutes: "X minutes", "X min", "Xh", "X hour(s)"
+ *   - project: "on PROJECT_NAME" or "for PROJECT_NAME"
+ *   - note: "working on X" or "doing X"
+ *
+ * Tool flow: listProjects → match or createProject → logTime → enqueue sync
  */
 
-// Supported duration patterns: X minutes, X min, Xh, X hour(s)
+// Duration: X minutes, X min, Xh, X hour(s) — EN & FR (minutes, min identiques)
 const MINUTES_REGEX = /(\d+)\s*min(?:ute)?s?/i
 const HOURS_REGEX = /(\d+)\s*h(?:our)?s?/i
 const DURATION_REGEX = /(\d+)\s*(min(?:ute)?s?|h(?:our)?s?)/i
 
-// Project: "on PROJECT_NAME" or "for PROJECT_NAME"
-// Stops at: "working", "doing", ".", end of string
-const PROJECT_ON_REGEX = /\b(?:on|for)\s+([A-Za-z0-9][A-Za-z0-9\s]*?)(?=\s+working|\s+doing|\s+spent|\.|$)/i
-const PROJECT_AFTER_MINUTES = /(\d+)\s*min(?:ute)?s?\s+(?:on|for)\s+([A-Za-z0-9][A-Za-z0-9\s]*?)(?=\s+working|\s+doing|\.|$)/i
+// Project: "on/for/sur/pour PROJECT_NAME" — EN: on, for | FR: sur, pour
+const PROJECT_PREP = /(?:on|for|sur|pour)\s+([A-Za-z0-9][A-Za-z0-9\s\u00C0-\u024F]*?)(?=\s+(?:working|doing|travailler|à|\.)|\.|$)/iu
+const PROJECT_AFTER_MINUTES = /(\d+)\s*min(?:ute)?s?\s+(?:on|for|sur|pour)\s+([A-Za-z0-9][A-Za-z0-9\s\u00C0-\u024F]*?)(?=\s+(?:working|doing|travailler|à|\.)|\.|$)/iu
+const PROJECT_AFTER_HOURS = /(\d+)\s*h(?:our)?s?\s+(?:on|for|sur|pour)\s+([A-Za-z0-9][A-Za-z0-9\s\u00C0-\u024F]*?)(?=\s+(?:working|doing|travailler|à|\.)|\.|$)/iu
 
 /**
  * Extract duration in minutes from text.
@@ -40,27 +48,32 @@ function extractDuration(text: string): number | null {
 }
 
 /**
- * Extract project name from "on X" or "for X".
- * Example: "I spent 30 minutes on HatCast working on..." → "HatCast"
+ * Extract project name from "on/for/sur/pour X".
+ * EN: "30 minutes on HatCast" | FR: "30 minutes sur HatCast"
  */
 function extractProjectName(text: string): string | null {
   const afterMinutes = text.match(PROJECT_AFTER_MINUTES)
   if (afterMinutes) return afterMinutes[2].trim()
 
-  const onMatch = text.match(PROJECT_ON_REGEX)
-  if (onMatch) return onMatch[1].trim()
+  const afterHours = text.match(PROJECT_AFTER_HOURS)
+  if (afterHours) return afterHours[2].trim()
+
+  const prepMatch = text.match(PROJECT_PREP)
+  if (prepMatch) return prepMatch[1].trim()
 
   return null
 }
 
 /**
- * Extract note as remaining sentence (e.g. "working on X").
- * Example: "working on the selection algorithm"
+ * Extract note: "working on X", "doing X" (EN) | "travailler sur X", "à travailler sur X" (FR)
  */
 function extractNote(text: string): string | null {
   const working = text.match(/working\s+on\s+(.+?)(?:\.|$)/i)
   if (working) return working[1].trim()
-
+  const doing = text.match(/doing\s+(.+?)(?:\.|$)/i)
+  if (doing) return doing[1].trim()
+  const travaillerSur = text.match(/(?:à\s+)?travailler\s+sur\s+(.+?)(?:\.|$)/i)
+  if (travaillerSur) return travaillerSur[1].trim()
   return null
 }
 
@@ -75,29 +88,74 @@ function matchProject(projects: Array<{ id: string; name: string }>, name: strin
 export interface AgentResponse {
   text: string
   success: boolean
+  /** When we asked a clarifying question, store what we already have for the next turn */
+  pendingContext?: { duration?: number; projectName?: string; note?: string }
+}
+
+/** Optional context from a previous turn (e.g. we have duration, waiting for project) */
+export interface ConversationContext {
+  duration?: number
+  projectName?: string
+  note?: string
+}
+
+/**
+ * Heuristic: when user replies with a short phrase (no duration pattern), treat as project name
+ * if we have pending duration. E.g. "HatCast" in response to "Which project?"
+ */
+function looksLikeProjectName(text: string): boolean {
+  const t = text.trim()
+  if (!t || t.length > 60) return false
+  // Avoid treating "30" or "45 minutes" as project name
+  if (/\d/.test(t)) return false
+  return /^[A-Za-z\u00C0-\u024F0-9\s\-]+$/.test(t)
 }
 
 /**
  * Process transcription and return agent response.
+ * Pass context when the user is replying to a clarifying question (e.g. "HatCast" after "Which project?").
  */
-export async function processTranscription(transcription: string): Promise<AgentResponse> {
+export async function processTranscription(
+  transcription: string,
+  context?: ConversationContext
+): Promise<AgentResponse> {
   const trimmed = transcription.trim()
   if (!trimmed) {
     return { text: "I didn't catch that. Could you repeat?", success: false }
   }
 
-  const duration = extractDuration(trimmed)
-  const projectName = extractProjectName(trimmed)
-  const note = extractNote(trimmed)
+  let duration = extractDuration(trimmed) ?? context?.duration
+  let projectName = extractProjectName(trimmed) ?? context?.projectName
+  let note = extractNote(trimmed) ?? context?.note
+
+  // Merge with context: user said "HatCast" alone, we have duration from previous turn
+  if (!projectName && duration && looksLikeProjectName(trimmed)) {
+    projectName = trimmed
+  }
+  // User said "30 minutes" alone, we have project from previous turn
+  const durationFromText = extractDuration(trimmed)
+  if (!duration && projectName && durationFromText != null) {
+    duration = durationFromText
+  }
+  if (duration == null) duration = context?.duration
+  if (projectName == null) projectName = context?.projectName
 
   // Missing duration
   if (!duration && projectName) {
-    return { text: 'Can you estimate the duration?', success: false }
+    return {
+      text: 'Can you estimate the duration?',
+      success: false,
+      pendingContext: { projectName, note: note ?? undefined },
+    }
   }
 
   // Missing project
   if (!projectName && duration) {
-    return { text: 'Which project was this for?', success: false }
+    return {
+      text: 'Which project was this for?',
+      success: false,
+      pendingContext: { duration, note: note ?? undefined },
+    }
   }
 
   if (!duration || !projectName) {

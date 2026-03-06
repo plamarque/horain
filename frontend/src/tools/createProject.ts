@@ -10,6 +10,7 @@ function uuid(): string {
 
 /**
  * Tool: Create a project locally and enqueue for sync.
+ * Stores in IndexedDB immediately; sync engine pushes to backend when network available.
  */
 export async function createProject(
   name: string,

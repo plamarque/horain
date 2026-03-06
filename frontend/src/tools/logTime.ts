@@ -10,6 +10,7 @@ function uuid(): string {
 
 /**
  * Tool: Log time locally and enqueue for sync.
+ * Stores time log in IndexedDB immediately; sync engine pushes to backend when network available.
  */
 export async function logTime(
   projectId: string,

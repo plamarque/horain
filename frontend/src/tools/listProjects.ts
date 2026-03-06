@@ -2,6 +2,7 @@ import { db } from '../db/database'
 
 /**
  * Tool: List all projects from local IndexedDB.
+ * Used by conversation agent to match project names and check for existing projects.
  */
 export async function listProjects(): Promise<
   Array<{ id: string; name: string; description?: string }>

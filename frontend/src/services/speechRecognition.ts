@@ -57,8 +57,9 @@ export function startListening(
   recognition = new SpeechRecognitionAPI()
   recognition.continuous = true
   recognition.interimResults = true
-  // Force French (app is French); use navigator.language if already fr-*, else fr-FR
-  recognition.lang = navigator.language?.toLowerCase().startsWith('fr') ? navigator.language : 'fr-FR'
+  // Use en-US for English locale, fr-FR for French (matches demo phrase "30 minutes on HatCast")
+  const lang = navigator.language?.toLowerCase()
+  recognition.lang = lang?.startsWith('en') ? (lang || 'en-US') : lang?.startsWith('fr') ? (lang || 'fr-FR') : 'en-US'
 
   let finalTranscript = ''
   let pendingInterim = ''

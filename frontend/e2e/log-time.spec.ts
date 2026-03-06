@@ -27,3 +27,24 @@ test('log time via text input', async ({ page }) => {
     page.getByText(/logged|created.*HatCast|minutes.*HatCast/i)
   ).toBeVisible({ timeout: 5000 })
 })
+
+/**
+ * E2E: Log time via French phrase.
+ * "J'ai passé 30 minutes sur HatCast à travailler sur l'algo"
+ */
+test('log time via French phrase', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Type' }).click()
+  const input = page.getByPlaceholder(/30 minutes on HatCast/)
+  await expect(input).toBeVisible()
+  await input.fill("J'ai passé 30 minutes sur HatCast à travailler sur l'algo.")
+
+  await page.getByRole('button', { name: 'Send' }).click()
+
+  await expect(
+    page.getByText(/logged|created|minutes|HatCast/i)
+  ).toBeVisible({ timeout: 5000 })
+})

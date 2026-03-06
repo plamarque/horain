@@ -2,12 +2,17 @@
 import { ref } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
-import { processTranscription } from '../agent/conversationAgent'
+import {
+  processTranscription,
+  type ConversationContext,
+} from '../agent/conversationAgent'
 import { processQueue } from '../sync/syncEngine'
 import type { Message } from '../types'
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
+/** Pending context when we asked a clarifying question (e.g. "Which project?") */
+const pendingContext = ref<ConversationContext | null>(null)
 
 function handleHoldHint() {
   addAssistantMessage('Hold the button while speaking, then release when done.')
@@ -37,13 +42,19 @@ async function handleSubmit(text: string) {
 
   isProcessing.value = true
   try {
-    const response = await processTranscription(text)
+    const response = await processTranscription(text.trim(), pendingContext.value ?? undefined)
     addAssistantMessage(response.text)
     if (response.success) {
+      pendingContext.value = null
       await processQueue()
+    } else if (response.pendingContext) {
+      pendingContext.value = response.pendingContext
+    } else {
+      pendingContext.value = null
     }
   } catch (e) {
     addAssistantMessage('An error occurred. Please try again.')
+    pendingContext.value = null
   } finally {
     isProcessing.value = false
   }
