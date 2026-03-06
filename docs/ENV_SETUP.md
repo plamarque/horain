@@ -8,7 +8,7 @@ This document explains how to configure Horain for local development and product
 
 | Variable | Local dev | Render | GitHub Actions |
 |----------|-----------|--------|----------------|
-| `VITE_API_URL` | frontend/.env | — | Repository Secret |
+| `VITE_API_URL` | frontend/.env → `http://localhost:8080` | — | Repository Secret → `https://horain.onrender.com` |
 | `VITE_API_KEY` | frontend/.env | — | Repository Secret |
 | `SPRING_DATASOURCE_URL` | — | Environment | — |
 | `SPRING_DATASOURCE_USERNAME` | — | Environment | — |
@@ -16,6 +16,10 @@ This document explains how to configure Horain for local development and product
 | `SPRING_PROFILES_ACTIVE` | — | Environment | — |
 | `HORAIN_API_KEY` | — | Environment | — |
 | `OPENAI_API_KEY` | — | Environment | — |
+
+**Important:** En dev local, le frontend tourne sur localhost et utilise `http://localhost:8080`.
+
+En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets (ex. `https://horain.onrender.com`). Le frontend déployé sur GitHub Pages pointe vers le backend Render.
 
 ---
 
@@ -30,28 +34,24 @@ This document explains how to configure Horain for local development and product
 ### 2. Get connection details
 
 1. **Project Settings** → **Database**
-2. Under **Connection string**, select **URI**
-3. Copy the connection string. It looks like:
-   ```
-   postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
-   ```
+2. Under **Connection string**, set **Method** to **Session** (or **Transaction** for serverless)
+3. Copy the URI shown
 
-### 3. Build the JDBC URL for Render
+**Important:** Render, GitHub Actions and other major platforms are **IPv4-only**. The direct connection (port 5432 to `db.xxx.supabase.co`) is **not IPv4 compatible**. You must use the **Session Pooler** instead.
 
-For Spring Boot, use the **direct** connection (port 5432), not the pooler:
+### 3. Build the JDBC URL for Render (Session Pooler)
 
-1. In Supabase: **Project Settings** → **Database** → **Connection string** → **URI** (direct connection)
-2. Or construct it: `jdbc:postgresql://db.[PROJECT-REF].supabase.co:5432/postgres`
-3. Replace `[PROJECT-REF]` with your project reference (visible in the Supabase dashboard URL)
-4. The username is usually `postgres`
-5. Use the database password you set when creating the project
+1. In Supabase: **Project Settings** → **Database** → **Method** = **Session pooler**
+2. Type = **JDBC**. Copy the host and port from the connection string (e.g. `aws-1-eu-west-1.pooler.supabase.com:5432`)
+3. Use **separate variables** — do not embed the password in the URL:
 
-**Example:**
-```
-SPRING_DATASOURCE_URL=jdbc:postgresql://db.abcdefghijk.supabase.co:5432/postgres
-SPRING_DATASOURCE_USERNAME=postgres
-SPRING_DATASOURCE_PASSWORD=your_password
-```
+| Variable | Value |
+|----------|-------|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres` (no `?user=` or `?password=`) |
+| `SPRING_DATASOURCE_USERNAME` | `postgres.zganzlhymnrdrmryungy` (from Supabase) |
+| `SPRING_DATASOURCE_PASSWORD` | **Your real database password** (replace `[YOUR-PASSWORD]`) |
+
+**Important:** Put your actual Supabase database password in `SPRING_DATASOURCE_PASSWORD`. Do not use a placeholder — Spring Boot needs the real password to connect. On Render, add it as a secret environment variable (it will not be visible in logs).
 
 ---
 
@@ -59,15 +59,12 @@ SPRING_DATASOURCE_PASSWORD=your_password
 
 ### 1. Create a Web Service
 
+See [docs/RENDER_SETUP.md](RENDER_SETUP.md) for a copy-paste checklist.
+
 1. Go to [render.com](https://render.com) and sign in
 2. **New** → **Web Service**
 3. Connect your GitHub repository (horain)
-4. Configure:
-   - **Name:** e.g. `horain-api`
-   - **Region:** choose closest to your Supabase region
-   - **Build command:** `cd backend && mvn -B package -DskipTests`
-   - **Start command:** `cd backend && java -jar target/horain-backend-*.jar`
-   - **Instance type:** Free (or paid for production)
+4. Voir [RENDER_SETUP.md](RENDER_SETUP.md) pour les champs (Docker, Root Directory, etc.)
 
 ### 2. Environment variables (Render dashboard)
 
@@ -84,26 +81,30 @@ In your Web Service → **Environment** tab, add:
 
 ### 3. Get the backend URL
 
-After deployment, Render provides a URL like `https://horain-api.onrender.com`.  
-Use this as `VITE_API_URL` for the frontend.
+After deployment, Render provides a URL (ex. `https://horain.onrender.com`).  
+Cette URL sert pour `VITE_API_URL` du build frontend en production (voir section C).
 
 ---
 
 ## C. GitHub (Repository Secrets for frontend build)
 
-The frontend is built by GitHub Actions and deployed to GitHub Pages. Build-time variables must be set as **Repository Secrets**.
+Le frontend est buildé par GitHub Actions et déployé sur GitHub Pages. Les variables `VITE_*` sont injectées au build via les **Repository Secrets**.
+
+**En dev local** (`npm run dev`), le frontend lit `frontend/.env` (ex. `VITE_API_URL=http://localhost:8080`).
+
+**En production**, le workflow GitHub Actions utilise les secrets. Le frontend déployé pointe vers le backend Render.
 
 ### 1. Add secrets
 
-1. Go to your repo: **Settings** → **Secrets and variables** → **Actions**
-2. **New repository secret** for each:
+1. Repo → **Settings** → **Secrets and variables** → **Actions**
+2. **New repository secret** pour chaque :
 
 | Secret name | Value |
 |-------------|-------|
-| `VITE_API_URL` | Your Render backend URL, e.g. `https://horain-api.onrender.com` |
-| `VITE_API_KEY` | Same value as `HORAIN_API_KEY` on Render |
+| `VITE_API_URL` | URL du backend Render, ex. `https://horain.onrender.com` |
+| `VITE_API_KEY` | Même valeur que `HORAIN_API_KEY` sur Render |
 
-**Important:** Vite bakes these into the bundle at build time. They are not secret (they appear in the client), but `VITE_API_KEY` should still be a fixed token that only your frontend knows, to avoid unauthorized API access.
+Le workflow doit passer ces secrets au build Vite (ex. `env.VITE_API_URL`). Le bundle produit contiendra l’URL de prod.
 
 ---
 
@@ -140,9 +141,11 @@ Add `OPENAI_API_KEY` to your Render Web Service environment variables (see secti
 ```bash
 cd frontend
 cp .env.example .env
-# Edit .env if needed (defaults work with local backend)
+# .env contient VITE_API_URL=http://localhost:8080 (backend local)
 npm run dev
 ```
+
+Le frontend tourne sur localhost et appelle le backend local. Ne pas modifier `VITE_API_URL` en dev — `frontend/.env` reste avec localhost.
 
 ### Backend
 
