@@ -2,7 +2,7 @@
 
 ## Bugs
 
-(Aucun bug connu.)
+- **get_current_datetime échouait (Unsupported unit: Months)** — Corrigé. `AnalyticsService.endOfMonth()` utilisait `Instant.plus(Period.ofMonths(1))`, ce que `Instant` ne supporte pas.
 
 ## Limitations
 

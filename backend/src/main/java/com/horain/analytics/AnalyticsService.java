@@ -87,6 +87,8 @@ public class AnalyticsService {
      * End of the month (exclusive).
      */
     public static Instant endOfMonth(ZoneId zone) {
-        return startOfMonth(zone).plus(java.time.Period.ofMonths(1));
+        LocalDate now = LocalDate.now(zone);
+        LocalDate first = now.withDayOfMonth(1);
+        return first.plusMonths(1).atStartOfDay(zone).toInstant();
     }
 }

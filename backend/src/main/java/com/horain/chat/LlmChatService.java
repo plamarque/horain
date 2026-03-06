@@ -33,6 +33,7 @@ public class LlmChatService {
             - If the project doesn't exist, create it with create_project then log time.
             - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
             - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
+            - IMPORTANT: Once you have the tool results needed to answer, respond with a clear text summary. Do NOT make additional tool calls.
             - Be concise and friendly. Confirm actions clearly.
             - When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
             """;
@@ -70,6 +71,10 @@ public class LlmChatService {
         for (int iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
             LlmResponse response = llmClient.chat(messages, tools);
 
+            if (iterations > 0) {
+                log.debug("Tool iteration {} for message: {}", iterations, userMessage);
+            }
+
             if (!response.hasToolCalls()) {
                 return new ChatResponse(
                         response.content() != null && !response.content().isBlank()
@@ -92,7 +97,8 @@ public class LlmChatService {
             }
         }
 
-        log.warn("Max tool iterations reached for message: {}", userMessage);
+        log.warn("Max tool iterations reached ({}): {} - tool calls so far: {}",
+                MAX_TOOL_ITERATIONS, userMessage, toolCallsExecuted.stream().map(ToolCallRecord::name).toList());
         return new ChatResponse(
                 "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
                 toolCallsExecuted,
