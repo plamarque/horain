@@ -16,6 +16,14 @@ npm install
 # Backend : selon structure (mvn spring-boot:run ou ./gradlew bootRun)
 ```
 
+## Démarrage en dev
+
+```bash
+./scripts/start-dev.sh
+```
+
+Backend (8080) + frontend (5173). L’URL réseau local s’affiche pour tester depuis un smartphone sur le même Wi‑Fi.
+
 ## Commandes (front-end)
 
 | Commande | Rôle |

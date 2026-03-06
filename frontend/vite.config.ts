@@ -22,6 +22,7 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    host: true, // Expose on 0.0.0.0 for local network (e.g. smartphone)
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

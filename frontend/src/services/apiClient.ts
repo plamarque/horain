@@ -1,9 +1,14 @@
 /**
  * API client for Horain backend.
  * All requests include the API key header.
+ *
+ * VITE_API_URL:
+ *   - Empty or unset: use /api (Vite proxy, works from smartphone on same network)
+ *   - http://localhost:8080: direct to backend (desktop only)
+ *   - https://...: production
  */
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const RAW_API_URL = (import.meta.env.VITE_API_URL || '').trim()
+const API_BASE = RAW_API_URL || '/api' // Empty = use Vite proxy
 const API_KEY = import.meta.env.VITE_API_KEY || 'HORAIN_DEV_KEY'
 
 function headers(): HeadersInit {
@@ -17,7 +22,8 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_URL.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
+  const p = path.startsWith('/') ? path : `/${path}`
+  const url = `${API_BASE.replace(/\/$/, '')}${p}`
   const res = await fetch(url, {
     ...options,
     headers: {

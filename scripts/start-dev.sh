@@ -16,7 +16,7 @@ trap cleanup SIGINT SIGTERM
 
 echo "Starting backend (port 8080)..."
 cd "$ROOT/backend"
-mvn spring-boot:run &
+mvn spring-boot:run -Dspring-boot.run.arguments="--server.address=0.0.0.0" &
 BACKEND_PID=$!
 
 echo "Waiting for backend to be ready..."
@@ -27,13 +27,18 @@ echo "Backend ready."
 
 echo "Starting frontend (port 5173)..."
 cd "$ROOT/frontend"
-npm run dev &
+npm run dev -- --host &
 FRONTEND_PID=$!
 
+sleep 2
+LOCAL_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
 echo ""
 echo "Horain dev server running:"
 echo "  Backend:  http://localhost:8080"
 echo "  Frontend: http://localhost:5173"
+if [ -n "$LOCAL_IP" ]; then
+  echo "  Réseau local (smartphone): http://${LOCAL_IP}:5173"
+fi
 echo "  Press Ctrl+C to stop"
 echo ""
 
