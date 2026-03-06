@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+# Default: H2 in-memory (no PostgreSQL required). Override with postgres profile or env vars.
+spring:
+  datasource:
+    url: jdbc:h2:mem:horain;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+# PostgreSQL profile for deployment (e.g. Render + Supabase)
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/horain
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+horain:
+  api-key: HORAIN_DEV_KEY
