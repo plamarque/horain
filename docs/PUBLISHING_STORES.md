@@ -9,7 +9,7 @@ Cette documentation est adaptée du guide [Chrono EPS](https://github.com/plamar
 ## 1. Prérequis communs
 
 - PWA déployée sur URL HTTPS publique : `https://<owner>.github.io/horain/` (remplacer `<owner>` par l'utilisateur ou l'organisation GitHub)
-- Manifeste complet (nom, icônes 192/512, description, `start_url`, etc.) — configuré dans `vite.config.js`
+- Manifeste complet (nom, icônes 192/512, description, `start_url`, etc.) — configuré dans `vite.config.ts`
 - Service worker valide
 - Scores Lighthouse PWA acceptables
 

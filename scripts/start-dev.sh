@@ -35,9 +35,9 @@ LOCAL_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head
 echo ""
 echo "Horain dev server running:"
 echo "  Backend:  http://localhost:8080"
-echo "  Frontend: http://localhost:5173"
+echo "  Frontend: https://localhost:5173"
 if [ -n "$LOCAL_IP" ]; then
-  echo "  Réseau local (smartphone): http://${LOCAL_IP}:5173"
+  echo "  Réseau local (smartphone): https://${LOCAL_IP}:5173"
 fi
 echo "  Press Ctrl+C to stop"
 echo ""

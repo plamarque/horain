@@ -34,6 +34,8 @@ Backend (8080) + frontend (5173). L’URL réseau local s’affiche pour tester 
 | `npm run test` | Tests unitaires |
 | `npm run test:e2e` | Tests e2e Playwright |
 
+**HTTPS :** Le frontend tourne en HTTPS (mkcert) pour permettre l'accès au micro (reconnaissance vocale).
+
 ## Tests e2e
 
 - **Obligation :** Mettre en place et maintenir une suite de tests e2e dès le début du projet.

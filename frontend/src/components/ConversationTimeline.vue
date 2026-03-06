@@ -4,12 +4,13 @@ import type { Message } from '../types'
 
 defineProps<{
   messages: Message[]
+  isProcessing?: boolean
 }>()
 </script>
 
 <template>
   <div class="timeline">
-    <div v-if="messages.length === 0" class="empty-state">
+    <div v-if="messages.length === 0 && !isProcessing" class="empty-state">
       <p>Say something like:</p>
       <p class="example">"30 minutes on HatCast working on the selection algorithm"</p>
       <p class="hint">Or tap the button below to type your entry.</p>
@@ -20,6 +21,9 @@ defineProps<{
       :role="msg.role"
       :text="msg.text"
     />
+    <div v-if="isProcessing" class="processing-indicator">
+      Processing...
+    </div>
   </div>
 </template>
 
@@ -52,5 +56,14 @@ defineProps<{
 .empty-state .hint {
   font-size: 0.8rem;
   color: #666680;
+}
+
+.processing-indicator {
+  padding: 0.75rem 1rem;
+  background: #2a2a3e;
+  color: #8888a0;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  align-self: flex-start;
 }
 </style>

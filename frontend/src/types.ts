@@ -1,3 +1,6 @@
+/**
+ * Conversation message stored in memory.
+ */
 export interface Message {
   id: string
   role: 'user' | 'assistant'

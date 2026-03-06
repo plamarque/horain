@@ -9,29 +9,41 @@ import type { Message } from '../types'
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
 
+function handleHoldHint() {
+  addAssistantMessage('Hold the button while speaking, then release when done.')
+}
+
+function handlePermissionError(message: string) {
+  addAssistantMessage(message)
+}
+
+function addAssistantMessage(text: string) {
+  messages.value.push({
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    text,
+    timestamp: new Date(),
+  })
+}
+
 async function handleSubmit(text: string) {
   if (!text.trim()) return
-  const userMsg: Message = {
+  messages.value.push({
     id: crypto.randomUUID(),
     role: 'user',
     text: text.trim(),
     timestamp: new Date(),
-  }
-  messages.value.push(userMsg)
+  })
 
   isProcessing.value = true
   try {
     const response = await processTranscription(text)
-    const assistantMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      text: response.text,
-      timestamp: new Date(),
-    }
-    messages.value.push(assistantMsg)
+    addAssistantMessage(response.text)
     if (response.success) {
       await processQueue()
     }
+  } catch (e) {
+    addAssistantMessage('An error occurred. Please try again.')
   } finally {
     isProcessing.value = false
   }
@@ -41,13 +53,7 @@ async function handleSync() {
   isProcessing.value = true
   try {
     await processQueue()
-    const msg: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      text: 'Sync completed.',
-      timestamp: new Date(),
-    }
-    messages.value.push(msg)
+    addAssistantMessage('Sync completed.')
   } finally {
     isProcessing.value = false
   }
@@ -56,11 +62,13 @@ async function handleSync() {
 
 <template>
   <div class="conversation-view">
-    <ConversationTimeline :messages="messages" />
+    <ConversationTimeline :messages="messages" :is-processing="isProcessing" />
     <div class="input-area">
       <PushToTalkButton
         :disabled="isProcessing"
         @submit="handleSubmit"
+        @hold-hint="handleHoldHint"
+        @permission-error="handlePermissionError"
       />
       <button
         class="sync-btn"

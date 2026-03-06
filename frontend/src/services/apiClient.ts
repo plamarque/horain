@@ -1,6 +1,9 @@
 /**
  * API client for Horain backend.
- * All requests include the API key header.
+ * All requests include the API key header (Authorization: Bearer <API_KEY>).
+ *
+ * Endpoints: POST /sync/push, GET /sync/pull, GET /projects, POST /projects,
+ * POST /time-logs
  *
  * VITE_API_URL:
  *   - Empty or unset: use /api (Vite proxy, works from smartphone on same network)
@@ -48,4 +51,62 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 
 export async function apiGet<T>(path: string): Promise<T> {
   return apiFetch<T>(path)
+}
+
+// --- Backend endpoint wrappers ---
+
+export interface ProjectDto {
+  id: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+  userId?: string
+}
+
+export interface TimeLogDto {
+  id: string
+  projectId: string
+  durationMinutes: number
+  note?: string
+  loggedAt: string
+  updatedAt: string
+  userId?: string
+}
+
+/** GET /projects - list all projects */
+export async function getProjects(): Promise<ProjectDto[]> {
+  return apiGet<ProjectDto[]>('/projects')
+}
+
+/** POST /projects - create a project */
+export async function createProjectViaApi(body: {
+  id?: string
+  name: string
+  description?: string
+}): Promise<ProjectDto> {
+  return apiPost<ProjectDto>('/projects', body)
+}
+
+/** POST /time-logs - create a time log */
+export async function createTimeLogViaApi(body: {
+  id?: string
+  projectId: string
+  durationMinutes: number
+  note?: string
+  loggedAt?: string
+}): Promise<TimeLogDto> {
+  return apiPost<TimeLogDto>('/time-logs', body)
+}
+
+/** POST /sync/push - push queued operations (used by sync engine) */
+export async function syncPush(body: {
+  operations: Array<{
+    entityType: string
+    entityId: string
+    operation: string
+    payload: Record<string, unknown>
+  }>
+}): Promise<{ success: boolean; processedCount: number }> {
+  return apiPost('/sync/push', body)
 }

@@ -2,16 +2,26 @@ import { listProjects, createProject, logTime } from '../tools'
 
 /**
  * Simple rule-based conversation agent.
- * Detects intent and extracts duration/project from transcription.
+ * Pipeline: transcription → intent detection → entity extraction → tool calls.
+ *
+ * Intent: LOG_TIME
+ * Rule: presence of duration + project mention.
+ * Examples: "30 minutes on HatCast", "I spent 45 min on Chrono EPS"
  */
 
-const DURATION_REGEX = /(\d+)\s*(min(?:ute)?s?|h(?:our)?s?)/i
+// Supported duration patterns: X minutes, X min, Xh, X hour(s)
 const MINUTES_REGEX = /(\d+)\s*min(?:ute)?s?/i
 const HOURS_REGEX = /(\d+)\s*h(?:our)?s?/i
+const DURATION_REGEX = /(\d+)\s*(min(?:ute)?s?|h(?:our)?s?)/i
+
+// Project: "on PROJECT_NAME" or "for PROJECT_NAME"
+// Stops at: "working", "doing", ".", end of string
+const PROJECT_ON_REGEX = /\b(?:on|for)\s+([A-Za-z0-9][A-Za-z0-9\s]*?)(?=\s+working|\s+doing|\s+spent|\.|$)/i
+const PROJECT_AFTER_MINUTES = /(\d+)\s*min(?:ute)?s?\s+(?:on|for)\s+([A-Za-z0-9][A-Za-z0-9\s]*?)(?=\s+working|\s+doing|\.|$)/i
 
 /**
  * Extract duration in minutes from text.
- * Handles "30 minutes", "1 hour", "2h", etc.
+ * Patterns: "30 minutes", "30 min", "1h", "1 hour"
  */
 function extractDuration(text: string): number | null {
   const mins = text.match(MINUTES_REGEX)
@@ -20,7 +30,6 @@ function extractDuration(text: string): number | null {
   const hours = text.match(HOURS_REGEX)
   if (hours) return parseInt(hours[1], 10) * 60
 
-  // Generic: "30 min" or "1 hour"
   const match = text.match(DURATION_REGEX)
   if (!match) return null
 
@@ -31,25 +40,22 @@ function extractDuration(text: string): number | null {
 }
 
 /**
- * Extract project name: look for "on X" or "for X" or "X project".
+ * Extract project name from "on X" or "for X".
+ * Example: "I spent 30 minutes on HatCast working on..." → "HatCast"
  */
 function extractProjectName(text: string): string | null {
-  const onMatch = text.match(/\b(?:on|for)\s+([A-Za-z0-9\s]+?)(?:\s+(?:working|spent|logged)|\.|$)/i)
+  const afterMinutes = text.match(PROJECT_AFTER_MINUTES)
+  if (afterMinutes) return afterMinutes[2].trim()
+
+  const onMatch = text.match(PROJECT_ON_REGEX)
   if (onMatch) return onMatch[1].trim()
-
-  // "X minutes on ProjectName"
-  const onMinutes = text.match(/(\d+)\s*min(?:ute)?s?\s+on\s+([A-Za-z0-9\s]+)/i)
-  if (onMinutes) return onMinutes[2].trim()
-
-  // "spent X on ProjectName"
-  const spent = text.match(/spent\s+\d+\s*min(?:ute)?s?\s+on\s+([A-Za-z0-9\s]+)/i)
-  if (spent) return spent[1].trim()
 
   return null
 }
 
 /**
- * Extract note/activity description.
+ * Extract note as remaining sentence (e.g. "working on X").
+ * Example: "working on the selection algorithm"
  */
 function extractNote(text: string): string | null {
   const working = text.match(/working\s+on\s+(.+?)(?:\.|$)/i)

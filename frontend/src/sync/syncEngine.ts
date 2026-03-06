@@ -1,7 +1,14 @@
 import { db } from '../db/database'
 import { apiGet, apiPost } from '../services/apiClient'
 
+/**
+ * Local-first sync engine.
+ * Operations are stored locally in IndexedDB and pushed to the backend when possible.
+ * Triggers: app start, network online, after local writes, manual sync.
+ */
+
 const META_LAST_PULL = 'lastPullTimestamp'
+const MAX_RETRIES = 5
 
 async function getLastPullTimestamp(): Promise<number> {
   const row = await db.sync_meta.get(META_LAST_PULL)
@@ -14,6 +21,7 @@ async function setLastPullTimestamp(value: number): Promise<void> {
 
 /**
  * Enqueue an operation for sync.
+ * Called by createProject and logTime tools when data is written locally.
  */
 export async function enqueueOperation(
   entityType: 'project' | 'time_log',
@@ -33,10 +41,19 @@ export async function enqueueOperation(
 
 /**
  * Push queued operations to the server.
- * Sorts so projects are sent before time_logs (time_logs reference projects).
+ * Projects are sent before time_logs (FK dependency).
+ * On success: remove from queue, update local sync_status.
+ * On failure: increment retry_count; drop items exceeding MAX_RETRIES.
  */
 export async function pushOperations(): Promise<void> {
-  const items = await db.sync_queue.orderBy('created_at').toArray()
+  let items = await db.sync_queue.orderBy('created_at').toArray()
+
+  // Remove items that exceeded max retries
+  const toDelete = items.filter((i) => i.retry_count >= MAX_RETRIES)
+  for (const item of toDelete) {
+    if (item.id != null) await db.sync_queue.delete(item.id)
+  }
+  items = items.filter((i) => i.retry_count < MAX_RETRIES)
   if (items.length === 0) return
 
   // Projects must be pushed before time_logs (FK dependency)
@@ -59,7 +76,6 @@ export async function pushOperations(): Promise<void> {
     )
     if (res.success) {
       await db.sync_queue.clear()
-      // Update local sync_status for synced entities
       for (const op of sorted) {
         if (op.entity_type === 'project') {
           await db.projects.where('id').equals(op.entity_id).modify({ sync_status: 'synced' })
@@ -69,7 +85,7 @@ export async function pushOperations(): Promise<void> {
       }
     }
   } catch (e) {
-    await retryFailed()
+    await incrementRetryCounts()
     throw e
   }
 }
@@ -100,7 +116,9 @@ export async function pullUpdates(): Promise<void> {
   }>(`/sync/pull?since=${since}`)
 
   let maxUpdated = since
-  for (const p of res.projects || []) {
+  const projects = res.projects ?? []
+  const timeLogs = res.timeLogs ?? []
+  for (const p of projects) {
     await db.projects.put({
       id: p.id,
       name: p.name,
@@ -113,7 +131,7 @@ export async function pullUpdates(): Promise<void> {
     if (ts > maxUpdated) maxUpdated = ts
   }
 
-  for (const t of res.timeLogs || []) {
+  for (const t of timeLogs) {
     await db.time_logs.put({
       id: t.id,
       project_id: t.projectId,
@@ -142,9 +160,9 @@ export async function processQueue(): Promise<void> {
 }
 
 /**
- * Increment retry count for failed items (stub for future retry logic).
+ * Increment retry count for all queued items after a push failure.
  */
-async function retryFailed(): Promise<void> {
+async function incrementRetryCounts(): Promise<void> {
   const items = await db.sync_queue.toArray()
   for (const item of items) {
     if (item.id) {
