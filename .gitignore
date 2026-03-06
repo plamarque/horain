@@ -13,6 +13,8 @@ node_modules/
 # Build outputs
 frontend/dist/
 backend/target/
+*.tsbuildinfo
+frontend/vite.config.js
 
 # IDE
 .idea/
