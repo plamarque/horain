@@ -1,6 +1,16 @@
 server:
   port: 8080
 
+# API key for frontend auth. Reads HORAIN_API_KEY from .env or env; falls back to HORAIN_DEV_KEY.
+horain:
+  api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
+
+# LLM integration. Reads LLM_API_KEY or OPENAI_API_KEY from .env; enables assistant when set.
+llm:
+  base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+  api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+  model: ${LLM_MODEL:gpt-4o-mini}
+
 # Load .env from backend/ directory when running locally (optional; Render injects env vars directly).
 spring:
   config:
@@ -35,7 +45,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 horain:
-  api-key: HORAIN_DEV_KEY
+  api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
 
 # LLM integration (optional). OPENAI_API_KEY or LLM_API_KEY enables assistant.
 # LLM_BASE_URL, LLM_MODEL override defaults when set.

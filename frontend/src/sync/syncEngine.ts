@@ -8,7 +8,7 @@ import { apiGet, apiPost } from '../services/apiClient'
  * When network is available: pushOperations sends batch to backend, then pullUpdates
  * fetches server changes. On success, queue is cleared and local sync_status updated.
  *
- * Triggers: app start, network online, after local writes (create project/log time), manual sync.
+ * Triggers: app start, network online, after each chat response, manual sync.
  * Retry: failed pushes increment retry_count; items exceeding MAX_RETRIES are dropped.
  */
 
@@ -26,7 +26,7 @@ async function setLastPullTimestamp(value: number): Promise<void> {
 
 /**
  * Enqueue an operation for sync.
- * Called by createProject and logTime tools when data is written locally.
+ * Used when local writes occur (e.g. future offline-first flows).
  */
 export async function enqueueOperation(
   entityType: 'project' | 'time_log',

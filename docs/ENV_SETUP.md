@@ -126,7 +126,7 @@ Le workflow passe ces secrets au build Vite. Le bundle contiendra l’URL de pro
 
 Add `OPENAI_API_KEY` to your Render Web Service environment variables (see section B.2).
 
-**Note:** The current implementation uses a rule-based agent. The OpenAI key will be used when Spring AI is integrated (Slice 3 in [PLAN.md](PLAN.md)).
+**Note:** The assistant requires an LLM. Configure `LLM_API_KEY` on the backend (or `OPENAI_API_KEY` if using the Spring default). See `backend/.env.example` for the exact variable names.
 
 ---
 

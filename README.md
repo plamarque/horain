@@ -41,8 +41,7 @@ The system uses an **LLM-driven tool-calling assistant** for intent detection an
 
 ### Sync flow
 
-- When LLM configured: backend tools write to server; frontend pulls via `GET /sync/pull` to refresh local state.
-- When LLM not configured: frontend falls back to local rule-based agent; writes go to IndexedDB first, then sync.
+- Backend tools write to server; frontend pulls via `GET /sync/pull` to refresh local state.
 - Sync runs on: app startup, after each chat response, network online, manual trigger.
 
 ## Quick start
@@ -85,15 +84,15 @@ Frontend runs at `http://localhost:5173`.
 
 Copy `frontend/.env.example` to `frontend/.env` for local dev. See [docs/ENV_SETUP.md](docs/ENV_SETUP.md) for the full configuration guide (Supabase, Render, GitHub Actions, OpenAI).
 
-**LLM integration** (required for full assistant behavior):
+**LLM integration** (required — the assistant requires an LLM):
 
 | Variable      | Description                            | Default              |
 |---------------|----------------------------------------|----------------------|
-| `LLM_API_KEY` | API key for OpenAI-compatible API      | (unset = placeholder) |
+| `LLM_API_KEY` | API key for OpenAI-compatible API      | (required)           |
 | `LLM_BASE_URL`| Base URL for chat completions           | `https://api.openai.com/v1` |
 | `LLM_MODEL`   | Model name (e.g. gpt-4o-mini)           | `gpt-4o-mini`       |
 
-Without `LLM_API_KEY`, the backend returns a placeholder message and the frontend falls back to the local rule-based agent.
+Without `LLM_API_KEY`, the backend returns a placeholder message instructing you to configure it.
 
 ## Project structure
 
@@ -120,7 +119,6 @@ horain/
 │       ├── services/   # apiClient, chatClient, speechRecognition
 │       ├── db/        # Dexie IndexedDB
 │       ├── sync/     # Sync engine
-│       ├── agent/    # Rule-based fallback when LLM not configured
 │       ├── tools/    # listProjects, createProject, logTime (local)
 │       └── pwa/     # Network listener
 └── docs/             # Specification, architecture

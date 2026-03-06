@@ -3,18 +3,12 @@ import { ref } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import { sendChatMessage } from '../services/chatClient'
-import {
-  processTranscription,
-  type ConversationContext,
-} from '../agent/conversationAgent'
 import { processQueue } from '../sync/syncEngine'
 import type { Message } from '../types'
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
 const lastSyncedAt = ref<Date | null>(null)
-/** Fallback: pending context for rule-based agent when LLM is not configured */
-const pendingContext = ref<ConversationContext | null>(null)
 
 function formatLastSynced(d: Date): string {
   return d.toLocaleString(undefined, {
@@ -54,50 +48,15 @@ async function handleSubmit(text: string) {
       .slice(0, -1)
       .map((m) => ({ role: m.role, text: m.text }))
     const response = await sendChatMessage(text.trim(), history)
-
-    // Fallback: if LLM not configured, use local rule-based agent
-    if (response.assistantMessage.includes('LLM is not configured')) {
-      const ruleResponse = await processTranscription(
-        text.trim(),
-        pendingContext.value ?? undefined
-      )
-      addAssistantMessage(ruleResponse.text)
-      if (ruleResponse.success) {
-        pendingContext.value = null
-      } else if (ruleResponse.pendingContext) {
-        pendingContext.value = ruleResponse.pendingContext
-      } else {
-        pendingContext.value = null
-      }
-    } else {
-      addAssistantMessage(response.assistantMessage)
-      pendingContext.value = null
-    }
+    addAssistantMessage(response.assistantMessage)
 
     // Pull server updates (e.g. time logs created by backend tools)
     await processQueue()
     lastSyncedAt.value = new Date()
-  } catch (e) {
-    // Network error: fall back to local rule-based agent
-    try {
-      const ruleResponse = await processTranscription(
-        text.trim(),
-        pendingContext.value ?? undefined
-      )
-      addAssistantMessage(ruleResponse.text)
-      if (ruleResponse.success) {
-        pendingContext.value = null
-      } else if (ruleResponse.pendingContext) {
-        pendingContext.value = ruleResponse.pendingContext
-      } else {
-        pendingContext.value = null
-      }
-      await processQueue()
-      lastSyncedAt.value = new Date()
-    } catch {
-      addAssistantMessage('An error occurred. Please try again.')
-      pendingContext.value = null
-    }
+  } catch {
+    addAssistantMessage(
+      'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
+    )
   } finally {
     isProcessing.value = false
   }
