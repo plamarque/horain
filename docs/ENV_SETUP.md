@@ -86,15 +86,20 @@ Cette URL sert pour `VITE_API_URL` du build frontend en production (voir section
 
 ---
 
-## C. GitHub (Repository Secrets for frontend build)
+## C. GitHub (Repository Secrets + Pages)
 
-Le frontend est buildé par GitHub Actions et déployé sur GitHub Pages. Les variables `VITE_*` sont injectées au build via les **Repository Secrets**.
+Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`. Le backend sur Render se redéploie automatiquement si le repo est connecté (voir [RENDER_SETUP.md](RENDER_SETUP.md)).
 
 **En dev local** (`npm run dev`), le frontend lit `frontend/.env` (ex. `VITE_API_URL=http://localhost:8080`).
 
 **En production**, le workflow GitHub Actions utilise les secrets. Le frontend déployé pointe vers le backend Render.
 
-### 1. Add secrets
+### 1. Activer GitHub Pages
+
+1. Repo → **Settings** → **Pages**
+2. **Build and deployment** → **Source** : choisir **GitHub Actions**
+
+### 2. Add secrets
 
 1. Repo → **Settings** → **Secrets and variables** → **Actions**
 2. **New repository secret** pour chaque :
@@ -104,7 +109,7 @@ Le frontend est buildé par GitHub Actions et déployé sur GitHub Pages. Les va
 | `VITE_API_URL` | URL du backend Render, ex. `https://horain.onrender.com` |
 | `VITE_API_KEY` | Même valeur que `HORAIN_API_KEY` sur Render |
 
-Le workflow doit passer ces secrets au build Vite (ex. `env.VITE_API_URL`). Le bundle produit contiendra l’URL de prod.
+Le workflow passe ces secrets au build Vite. Le bundle contiendra l’URL de prod. L'app sera accessible sur `https://<owner>.github.io/<repo>/` (ex. `https://patrice.github.io/horain/`).
 
 ---
 

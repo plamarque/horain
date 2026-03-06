@@ -10,6 +10,8 @@ Copie-colle ces valeurs dans le formulaire Render.
 - **Repository :** `patrice/horain` (déjà connecté)
 - **Branch :** `main`
 
+Render redéploie automatiquement à chaque push sur `main`. Aucune action GitHub supplémentaire n'est nécessaire pour le backend.
+
 ### Identification
 - **Name :** `horain-api` (ou `horain`)
 
