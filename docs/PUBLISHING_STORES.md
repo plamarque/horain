@@ -225,7 +225,7 @@ Apple peut refuser les apps qui ressemblent à de simples « sites web dans une 
 | Élément | Description |
 |---------|-------------|
 | Captures d'écran | Plusieurs tailles (téléphone, tablette) — cf. [Annexe B](#annexe-b-spécifications-des-screenshots-référence) |
-| Icône 512×512 | `public/pwa-512x512.png` — régénérer avec `npm run icons` si disponible |
+| Icône 512×512 | `public/pwa-512x512.png` — régénérer le 192×192 avec `npm run icons` |
 | Image de présentation (1024×500) | Générer via `public/store-feature-graphic.html` : ouvrir dans un navigateur, télécharger l'image PNG |
 | Description courte | À rédiger selon le produit |
 | Description longue | Détail des fonctionnalités |
