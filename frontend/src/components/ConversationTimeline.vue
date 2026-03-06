@@ -13,7 +13,7 @@ defineProps<{
     <div v-if="messages.length === 0 && !isProcessing" class="empty-state">
       <p>Say something like:</p>
       <p class="example">"30 minutes on HatCast working on the selection algorithm"</p>
-      <p class="hint">Or tap the button below to type your entry.</p>
+      <p class="hint">Type in the field below or tap the mic to speak.</p>
     </div>
     <MessageBubble
       v-for="msg in messages"

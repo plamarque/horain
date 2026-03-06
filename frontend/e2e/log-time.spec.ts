@@ -11,16 +11,13 @@ test('log time via text input', async ({ page }) => {
   // Wait for app to load
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  // Click "Type" to reveal text input
-  await page.getByRole('button', { name: 'Type' }).click()
-
-  // Type the time log phrase
-  const input = page.getByPlaceholder(/30 minutes on HatCast/)
+  // Type the time log phrase (input is always visible)
+  const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
   await input.fill('30 minutes on HatCast working on the selection algorithm')
 
-  // Submit
-  await page.getByRole('button', { name: 'Send' }).click()
+  // Submit with Enter
+  await input.press('Enter')
 
   // Expect confirmation (project created or time logged)
   await expect(
@@ -37,12 +34,11 @@ test('log time via French phrase', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Type' }).click()
-  const input = page.getByPlaceholder(/30 minutes on HatCast/)
+  const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
   await input.fill("J'ai passé 30 minutes sur HatCast à travailler sur l'algo.")
 
-  await page.getByRole('button', { name: 'Send' }).click()
+  await input.press('Enter')
 
   await expect(
     page.getByText(/logged|created|minutes|HatCast/i)

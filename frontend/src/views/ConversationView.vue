@@ -12,11 +12,18 @@ import type { Message } from '../types'
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
+const lastSyncedAt = ref<Date | null>(null)
 /** Fallback: pending context for rule-based agent when LLM is not configured */
 const pendingContext = ref<ConversationContext | null>(null)
 
-function handleHoldHint() {
-  addAssistantMessage('Hold the button while speaking, then release when done.')
+function formatLastSynced(d: Date): string {
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function handlePermissionError(message: string) {
@@ -69,6 +76,7 @@ async function handleSubmit(text: string) {
 
     // Pull server updates (e.g. time logs created by backend tools)
     await processQueue()
+    lastSyncedAt.value = new Date()
   } catch (e) {
     // Network error: fall back to local rule-based agent
     try {
@@ -85,6 +93,7 @@ async function handleSubmit(text: string) {
         pendingContext.value = null
       }
       await processQueue()
+      lastSyncedAt.value = new Date()
     } catch {
       addAssistantMessage('An error occurred. Please try again.')
       pendingContext.value = null
@@ -98,6 +107,7 @@ async function handleSync() {
   isProcessing.value = true
   try {
     await processQueue()
+    lastSyncedAt.value = new Date()
     addAssistantMessage('Sync completed.')
   } finally {
     isProcessing.value = false
@@ -109,19 +119,31 @@ async function handleSync() {
   <div class="conversation-view">
     <ConversationTimeline :messages="messages" :is-processing="isProcessing" />
     <div class="input-area">
-      <PushToTalkButton
-        :disabled="isProcessing"
-        @submit="handleSubmit"
-        @hold-hint="handleHoldHint"
-        @permission-error="handlePermissionError"
-      />
-      <button
-        class="sync-btn"
-        :disabled="isProcessing"
-        @click="handleSync"
-      >
-        Sync
-      </button>
+      <div class="input-col">
+        <PushToTalkButton
+          :disabled="isProcessing"
+          @submit="handleSubmit"
+          @permission-error="handlePermissionError"
+        />
+        <p class="last-synced">
+          <span v-if="lastSyncedAt">Last synced {{ formatLastSynced(lastSyncedAt) }}</span>
+          <span v-else>Not synced yet</span>
+          <button
+            class="sync-icon-btn"
+            :disabled="isProcessing"
+            title="Sync now"
+            aria-label="Sync now"
+            @click="handleSync"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2v6h-6" />
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+              <path d="M3 22v-6h6" />
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+            </svg>
+          </button>
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -138,25 +160,44 @@ async function handleSync() {
   padding: 1rem;
   display: flex;
   gap: 0.75rem;
-  align-items: center;
+  align-items: flex-end;
   border-top: 1px solid #2a2a3e;
 }
 
-.sync-btn {
-  padding: 0.5rem 1rem;
-  background: #2a2a3e;
-  color: #e8e8f0;
+.input-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.last-synced {
+  margin: 0;
+  font-size: 0.7rem;
+  color: #666680;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.sync-icon-btn {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: #666680;
   border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: 2px;
   cursor: pointer;
+  display: inline-flex;
+  transition: color 0.15s;
 }
 
-.sync-btn:hover:not(:disabled) {
-  background: #3a3a4e;
+.sync-icon-btn:hover:not(:disabled) {
+  color: #e8e8f0;
 }
 
-.sync-btn:disabled {
+.sync-icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

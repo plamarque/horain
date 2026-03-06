@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import AudioWaveform from './AudioWaveform.vue'
 import {
   startListening,
   stopListening,
@@ -13,30 +12,28 @@ defineProps<{
 
 const emit = defineEmits<{
   submit: [text: string]
-  holdHint: []
   permissionError: [message: string]
 }>()
 
 const inputText = ref('')
-const isExpanded = ref(false)
 const isListening = ref(false)
 const isReady = ref(false)
 const interimTranscript = ref('')
-const pointerDownAt = ref<number>(0)
 
 /**
- * Push-to-talk: press and hold to record, release to send.
- * Uses pointer events to handle both touch and mouse uniformly.
+ * Click-to-talk: click mic to start, click again to stop and submit.
+ * Toggle behavior instead of hold-to-talk.
  */
-function onPointerDown() {
-  if (isExpanded.value) return
-  if (!isSpeechRecognitionSupported()) {
-    isExpanded.value = true
+function toggleVoiceInput() {
+  if (isListening.value) {
+    stopListening()
     return
   }
-  pointerDownAt.value = Date.now()
+  if (!isSpeechRecognitionSupported()) {
+    return
+  }
   interimTranscript.value = ''
-  const started = startListening(
+  startListening(
     (text) => {
       if (text) {
         emit('submit', text)
@@ -72,24 +69,7 @@ function onPointerDown() {
       interimTranscript.value = interim
     }
   )
-  if (started) {
-    isListening.value = true
-  }
-}
-
-function onPointerUp() {
-  if (!isListening.value) return
-  const holdDuration = Date.now() - pointerDownAt.value
-  stopListening()
-  // Quick tap (< 600ms) with no speech yet: show hint to hold longer
-  if (holdDuration < 600) {
-    emit('holdHint')
-  }
-}
-
-function toggleTextInput() {
-  isExpanded.value = !isExpanded.value
-  if (!isExpanded.value) inputText.value = ''
+  isListening.value = true
 }
 
 function submitText() {
@@ -97,82 +77,81 @@ function submitText() {
   if (t) {
     emit('submit', t)
     inputText.value = ''
-    isExpanded.value = false
   }
 }
 </script>
 
 <template>
-  <div class="ptt-container">
-    <div v-if="isExpanded" class="input-wrapper">
+  <div class="input-bar">
+    <div class="pill-wrapper">
       <input
         v-model="inputText"
         type="text"
-        placeholder="e.g. 30 minutes on HatCast working on the selection algorithm"
+        placeholder="Ask anything"
         class="text-input"
+        :disabled="disabled"
         @keydown.enter="submitText"
       />
-      <button class="send-btn" :disabled="!inputText.trim()" @click="submitText">
-        Send
-      </button>
-    </div>
-    <div v-else class="ptt-column">
-      <AudioWaveform v-if="isListening" :active="isListening" />
-      <div v-if="isListening && interimTranscript" class="interim-feedback">
-        {{ interimTranscript }}
-      </div>
-      <div class="ptt-row">
       <button
-        class="ptt-btn"
+        class="mic-btn"
         :class="{ listening: isListening }"
         :disabled="disabled"
         type="button"
-        @pointerdown.prevent="onPointerDown"
-        @pointerup.prevent="onPointerUp"
-        @pointerleave="onPointerUp"
-        @pointercancel.prevent="onPointerUp"
+        :title="isListening ? 'Click to stop' : 'Click to speak'"
+        @click="toggleVoiceInput"
       >
-        {{
-          isListening
-            ? (isReady ? 'Speak now' : 'Getting ready...')
-            : isSpeechRecognitionSupported()
-              ? 'Hold to speak'
-              : 'Tap to type'
-        }}
-      </button>
-      <button
-        class="type-btn"
-        :disabled="disabled"
-        title="Type instead of speak"
-        @click="toggleTextInput"
-      >
-        Type
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" x2="12" y1="19" y2="22" />
+        </svg>
       </button>
     </div>
+    <div v-if="isListening && interimTranscript" class="interim-feedback">
+      {{ interimTranscript }}
     </div>
   </div>
 </template>
 
 <style scoped>
-.ptt-container {
+.input-bar {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
 }
 
-.input-wrapper {
+.pill-wrapper {
   display: flex;
-  gap: 0.5rem;
-  width: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  padding-right: 0.25rem;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 999px;
+}
+
+.pill-wrapper:focus-within {
+  border-color: #4a4a6e;
 }
 
 .text-input {
   flex: 1;
-  padding: 0.75rem 1rem;
-  background: #1a1a2e;
-  border: 1px solid #2a2a3e;
-  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
   color: #e8e8f0;
   font-size: 0.9rem;
 }
@@ -183,32 +162,44 @@ function submitText() {
 
 .text-input:focus {
   outline: none;
-  border-color: #4a4a6e;
 }
 
-.send-btn {
-  padding: 0.75rem 1.25rem;
-  background: #4a6edb;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: #5a7eeb;
-}
-
-.send-btn:disabled {
-  opacity: 0.5;
+.text-input:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.ptt-column {
+.mic-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #8888a0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.mic-btn:hover:not(:disabled) {
+  color: #e8e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mic-btn.listening {
+  color: #4a6edb;
+}
+
+.mic-btn.listening:hover:not(:disabled) {
+  background: rgba(74, 110, 219, 0.2);
+}
+
+.mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .interim-feedback {
@@ -217,73 +208,6 @@ function submitText() {
   border-radius: 8px;
   font-size: 0.85rem;
   color: #a0a0c0;
-  min-height: 1.5em;
   border-left: 3px solid #4a6edb;
-}
-
-.ptt-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.ptt-btn {
-  flex: 1;
-  padding: 1rem 1.5rem;
-  min-height: 56px;
-  background: #2a2a3e;
-  color: #e8e8f0;
-  border: none;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  user-select: none;
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ptt-btn:hover:not(:disabled) {
-  background: #3a3a4e;
-}
-
-.ptt-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ptt-btn.listening {
-  background: #4a6edb;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
-.type-btn {
-  padding: 1rem 1rem;
-  min-height: 56px;
-  background: #2a2a3e;
-  color: #8888a0;
-  border: none;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.type-btn:hover:not(:disabled) {
-  background: #3a3a4e;
-  color: #e8e8f0;
-}
-
-.type-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>

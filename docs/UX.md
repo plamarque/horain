@@ -6,7 +6,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ## Design Principles
 
-- **Voice-first:** Primary input is voice via push-to-talk.
+- **Voice-first:** Primary input is voice via microphone (click-to-talk) or text (direct typing).
 - **Conversation over forms:** No traditional time tracking form; everything flows through dialogue.
 - **Clarify when uncertain:** Assistant asks follow-up questions when intent or entities are ambiguous.
 - **Minimal UI surface:** Focus on the conversation; avoid clutter.
@@ -14,11 +14,11 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ## Main Components
 
-### Home screen
+### Input bar
 
-- Central **push-to-talk** button.
-- Large touch target for mobile.
-- Clear visual state: idle, recording, processing.
+- **Text input** with placeholder "Ask anything" — user can type directly and press Enter.
+- **Microphone icon** — click to start recording, click again to stop and send.
+- Sync icon (discrete) for manual sync; sync also runs automatically after each message.
 
 ### Conversation timeline
 
@@ -29,8 +29,8 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ### Typical flow
 
-1. User taps push-to-talk and speaks.
-2. User releases; voice is sent for transcription.
+1. User either types in the field (Enter to send) or clicks the mic, speaks, then clicks again to send.
+2. Voice is sent for transcription.
 3. Transcript appears in the conversation.
 4. Agent analyzes, optionally calls MCP tools.
 5. Assistant response appears.
@@ -40,18 +40,18 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 - Large touch areas (e.g. push-to-talk: min 56×56dp).
 - Readable typography; adequate contrast.
-- Voice is the primary path; text input secondary or fallback.
+- Voice (mic) and text input are both always available in the same bar.
 - Optimized for one-handed use on phone (target: Pixel 9a).
 
 ## States
 
-- **Idle:** Push-to-talk ready.
-- **Recording:** User holding button; visual feedback (e.g. waveform, pulse).
+- **Idle:** Input bar ready; user can type or click mic.
+- **Recording:** User clicked mic; interim transcript shown above bar.
 - **Processing:** Transcript sent; waiting for assistant reply (loading indicator).
 - **Response:** Assistant message displayed.
 
 ## Accessibility
 
-- Push-to-talk must be keyboard and screen-reader accessible.
+- Input bar must be keyboard and screen-reader accessible.
+- Mic button must have clear label (e.g. "Click to speak" / "Click to stop").
 - Conversation thread should be announced when updated.
-- Fallback: text input when voice is unavailable.
