@@ -64,6 +64,19 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Fuzzy search by project name. Returns projects whose name contains the query (case-insensitive).
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectDto> searchByName(String name) {
+        if (name == null || name.isBlank()) {
+            return findAll();
+        }
+        return projectRepository.findByNameContainingIgnoreCase(name.trim()).stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
     private ProjectDto toDto(Project p) {
         return ProjectDto.builder()
                 .id(p.getId())

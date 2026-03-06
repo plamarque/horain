@@ -1,8 +1,10 @@
 server:
   port: 8080
 
-# Default: H2 in-memory (no PostgreSQL required). Override with postgres profile or env vars.
+# Load .env from backend/ directory when running locally (optional; Render injects env vars directly).
 spring:
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: jdbc:h2:mem:horain;DB_CLOSE_DELAY=-1
     username: sa
@@ -34,3 +36,10 @@ spring:
 
 horain:
   api-key: HORAIN_DEV_KEY
+
+# LLM integration (optional). OPENAI_API_KEY or LLM_API_KEY enables assistant.
+# LLM_BASE_URL, LLM_MODEL override defaults when set.
+llm:
+  base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+  api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+  model: ${LLM_MODEL:gpt-4o-mini}

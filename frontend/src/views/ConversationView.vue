@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
+import { sendChatMessage } from '../services/chatClient'
 import {
   processTranscription,
   type ConversationContext,
@@ -11,7 +12,7 @@ import type { Message } from '../types'
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
-/** Pending context when we asked a clarifying question (e.g. "Which project?") */
+/** Fallback: pending context for rule-based agent when LLM is not configured */
 const pendingContext = ref<ConversationContext | null>(null)
 
 function handleHoldHint() {
@@ -42,19 +43,52 @@ async function handleSubmit(text: string) {
 
   isProcessing.value = true
   try {
-    const response = await processTranscription(text.trim(), pendingContext.value ?? undefined)
-    addAssistantMessage(response.text)
-    if (response.success) {
-      pendingContext.value = null
-      await processQueue()
-    } else if (response.pendingContext) {
-      pendingContext.value = response.pendingContext
+    const history = messages.value
+      .slice(0, -1)
+      .map((m) => ({ role: m.role, text: m.text }))
+    const response = await sendChatMessage(text.trim(), history)
+
+    // Fallback: if LLM not configured, use local rule-based agent
+    if (response.assistantMessage.includes('LLM is not configured')) {
+      const ruleResponse = await processTranscription(
+        text.trim(),
+        pendingContext.value ?? undefined
+      )
+      addAssistantMessage(ruleResponse.text)
+      if (ruleResponse.success) {
+        pendingContext.value = null
+      } else if (ruleResponse.pendingContext) {
+        pendingContext.value = ruleResponse.pendingContext
+      } else {
+        pendingContext.value = null
+      }
     } else {
+      addAssistantMessage(response.assistantMessage)
       pendingContext.value = null
     }
+
+    // Pull server updates (e.g. time logs created by backend tools)
+    await processQueue()
   } catch (e) {
-    addAssistantMessage('An error occurred. Please try again.')
-    pendingContext.value = null
+    // Network error: fall back to local rule-based agent
+    try {
+      const ruleResponse = await processTranscription(
+        text.trim(),
+        pendingContext.value ?? undefined
+      )
+      addAssistantMessage(ruleResponse.text)
+      if (ruleResponse.success) {
+        pendingContext.value = null
+      } else if (ruleResponse.pendingContext) {
+        pendingContext.value = ruleResponse.pendingContext
+      } else {
+        pendingContext.value = null
+      }
+      await processQueue()
+    } catch {
+      addAssistantMessage('An error occurred. Please try again.')
+      pendingContext.value = null
+    }
   } finally {
     isProcessing.value = false
   }

@@ -13,4 +13,9 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     List<Project> findByUpdatedAtAfter(Instant after);
+
+    /**
+     * Fuzzy search by project name (case-insensitive contains).
+     */
+    List<Project> findByNameContainingIgnoreCase(String name);
 }

@@ -4,35 +4,46 @@
 
 Example: *"I just spent 30 minutes on HatCast working on the selection algorithm."*
 
-The system extracts structured data and logs the activity. Architecture follows a **local-first pattern** with asynchronous sync to the server.
+The system uses an **LLM-driven tool-calling assistant** for intent detection and structured actions. Architecture follows a **local-first pattern** with asynchronous sync to the server.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend (Vue 3 + Vite PWA)                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
-│  │ Conversation│  │ Dexie      │  │ Sync Engine         │   │
-│  │ Agent       │──│ IndexedDB  │◄─│ (push/pull)         │   │
-│  └─────────────┘  └─────────────┘  └──────────┬──────────┘   │
-└───────────────────────────────────────────────┼──────────────┘
-                                                │ HTTP
-                                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Backend (Spring Boot)                                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
-│  │ /sync/   │  │ /projects │  │ /time-   │  PostgreSQL       │
-│  │ push,pull│  │          │  │ logs     │  (Supabase)        │
-│  └──────────┘  └──────────┘  └──────────┘                   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  Frontend (Vue 3 + Vite PWA)                                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐ │
+│  │ Conversation│  │ Chat Client  │  │ Dexie       │  │ Sync Engine  │ │
+│  │ UI          │──│ POST/chat    │  │ IndexedDB   │◄─│ (push/pull)  │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘ │
+└─────────────────────────────────────────────┼───────────────────────┘
+                                              │ HTTP
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Backend (Spring Boot)                                               │
+│  ┌────────────┐  ┌─────────────┐  ┌──────────────┐                   │
+│  │ Chat       │  │ LLM         │  │ Tool         │   PostgreSQL      │
+│  │ Controller │──│ Orchestration│──│ Executor    │── (Supabase)      │
+│  └────────────┘  └─────────────┘  └──────────────┘                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                           │
+│  │ /sync/   │  │ /projects│  │ /time-   │                           │
+│  │ push,pull│  │          │  │ logs     │                           │
+│  └──────────┘  └──────────┘  └──────────┘                           │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+### Tool-calling architecture
+
+- User messages go to `POST /chat/message`.
+- Backend sends to an LLM with tool definitions (list_projects, search_project, create_project, create_time_log, get_recent_logs, get_time_logs_for_period, sum_time_by_project, sum_time_for_period, get_current_datetime).
+- **The LLM decides when to call tools. Tools perform all reads and writes**; the LLM never accesses storage directly.
+- Loop continues until the LLM produces a final assistant response.
+- Supports both **action requests** (log time, create project) and **analytics questions** (how many hours this week?, what did I do today?).
 
 ### Sync flow
 
-- All writes happen **locally first** (IndexedDB).
-- Operations are queued and pushed to the server via `POST /sync/push`.
-- Server updates are pulled via `GET /sync/pull?since=<timestamp>`.
-- Sync runs on: app startup, network online, manual trigger.
+- When LLM configured: backend tools write to server; frontend pulls via `GET /sync/pull` to refresh local state.
+- When LLM not configured: frontend falls back to local rule-based agent; writes go to IndexedDB first, then sync.
+- Sync runs on: app startup, after each chat response, network online, manual trigger.
 
 ## Quick start
 
@@ -74,12 +85,26 @@ Frontend runs at `http://localhost:5173`.
 
 Copy `frontend/.env.example` to `frontend/.env` for local dev. See [docs/ENV_SETUP.md](docs/ENV_SETUP.md) for the full configuration guide (Supabase, Render, GitHub Actions, OpenAI).
 
+**LLM integration** (required for full assistant behavior):
+
+| Variable      | Description                            | Default              |
+|---------------|----------------------------------------|----------------------|
+| `LLM_API_KEY` | API key for OpenAI-compatible API      | (unset = placeholder) |
+| `LLM_BASE_URL`| Base URL for chat completions           | `https://api.openai.com/v1` |
+| `LLM_MODEL`   | Model name (e.g. gpt-4o-mini)           | `gpt-4o-mini`       |
+
+Without `LLM_API_KEY`, the backend returns a placeholder message and the frontend falls back to the local rule-based agent.
+
 ## Project structure
 
 ```
 horain/
 ├── backend/           # Spring Boot API
 │   └── src/main/java/com/horain/
+│       ├── chat/      # ChatController, LlmChatService
+│       ├── llm/       # LlmClient, OpenAI-compatible client
+│       ├── tools/     # ToolRegistry, ToolExecutorService
+│       ├── analytics/ # AnalyticsService
 │       ├── config/
 │       ├── controller/
 │       ├── service/
@@ -92,11 +117,11 @@ horain/
 │   └── src/
 │       ├── components/
 │       ├── views/
-│       ├── services/
+│       ├── services/   # apiClient, chatClient, speechRecognition
 │       ├── db/        # Dexie IndexedDB
 │       ├── sync/     # Sync engine
-│       ├── agent/    # Conversation agent (rule-based)
-│       ├── tools/    # listProjects, createProject, logTime
+│       ├── agent/    # Rule-based fallback when LLM not configured
+│       ├── tools/    # listProjects, createProject, logTime (local)
 │       └── pwa/     # Network listener
 └── docs/             # Specification, architecture
 ```
@@ -106,6 +131,7 @@ horain/
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Health check (no auth) |
+| POST | /chat/message | Send message, get assistant response (LLM + tool calling) |
 | POST | /sync/push | Push batch of operations |
 | GET | /sync/pull?since=<ms> | Pull updates since timestamp |
 | POST | /projects | Create project |

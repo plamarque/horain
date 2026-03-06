@@ -9,10 +9,14 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | Tool | Input | Output | Description |
 |------|-------|--------|-------------|
 | `list_projects` | — | `projects[]` | Returns all existing projects. |
-| `search_project` | `project_name` (string) | `matching_projects[]` | Fuzzy search by project name. Returns projects whose name matches (exact or similar). |
+| `search_project` | `name` (string) | `matching_projects[]` | Fuzzy search by project name. Returns projects whose name matches (exact or similar). |
 | `create_project` | `name` (string), `description` (string, optional) | `project` | Creates a new project. Returns the created project. |
-| `log_time` | `project_id` (UUID), `duration_minutes` (int), `note` (string, optional), `timestamp` (datetime) | `time_log` | Records a time entry for the given project. Returns the created time_log. |
-| `list_recent_logs` | — | `time_logs[]` | Returns the most recent time logs (e.g. last N entries). |
+| `create_time_log` | `projectId` (UUID), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional) | `time_log` | Records a time entry for the given project. Returns the created time_log. |
+| `get_recent_logs` | `limit` (int, optional) | `time_logs[]` | Returns the most recent time logs (default 20, max 50). |
+| `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range. |
+| `sum_time_by_project` | `projectId`, `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums logged time for a project in the period. |
+| `sum_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums total logged time in the period. |
+| `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
 
 ## Constraints
 

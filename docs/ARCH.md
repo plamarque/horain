@@ -11,38 +11,46 @@ flowchart TB
     subgraph client [Client PWA]
         Voice[Voice Push-to-Talk]
         UI[Conversation UI]
+        ChatClient[Chat Client]
     end
     
     subgraph backend [Backend]
-        Agent[Conversation Agent]
-        MCPClient[MCP Client]
-    end
-    
-    subgraph mcp [MCP Server]
-        Tools[MCP Tools]
+        ChatCtrl[Chat Controller]
+        LlmSvc[LLM Orchestration]
+        LlmClient[LLM Client]
+        ToolExec[Tool Executor]
+        Tools[Tools]
     end
     
     subgraph data [Data]
         Supabase[(Supabase)]
     end
     
-    Voice -->|STT| Agent
-    Agent -->|Orchestration| MCPClient
-    MCPClient -->|Tool Calls| Tools
-    Tools -->|Read/Write| Supabase
-    Agent -->|Response| UI
+    Voice -->|STT| UI
+    UI -->|POST /chat/message| ChatClient
+    ChatClient -->|HTTP| ChatCtrl
+    ChatCtrl --> LlmSvc
+    LlmSvc -->|messages + tools| LlmClient
+    LlmClient -->|tool_calls| LlmSvc
+    LlmSvc --> ToolExec
+    ToolExec -->|Read/Write| Tools
+    Tools --> Supabase
+    LlmSvc -->|final response| ChatCtrl
+    ChatCtrl --> ChatClient
+    ChatClient --> UI
 ```
 
-**Principle:** The agent **never** manipulates the database directly. All data operations go through MCP tools.
+**Principle:** The LLM **never** manipulates the database directly. All data operations go through tools invoked by the orchestration layer.
 
 ## Components
 
 | Component | Responsibility | Location / Tech |
 |-----------|----------------|-----------------|
 | Client | PWA, push-to-talk, conversation UI | Vue 3, PrimeVue, Vite |
-| Backend | Hosts agent; receives transcript, orchestrates, calls MCP | Spring AI or equivalent (Render) |
-| MCP Client | Connects agent to MCP Server; invokes tools | Part of backend |
-| MCP Server | Exposes tools (list_projects, search_project, create_project, log_time, list_recent_logs) | Separate process or co-located |
+| Chat Client | Sends messages to POST /chat/message | frontend/src/services/chatClient.ts |
+| Backend | Chat endpoint, LLM orchestration, tool execution | Spring Boot (Render) |
+| LLM Client | OpenAI-compatible API (chat completions, tool calling) | backend llm/ package |
+| Tool Executor | Dispatches tool calls to ProjectService, TimeLogService, AnalyticsService | backend tools/ package |
 | Supabase | Storage for projects and time_logs | PostgreSQL |
 
 ## Technology Stack

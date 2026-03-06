@@ -24,7 +24,7 @@ The user presses a **push-to-talk** button and speaks naturally. The system conv
 ## Main Capabilities
 
 1. **Voice input:** User speaks; system transcribes and processes.
-2. **Intent detection:** Agent infers log time, create project, or needs clarification.
+2. **Intent detection:** LLM-driven agent infers log time, create project, analytics questions, or needs clarification.
 3. **Project matching:** Direct match, disambiguation when ambiguous, creation prompt when unknown.
 4. **Clarification:** Assistant asks follow-up questions (e.g. duration, project choice).
 5. **Time logging:** Structured entry (project_id, duration_minutes, note, timestamp).

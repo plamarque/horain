@@ -18,9 +18,12 @@ import { listProjects, createProject, logTime } from '../tools'
  */
 
 // Duration: X minutes, X min, Xh, X hour(s) — EN & FR (minutes, min identiques)
+// Also: demi heure, demi-heure, half hour = 30 min; une heure, one hour = 60 min
 const MINUTES_REGEX = /(\d+)\s*min(?:ute)?s?/i
 const HOURS_REGEX = /(\d+)\s*h(?:our)?s?/i
 const DURATION_REGEX = /(\d+)\s*(min(?:ute)?s?|h(?:our)?s?)/i
+const HALF_HOUR_REGEX = /(?:une?\s+)?(?:demi[- ]?heure|half\s+hour)/i
+const ONE_HOUR_REGEX = /(?:une?\s+)?heure\b|one\s+hour/i
 
 // Project: "on/for/sur/pour PROJECT_NAME" — EN: on, for | FR: sur, pour
 const PROJECT_PREP = /(?:on|for|sur|pour)\s+([A-Za-z0-9][A-Za-z0-9\s\u00C0-\u024F]*?)(?=\s+(?:working|doing|travailler|à|\.)|\.|$)/iu
@@ -32,6 +35,12 @@ const PROJECT_AFTER_HOURS = /(\d+)\s*h(?:our)?s?\s+(?:on|for|sur|pour)\s+([A-Za-
  * Patterns: "30 minutes", "30 min", "1h", "1 hour"
  */
 function extractDuration(text: string): number | null {
+  const halfHour = text.match(HALF_HOUR_REGEX)
+  if (halfHour) return 30
+
+  const oneHour = text.match(ONE_HOUR_REGEX)
+  if (oneHour) return 60
+
   const mins = text.match(MINUTES_REGEX)
   if (mins) return parseInt(mins[1], 10)
 
@@ -140,6 +149,16 @@ export async function processTranscription(
   if (duration == null) duration = context?.duration
   if (projectName == null) projectName = context?.projectName
 
+  // Check analytics intent first (before "missing duration")
+  const analyticsPattern =
+    /\b(combien|how\s+many|how\s+much|what\s+did\s+i\s+do|temps\s+en\s+tout|temps\s+logg?é|total|summary|résumé)\b/i
+  if (analyticsPattern.test(trimmed)) {
+    return {
+      text: "I can only log time entries. To ask questions about your tracked time (e.g. 'how many hours this week?'), the assistant needs an LLM. Configure OPENAI_API_KEY on the backend.",
+      success: false,
+    }
+  }
+
   // Missing duration
   if (!duration && projectName) {
     return {
@@ -160,7 +179,7 @@ export async function processTranscription(
 
   if (!duration || !projectName) {
     return {
-      text: "I need a duration and a project. Try: '30 minutes on HatCast'.",
+      text: "I need a duration and a project. Try: '30 minutes on HatCast' or 'une demi heure sur Festibask'.",
       success: false,
     }
   }

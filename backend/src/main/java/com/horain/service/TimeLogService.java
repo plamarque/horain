@@ -70,6 +70,36 @@ public class TimeLogService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<TimeLogDto> findRecentLogs(int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        List<TimeLog> logs = timeLogRepository.findTop50ByOrderByLoggedAtDesc();
+        return logs.stream()
+                .limit(safeLimit)
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TimeLogDto> findLogsForPeriod(Instant start, Instant end, UUID projectId) {
+        List<TimeLog> logs = projectId != null
+                ? timeLogRepository.findByProjectIdAndLoggedAtBetweenOrderByLoggedAtDesc(projectId, start, end)
+                : timeLogRepository.findByLoggedAtBetweenOrderByLoggedAtDesc(start, end);
+        return logs.stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public int sumDurationForPeriod(Instant start, Instant end) {
+        Integer sum = timeLogRepository.sumDurationMinutesByLoggedAtBetween(start, end);
+        return sum != null ? sum : 0;
+    }
+
+    @Transactional(readOnly = true)
+    public int sumDurationByProject(UUID projectId, Instant start, Instant end) {
+        Integer sum = timeLogRepository.sumDurationMinutesByProjectAndLoggedAtBetween(projectId, start, end);
+        return sum != null ? sum : 0;
+    }
+
     private TimeLogDto toDto(TimeLog t) {
         return TimeLogDto.builder()
                 .id(t.getId())
