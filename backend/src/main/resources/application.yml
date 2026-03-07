@@ -51,6 +51,13 @@ spring:
     hibernate:
       ddl-auto: validate
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        timezone:
+          default_storage: NORMALIZE_UTC  # Compatible with PostgreSQL timestamptz for Instant fields
 
 horain:
   api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
