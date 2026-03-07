@@ -99,6 +99,11 @@ export async function createTimeLogViaApi(body: {
   return apiPost<TimeLogDto>('/time-logs', body)
 }
 
+/** POST /dev/seed - load fictional seed data (dev only, when backend enables it) */
+export async function loadDevSeed(): Promise<{ projectsCreated: number; timeLogsCreated: number }> {
+  return apiPost<{ projectsCreated: number; timeLogsCreated: number }>('/dev/seed', {})
+}
+
 /** POST /sync/push - push queued operations (used by sync engine) */
 export async function syncPush(body: {
   operations: Array<{

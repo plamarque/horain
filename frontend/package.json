@@ -10,11 +10,16 @@
     "icons": "sips -z 192 192 public/pwa-512x512.png --out public/pwa-192x192.png"
   },
   "dependencies": {
+    "apexcharts": "^5.10.3",
     "dexie": "^4.0.4",
-    "vue": "^3.4.21"
+    "dompurify": "^3.3.2",
+    "marked": "^17.0.4",
+    "vue": "^3.4.21",
+    "vue3-apexcharts": "^1.11.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@types/dompurify": "^3.0.5",
     "@types/node": "^25.3.5",
     "@vitejs/plugin-vue": "^5.0.4",
     "serve": "^14.2.6",

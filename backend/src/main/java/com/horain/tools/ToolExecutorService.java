@@ -62,6 +62,8 @@ public class ToolExecutorService {
                 case ToolRegistry.SUM_TIME_BY_PROJECT -> executeSumTimeByProject(args);
                 case ToolRegistry.SUM_TIME_FOR_PERIOD -> executeSumTimeForPeriod(args);
                 case ToolRegistry.GET_CURRENT_DATETIME -> executeGetCurrentDatetime();
+                case ToolRegistry.GET_TIME_AGGREGATED_FOR_CHART -> executeGetTimeAggregatedForChart(args);
+                case ToolRegistry.PROPOSE_CHART -> executeProposeChart(args);
                 default -> "{\"error\":\"Unknown tool: " + request.name() + "\"}";
             };
             return new ToolCallResult(request.id(), result);
@@ -243,6 +245,26 @@ public class ToolExecutorService {
                 "endOfWeek", AnalyticsService.endOfWeek(DEFAULT_ZONE).toString(),
                 "startOfMonth", AnalyticsService.startOfMonth(DEFAULT_ZONE).toString(),
                 "endOfMonth", AnalyticsService.endOfMonth(DEFAULT_ZONE).toString()));
+    }
+
+    private String executeGetTimeAggregatedForChart(JsonNode args) {
+        String startStr = getText(args, "start");
+        String endStr = getText(args, "end");
+        String groupBy = getText(args, "groupBy");
+        if (startStr == null || endStr == null) {
+            return toJson(Map.of("error", "start and end (ISO-8601) are required"));
+        }
+        if (groupBy == null || groupBy.isBlank()) {
+            return toJson(Map.of("error", "groupBy is required (day_and_project or project_only)"));
+        }
+        Instant start = Instant.parse(startStr);
+        Instant end = Instant.parse(endStr);
+        var result = analyticsService.getTimeAggregatedForChart(start, end, groupBy, DEFAULT_ZONE);
+        return toJson(result);
+    }
+
+    private String executeProposeChart(JsonNode args) {
+        return toJson(Map.of("status", "ok"));
     }
 
     private String getText(JsonNode args, String key) {

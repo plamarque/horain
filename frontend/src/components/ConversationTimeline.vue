@@ -20,6 +20,7 @@ defineProps<{
       :key="msg.id"
       :role="msg.role"
       :text="msg.text"
+      :chart="msg.chart"
     />
     <div v-if="isProcessing" class="processing-indicator">
       Processing...

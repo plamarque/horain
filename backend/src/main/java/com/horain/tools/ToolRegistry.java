@@ -22,6 +22,8 @@ public class ToolRegistry {
     public static final String SUM_TIME_BY_PROJECT = "sum_time_by_project";
     public static final String SUM_TIME_FOR_PERIOD = "sum_time_for_period";
     public static final String GET_CURRENT_DATETIME = "get_current_datetime";
+    public static final String GET_TIME_AGGREGATED_FOR_CHART = "get_time_aggregated_for_chart";
+    public static final String PROPOSE_CHART = "propose_chart";
 
     public List<ToolDefinition> getAllTools() {
         return List.of(
@@ -176,6 +178,65 @@ public class ToolRegistry {
                                 "type", "object",
                                 "properties", Map.of(),
                                 "required", List.of()
+                        )
+                ),
+                new ToolDefinition(
+                        GET_TIME_AGGREGATED_FOR_CHART,
+                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'project_only' for pie (distribution by project).",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "start", Map.of(
+                                                "type", "string",
+                                                "description", "Start of period (ISO-8601)"
+                                        ),
+                                        "end", Map.of(
+                                                "type", "string",
+                                                "description", "End of period (ISO-8601)"
+                                        ),
+                                        "groupBy", Map.of(
+                                                "type", "string",
+                                                "description", "day_and_project for stacked bar, project_only for pie"
+                                        )
+                                ),
+                                "required", List.of("start", "end", "groupBy")
+                        )
+                ),
+                new ToolDefinition(
+                        PROPOSE_CHART,
+                        "Propose a chart to display in the conversation. Call this after get_time_aggregated_for_chart when you have data to visualize. chartType: stackedBar (hours by project per day), pie (distribution by project), bar (simple bar chart). Pass the categories and series from the aggregation result.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "chartType", Map.of(
+                                                "type", "string",
+                                                "description", "stackedBar, pie, or bar"
+                                        ),
+                                        "title", Map.of(
+                                                "type", "string",
+                                                "description", "Chart title"
+                                        ),
+                                        "categories", Map.of(
+                                                "type", "array",
+                                                "items", Map.of("type", "string"),
+                                                "description", "X-axis labels or pie segments"
+                                        ),
+                                        "series", Map.of(
+                                                "type", "array",
+                                                "items", Map.of(
+                                                        "type", "object",
+                                                        "properties", Map.of(
+                                                                "name", Map.of("type", "string"),
+                                                                "data", Map.of(
+                                                                        "type", "array",
+                                                                        "items", Map.of("type", "number")
+                                                                )
+                                                        )
+                                                ),
+                                                "description", "Data series"
+                                        )
+                                ),
+                                "required", List.of("chartType", "title", "categories", "series")
                         )
                 )
         );

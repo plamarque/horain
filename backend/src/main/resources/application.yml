@@ -4,6 +4,8 @@ server:
 # API key for frontend auth. Reads HORAIN_API_KEY from .env or env; falls back to HORAIN_DEV_KEY.
 horain:
   api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
+  dev:
+    seed-enabled: true  # Enable POST /dev/seed for local dev; set false in postgres profile
 
 # LLM integration. Reads LLM_API_KEY or OPENAI_API_KEY from .env; enables assistant when set.
 llm:
@@ -46,6 +48,8 @@ spring:
 
 horain:
   api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
+  dev:
+    seed-enabled: false  # Disable dev seed in production
 
 # LLM integration (optional). OPENAI_API_KEY or LLM_API_KEY enables assistant.
 # LLM_BASE_URL, LLM_MODEL override defaults when set.

@@ -1,5 +1,7 @@
 package com.horain.chat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.horain.llm.*;
 import com.horain.tools.ToolExecutorService;
 import com.horain.tools.ToolRegistry;
@@ -8,7 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Orchestrates the chat flow: receives user message, calls LLM with tools,
@@ -33,6 +37,7 @@ public class LlmChatService {
             - If the project doesn't exist, create it with create_project then log time.
             - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
             - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
+            - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): call get_current_datetime, then get_time_aggregated_for_chart with groupBy "day_and_project" (for stacked bar) or "project_only" (for pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Use stackedBar for day x project view, pie for project distribution. Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
             - IMPORTANT: Once you have the tool results needed to answer, respond with a clear text summary. Do NOT make additional tool calls.
             - Be concise and friendly. Confirm actions clearly.
             - When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
@@ -41,11 +46,14 @@ public class LlmChatService {
     private final LlmClient llmClient;
     private final ToolRegistry toolRegistry;
     private final ToolExecutorService toolExecutor;
+    private final ObjectMapper objectMapper;
 
-    public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor) {
+    public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor,
+                          ObjectMapper objectMapper) {
         this.llmClient = llmClient;
         this.toolRegistry = toolRegistry;
         this.toolExecutor = toolExecutor;
+        this.objectMapper = objectMapper;
     }
 
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history) {
@@ -76,12 +84,13 @@ public class LlmChatService {
             }
 
             if (!response.hasToolCalls()) {
+                Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
                 return new ChatResponse(
                         response.content() != null && !response.content().isBlank()
                                 ? response.content()
                                 : "I'm sorry, I couldn't generate a response.",
                         toolCallsExecuted,
-                        null);
+                        chartData != null ? Map.of("chart", chartData) : null);
             }
 
             // Append assistant message with tool_calls
@@ -99,9 +108,53 @@ public class LlmChatService {
 
         log.warn("Max tool iterations reached ({}): {} - tool calls so far: {}",
                 MAX_TOOL_ITERATIONS, userMessage, toolCallsExecuted.stream().map(ToolCallRecord::name).toList());
+        Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
         return new ChatResponse(
                 "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
                 toolCallsExecuted,
-                null);
+                chartData != null ? Map.of("chart", chartData) : null);
+    }
+
+    private Object extractChartDataFromToolCalls(List<ToolCallRecord> toolCallsExecuted) {
+        ToolCallRecord lastProposeChart = null;
+        for (int i = toolCallsExecuted.size() - 1; i >= 0; i--) {
+            ToolCallRecord tc = toolCallsExecuted.get(i);
+            if (ToolRegistry.PROPOSE_CHART.equals(tc.name())) {
+                lastProposeChart = tc;
+                break;
+            }
+        }
+        if (lastProposeChart == null || lastProposeChart.arguments() == null) {
+            return null;
+        }
+        try {
+            JsonNode args = objectMapper.readTree(lastProposeChart.arguments());
+            Map<String, Object> chart = new HashMap<>();
+            if (args.has("chartType")) chart.put("type", args.get("chartType").asText());
+            if (args.has("title")) chart.put("title", args.get("title").asText());
+            if (args.has("categories")) {
+                List<String> cat = new ArrayList<>();
+                for (JsonNode c : args.get("categories")) cat.add(c.asText());
+                chart.put("categories", cat);
+            }
+            if (args.has("series")) {
+                List<Map<String, Object>> series = new ArrayList<>();
+                for (JsonNode s : args.get("series")) {
+                    Map<String, Object> item = new HashMap<>();
+                    if (s.has("name")) item.put("name", s.get("name").asText());
+                    if (s.has("data")) {
+                        List<Double> data = new ArrayList<>();
+                        for (JsonNode d : s.get("data")) data.add(d.isNumber() ? d.asDouble() : 0);
+                        item.put("data", data);
+                    }
+                    series.add(item);
+                }
+                chart.put("series", series);
+            }
+            return chart;
+        } catch (Exception e) {
+            log.debug("Failed to parse propose_chart arguments: {}", e.getMessage());
+            return null;
+        }
     }
 }

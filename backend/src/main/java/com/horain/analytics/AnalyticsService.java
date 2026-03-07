@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.UUID;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Analytics service for time log queries.
@@ -42,6 +42,74 @@ public class AnalyticsService {
 
     public List<TimeLogDto> getTimeLogsForPeriod(Instant start, Instant end, UUID projectId) {
         return timeLogService.findLogsForPeriod(start, end, projectId);
+    }
+
+    /**
+     * Aggregates time logs for chart display.
+     *
+     * @param groupBy "day_and_project" for stacked bar (days on x-axis, projects as series),
+     *                "project_only" for pie (distribution by project)
+     * @return Map with "categories" (List of strings) and "series" (List of {name, data})
+     *         Values in data are hours (decimal).
+     */
+    public Map<String, Object> getTimeAggregatedForChart(Instant start, Instant end, String groupBy, ZoneId zone) {
+        List<TimeLogDto> logs = timeLogService.findLogsForPeriod(start, end, null);
+        Map<UUID, String> projectNames = projectService.findAll().stream()
+                .collect(Collectors.toMap(ProjectDto::getId, ProjectDto::getName));
+
+        if ("project_only".equals(groupBy)) {
+            Map<UUID, Integer> projectToMinutes = new LinkedHashMap<>();
+            for (TimeLogDto log : logs) {
+                projectToMinutes.merge(log.getProjectId(), log.getDurationMinutes(), Integer::sum);
+            }
+            List<String> categories = new ArrayList<>();
+            List<Double> data = new ArrayList<>();
+            for (Map.Entry<UUID, Integer> e : projectToMinutes.entrySet()) {
+                categories.add(projectNames.getOrDefault(e.getKey(), "?"));
+                data.add(Math.round(e.getValue() / 6.0) / 10.0);
+            }
+            return Map.of(
+                    "categories", categories,
+                    "series", List.of(Map.of("name", "Heures", "data", data)));
+        }
+
+        if ("day_and_project".equals(groupBy)) {
+            Map<LocalDate, Map<UUID, Integer>> dayToProjectToMinutes = new TreeMap<>();
+            for (TimeLogDto log : logs) {
+                LocalDate day = log.getLoggedAt().atZone(zone).toLocalDate();
+                dayToProjectToMinutes
+                        .computeIfAbsent(day, k -> new HashMap<>())
+                        .merge(log.getProjectId(), log.getDurationMinutes(), Integer::sum);
+            }
+            List<LocalDate> days = new ArrayList<>(dayToProjectToMinutes.keySet());
+            Set<UUID> allProjects = logs.stream().map(TimeLogDto::getProjectId).collect(Collectors.toSet());
+            List<UUID> projectsOrdered = allProjects.stream()
+                    .sorted((a, b) -> {
+                        int totalA = logs.stream().filter(l -> l.getProjectId().equals(a)).mapToInt(TimeLogDto::getDurationMinutes).sum();
+                        int totalB = logs.stream().filter(l -> l.getProjectId().equals(b)).mapToInt(TimeLogDto::getDurationMinutes).sum();
+                        return Integer.compare(totalB, totalA);
+                    })
+                    .toList();
+
+            DateTimeFormatter dayFormat = DateTimeFormatter.ofPattern("EEE d", java.util.Locale.FRENCH);
+            List<String> categories = days.stream()
+                    .map(d -> d.format(dayFormat))
+                    .toList();
+
+            List<Map<String, Object>> series = new ArrayList<>();
+            for (UUID projectId : projectsOrdered) {
+                List<Double> data = new ArrayList<>();
+                for (LocalDate day : days) {
+                    int minutes = dayToProjectToMinutes.getOrDefault(day, Map.of()).getOrDefault(projectId, 0);
+                    data.add(Math.round(minutes / 6.0) / 10.0);
+                }
+                series.add(Map.<String, Object>of("name", projectNames.getOrDefault(projectId, "?"), "data", data));
+            }
+
+            return Map.of("categories", categories, "series", series);
+        }
+
+        return Map.of("categories", List.of(), "series", List.of());
     }
 
     /**
