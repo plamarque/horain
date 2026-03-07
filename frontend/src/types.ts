@@ -9,6 +9,18 @@ export interface ChartSpec {
 }
 
 /**
+ * Time log entry displayed in the chat.
+ */
+export interface TimeLogEntry {
+  id?: string
+  projectId?: string
+  projectName?: string
+  durationMinutes: number
+  note?: string
+  loggedAt: string
+}
+
+/**
  * Conversation message stored in memory.
  */
 export interface Message {
@@ -17,4 +29,5 @@ export interface Message {
   text: string
   timestamp: Date
   chart?: ChartSpec
+  timeLogs?: TimeLogEntry[]
 }

@@ -100,6 +100,41 @@ public class TimeLogService {
         return sum != null ? sum : 0;
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Optional<TimeLogDto> findById(UUID id) {
+        return timeLogRepository.findById(id).map(this::toDto);
+    }
+
+    @Transactional
+    public TimeLogDto update(UUID id, TimeLogDto patch) {
+        TimeLog entity = timeLogRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Time log not found: " + id));
+        if (patch.getProjectId() != null) {
+            if (!projectRepository.existsById(patch.getProjectId())) {
+                throw new IllegalArgumentException("Project not found: " + patch.getProjectId());
+            }
+            entity.setProjectId(patch.getProjectId());
+        }
+        if (patch.getDurationMinutes() != null && patch.getDurationMinutes() > 0) {
+            entity.setDurationMinutes(patch.getDurationMinutes());
+        }
+        if (patch.getNote() != null) {
+            entity.setNote(patch.getNote());
+        }
+        if (patch.getLoggedAt() != null) {
+            entity.setLoggedAt(patch.getLoggedAt());
+        }
+        return toDto(timeLogRepository.save(entity));
+    }
+
+    @Transactional
+    public void deleteById(UUID id) {
+        if (!timeLogRepository.existsById(id)) {
+            throw new IllegalArgumentException("Time log not found: " + id);
+        }
+        timeLogRepository.deleteById(id);
+    }
+
     private TimeLogDto toDto(TimeLog t) {
         return TimeLogDto.builder()
                 .id(t.getId())

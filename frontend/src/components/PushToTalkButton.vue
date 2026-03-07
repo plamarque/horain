@@ -16,7 +16,14 @@ const emit = defineEmits<{
 }>()
 
 const inputText = ref('')
+const inputEl = ref<HTMLInputElement | null>(null)
 const isListening = ref(false)
+
+function focusInput() {
+  inputEl.value?.focus()
+}
+
+defineExpose({ focusInput })
 const isReady = ref(false)
 const interimTranscript = ref('')
 
@@ -85,6 +92,7 @@ function submitText() {
   <div class="input-bar">
     <div class="pill-wrapper">
       <input
+        ref="inputEl"
         v-model="inputText"
         type="text"
         placeholder="Ask anything"

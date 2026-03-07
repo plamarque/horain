@@ -53,6 +53,17 @@ export async function apiGet<T>(path: string): Promise<T> {
   return apiFetch<T>(path)
 }
 
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, { method: 'DELETE' })
+}
+
 // --- Backend endpoint wrappers ---
 
 export interface ProjectDto {
@@ -97,6 +108,19 @@ export async function createTimeLogViaApi(body: {
   loggedAt?: string
 }): Promise<TimeLogDto> {
   return apiPost<TimeLogDto>('/time-logs', body)
+}
+
+/** PATCH /time-logs/:id - update a time log (partial) */
+export async function updateTimeLog(
+  id: string,
+  patch: { projectId?: string; durationMinutes?: number; note?: string; loggedAt?: string }
+): Promise<TimeLogDto> {
+  return apiPatch<TimeLogDto>(`/time-logs/${id}`, patch)
+}
+
+/** DELETE /time-logs/:id - delete a time log */
+export async function deleteTimeLog(id: string): Promise<void> {
+  return apiDelete<void>(`/time-logs/${id}`)
 }
 
 /** POST /dev/seed - load fictional seed data (dev only, when backend enables it) */

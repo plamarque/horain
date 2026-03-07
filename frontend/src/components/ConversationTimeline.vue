@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import MessageBubble from './MessageBubble.vue'
-import type { Message } from '../types'
+import type { Message, TimeLogEntry } from '../types'
 
 defineProps<{
   messages: Message[]
   isProcessing?: boolean
+}>()
+
+const emit = defineEmits<{
+  selectEntry: [entry: TimeLogEntry]
+  editEntry: [entry: TimeLogEntry]
 }>()
 </script>
 
@@ -21,6 +26,9 @@ defineProps<{
       :role="msg.role"
       :text="msg.text"
       :chart="msg.chart"
+      :time-logs="msg.timeLogs"
+      @select-entry="emit('selectEntry', $event)"
+      @edit-entry="emit('editEntry', $event)"
     />
     <div v-if="isProcessing" class="processing-indicator">
       Processing...

@@ -27,21 +27,43 @@ export interface HistoryEntry {
   text: string
 }
 
+export interface ContextEntry {
+  id?: string
+  projectId?: string
+  projectName?: string
+  durationMinutes: number
+  note?: string
+  loggedAt: string
+}
+
 /**
  * Send a message to the chat endpoint and get the assistant response.
  * Pass history for conversation context (e.g. corrections, follow-ups).
+ * Pass contextEntries when the user has selected time log entries to work with.
  */
 export async function sendChatMessage(
   message: string,
-  history?: HistoryEntry[]
+  history?: HistoryEntry[],
+  contextEntries?: ContextEntry[]
 ): Promise<ChatMessageResponse> {
   const trimmed =
     history?.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
       role: m.role,
       content: m.text,
     })) ?? []
-  return apiPost<ChatMessageResponse>('/chat/message', {
+  const body: Record<string, unknown> = {
     message,
     history: trimmed,
-  })
+  }
+  if (contextEntries?.length) {
+    body.contextEntries = contextEntries.map((e) => ({
+      id: e.id,
+      projectId: e.projectId,
+      projectName: e.projectName,
+      durationMinutes: e.durationMinutes,
+      note: e.note,
+      loggedAt: e.loggedAt,
+    }))
+  }
+  return apiPost<ChatMessageResponse>('/chat/message', body)
 }

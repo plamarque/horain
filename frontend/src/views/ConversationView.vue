@@ -2,10 +2,13 @@
 import { ref, watch, nextTick } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
+import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage } from '../services/chatClient'
 import { processQueue } from '../sync/syncEngine'
 import { loadDevSeed } from '../services/apiClient'
-import type { ChartSpec, Message } from '../types'
+import type { ChartSpec, Message, TimeLogEntry } from '../types'
+
+const MAX_CONTEXT_ENTRIES = 5
 
 function isValidChartSpec(v: unknown): v is ChartSpec {
   if (!v || typeof v !== 'object') return false
@@ -22,10 +25,23 @@ function isValidChartSpec(v: unknown): v is ChartSpec {
   )
 }
 
+function isValidTimeLogEntries(v: unknown): v is TimeLogEntry[] {
+  if (!Array.isArray(v)) return false
+  return v.every(
+    (e) =>
+      e &&
+      typeof e === 'object' &&
+      typeof (e as { durationMinutes?: unknown }).durationMinutes === 'number' &&
+      typeof (e as { loggedAt?: unknown }).loggedAt === 'string'
+  )
+}
+
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
 const lastSyncedAt = ref<Date | null>(null)
 const inputRef = ref<InstanceType<typeof PushToTalkButton> | null>(null)
+const selectedEntries = ref<TimeLogEntry[]>([])
+const editingEntry = ref<TimeLogEntry | null>(null)
 
 // Refocus input when assistant finishes responding so user can type immediately
 watch(isProcessing, async (now, was) => {
@@ -49,13 +65,60 @@ function handlePermissionError(message: string) {
   addAssistantMessage(message)
 }
 
-function addAssistantMessage(text: string, chart?: import('../types').ChartSpec) {
+function handleSelectEntry(entry: TimeLogEntry) {
+  if (!entry.id) return
+  const exists = selectedEntries.value.some((e) => e.id === entry.id)
+  if (!exists && selectedEntries.value.length < MAX_CONTEXT_ENTRIES) {
+    selectedEntries.value = [...selectedEntries.value, entry]
+  }
+}
+
+function handleEditEntry(entry: TimeLogEntry) {
+  if (entry.id) editingEntry.value = entry
+}
+
+function handleRemoveFromContext(entry: TimeLogEntry) {
+  selectedEntries.value = selectedEntries.value.filter((e) => e.id !== entry.id)
+}
+
+function handleEditModalClose() {
+  editingEntry.value = null
+}
+
+async function handleEditSaved() {
+  editingEntry.value = null
+  await processQueue()
+  lastSyncedAt.value = new Date()
+}
+
+function formatEntryChipLabel(entry: TimeLogEntry): string {
+  const p = entry.projectName || '?'
+  const mins = entry.durationMinutes
+  const d =
+    mins < 60
+      ? `${mins} min`
+      : `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}min` : ''}`
+  const date = entry.loggedAt
+    ? new Date(entry.loggedAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      })
+    : ''
+  return `${p} · ${d} · ${date}`
+}
+
+function addAssistantMessage(
+  text: string,
+  chart?: ChartSpec,
+  timeLogs?: TimeLogEntry[]
+) {
   messages.value.push({
     id: crypto.randomUUID(),
     role: 'assistant',
     text,
     timestamp: new Date(),
     ...(chart && { chart }),
+    ...(timeLogs?.length && { timeLogs }),
   })
 }
 
@@ -68,17 +131,24 @@ async function handleSubmit(text: string) {
     timestamp: new Date(),
   })
 
+  const contextToSend = selectedEntries.value
+  selectedEntries.value = []
+
   isProcessing.value = true
   try {
     const history = messages.value
       .slice(0, -1)
       .map((m) => ({ role: m.role, text: m.text }))
-    const response = await sendChatMessage(text.trim(), history)
+    const response = await sendChatMessage(text.trim(), history, contextToSend)
     const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
       ? (response.data as { chart: unknown }).chart
       : undefined
     const chart = isValidChartSpec(rawChart) ? rawChart : undefined
-    addAssistantMessage(response.assistantMessage, chart)
+    const rawTimeLogs = response.data && typeof response.data === 'object' && 'timeLogs' in response.data
+      ? (response.data as { timeLogs: unknown }).timeLogs
+      : undefined
+    const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
+    addAssistantMessage(response.assistantMessage, chart, timeLogs)
 
     // Pull server updates (e.g. time logs created by backend tools)
     await processQueue()
@@ -126,9 +196,31 @@ async function handleLoadSeed() {
 
 <template>
   <div class="conversation-view">
-    <ConversationTimeline :messages="messages" :is-processing="isProcessing" />
+    <ConversationTimeline
+      :messages="messages"
+      :is-processing="isProcessing"
+      @select-entry="handleSelectEntry"
+      @edit-entry="handleEditEntry"
+    />
     <div class="input-area">
       <div class="input-col">
+        <div v-if="selectedEntries.length" class="context-chips">
+          <span
+            v-for="entry in selectedEntries"
+            :key="entry.id"
+            class="context-chip"
+          >
+            {{ formatEntryChipLabel(entry) }}
+            <button
+              type="button"
+              class="context-chip-remove"
+              aria-label="Remove from context"
+              @click="handleRemoveFromContext(entry)"
+            >
+              ×
+            </button>
+          </span>
+        </div>
         <PushToTalkButton
           ref="inputRef"
           :disabled="isProcessing"
@@ -168,6 +260,12 @@ async function handleLoadSeed() {
         </p>
       </div>
     </div>
+    <EntryEditModal
+      v-if="editingEntry"
+      :entry="editingEntry"
+      @close="handleEditModalClose"
+      @saved="handleEditSaved"
+    />
   </div>
 </template>
 
@@ -192,6 +290,39 @@ async function handleLoadSeed() {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(74, 110, 219, 0.2);
+  color: #a0b8f0;
+  border-radius: 8px;
+}
+
+.context-chip-remove {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.context-chip-remove:hover {
+  opacity: 1;
 }
 
 .last-synced {

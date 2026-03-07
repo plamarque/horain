@@ -35,7 +35,10 @@ public class ChatController {
         List<ChatHistoryEntry> history = request != null && request.history() != null
                 ? request.history()
                 : List.of();
-        ChatResponse response = chatService.chat(userMessage, history);
+        List<Map<String, Object>> contextEntries = request != null && request.contextEntries() != null
+                ? request.contextEntries()
+                : List.of();
+        ChatResponse response = chatService.chat(userMessage, history, contextEntries);
         return ResponseEntity.ok(new ChatMessageResponse(
                 response.assistantMessage(),
                 response.toolCalls().stream()
@@ -44,7 +47,10 @@ public class ChatController {
                 response.data()));
     }
 
-    public record ChatMessageRequest(String message, List<ChatHistoryEntry> history) {
+    public record ChatMessageRequest(
+            String message,
+            List<ChatHistoryEntry> history,
+            List<Map<String, Object>> contextEntries) {
     }
 
     public record ChatMessageResponse(String assistantMessage, java.util.List<ToolCallDto> toolCalls, Object data) {

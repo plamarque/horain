@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ChartBubble from './ChartBubble.vue'
+import LogEntriesBubble from './LogEntriesBubble.vue'
 import { renderMarkdown } from '../utils/markdown'
-import type { ChartSpec } from '../types'
+import type { ChartSpec, TimeLogEntry } from '../types'
 
 const props = defineProps<{
   role: 'user' | 'assistant'
   text: string
   chart?: ChartSpec
+  timeLogs?: TimeLogEntry[]
+}>()
+
+const emit = defineEmits<{
+  selectEntry: [entry: TimeLogEntry]
+  editEntry: [entry: TimeLogEntry]
 }>()
 
 const formattedContent = computed(() => {
@@ -22,6 +29,12 @@ const useHtml = computed(() => props.role === 'assistant')
   <div class="bubble" :class="role">
     <div v-if="text && useHtml" class="content content--markdown" v-html="formattedContent" />
     <div v-else-if="text" class="content">{{ formattedContent }}</div>
+    <LogEntriesBubble
+      v-if="timeLogs?.length"
+      :entries="timeLogs"
+      @select-entry="emit('selectEntry', $event)"
+      @edit-entry="emit('editEntry', $event)"
+    />
     <ChartBubble v-if="chart" :spec="chart" />
   </div>
 </template>

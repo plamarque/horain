@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -64,6 +65,9 @@ public class ToolExecutorService {
                 case ToolRegistry.GET_CURRENT_DATETIME -> executeGetCurrentDatetime();
                 case ToolRegistry.GET_TIME_AGGREGATED_FOR_CHART -> executeGetTimeAggregatedForChart(args);
                 case ToolRegistry.PROPOSE_CHART -> executeProposeChart(args);
+                case ToolRegistry.PROPOSE_ENTRIES -> executeProposeEntries(args);
+                case ToolRegistry.UPDATE_TIME_LOG -> executeUpdateTimeLog(args);
+                case ToolRegistry.DELETE_TIME_LOG -> executeDeleteTimeLog(args);
                 default -> "{\"error\":\"Unknown tool: " + request.name() + "\"}";
             };
             return new ToolCallResult(request.id(), result);
@@ -137,7 +141,7 @@ public class ToolExecutorService {
         if (durationMinutes == null || durationMinutes <= 0) {
             return toJson(Map.of("error", "durationMinutes must be a positive integer"));
         }
-        UUID projectId = UUID.fromString(projectIdStr);
+        UUID projectId = resolveProjectId(projectIdStr);
         String note = getText(args, "note");
         String loggedAtStr = getText(args, "loggedAt");
         Instant loggedAt = loggedAtStr != null && !loggedAtStr.isBlank()
@@ -189,7 +193,7 @@ public class ToolExecutorService {
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
         String projectIdStr = getText(args, "projectId");
-        UUID projectId = projectIdStr != null && !projectIdStr.isBlank() ? UUID.fromString(projectIdStr) : null;
+        UUID projectId = projectIdStr != null && !projectIdStr.isBlank() ? resolveProjectId(projectIdStr) : null;
 
         List<TimeLogDto> logs = timeLogService.findLogsForPeriod(start, end, projectId);
         List<ProjectDto> projects = projectService.findAll();
@@ -215,7 +219,7 @@ public class ToolExecutorService {
         if (projectIdStr == null || startStr == null || endStr == null) {
             return toJson(Map.of("error", "projectId, start, and end are required"));
         }
-        UUID projectId = UUID.fromString(projectIdStr);
+        UUID projectId = resolveProjectId(projectIdStr);
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
         int minutes = analyticsService.sumTimeByProject(projectId, start, end);
@@ -267,6 +271,53 @@ public class ToolExecutorService {
         return toJson(Map.of("status", "ok"));
     }
 
+    private String executeProposeEntries(JsonNode args) {
+        return toJson(Map.of("status", "ok"));
+    }
+
+    private String executeUpdateTimeLog(JsonNode args) {
+        String idStr = getText(args, "id");
+        if (idStr == null || idStr.isBlank()) {
+            return toJson(Map.of("error", "id is required"));
+        }
+        UUID id = UUID.fromString(idStr.trim());
+        TimeLogDto patch = TimeLogDto.builder().id(id).build();
+        Integer durationMinutes = getInt(args, "durationMinutes");
+        if (durationMinutes != null && durationMinutes > 0) {
+            patch.setDurationMinutes(durationMinutes);
+        }
+        String note = getText(args, "note");
+        if (note != null) {
+            patch.setNote(note);
+        }
+        String loggedAtStr = getText(args, "loggedAt");
+        if (loggedAtStr != null && !loggedAtStr.isBlank()) {
+            patch.setLoggedAt(Instant.parse(loggedAtStr));
+        }
+        String projectIdStr = getText(args, "projectId");
+        if (projectIdStr != null && !projectIdStr.isBlank()) {
+            patch.setProjectId(resolveProjectId(projectIdStr));
+        }
+        TimeLogDto updated = timeLogService.update(id, patch);
+        return toJson(Map.of(
+                "time_log", Map.of(
+                        "id", updated.getId().toString(),
+                        "projectId", updated.getProjectId().toString(),
+                        "durationMinutes", updated.getDurationMinutes(),
+                        "note", updated.getNote() != null ? updated.getNote() : "",
+                        "loggedAt", updated.getLoggedAt().toString())));
+    }
+
+    private String executeDeleteTimeLog(JsonNode args) {
+        String idStr = getText(args, "id");
+        if (idStr == null || idStr.isBlank()) {
+            return toJson(Map.of("error", "id is required"));
+        }
+        UUID id = UUID.fromString(idStr.trim());
+        timeLogService.deleteById(id);
+        return toJson(Map.of("status", "deleted"));
+    }
+
     private String getText(JsonNode args, String key) {
         JsonNode n = args != null ? args.get(key) : null;
         return n != null && n.isTextual() ? n.asText() : (n != null ? n.asText() : null);
@@ -275,6 +326,31 @@ public class ToolExecutorService {
     private Integer getInt(JsonNode args, String key) {
         JsonNode n = args != null ? args.get(key) : null;
         return n != null && n.isNumber() ? n.intValue() : null;
+    }
+
+    private static final Pattern UUID_PATTERN = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
+    /**
+     * Resolves a project identifier to a UUID.
+     * Accepts either a valid UUID string or a project name (resolved via search).
+     */
+    private UUID resolveProjectId(String projectIdOrName) {
+        if (projectIdOrName == null || projectIdOrName.isBlank()) {
+            throw new IllegalArgumentException("projectId is required");
+        }
+        String trimmed = projectIdOrName.trim();
+        if (UUID_PATTERN.matcher(trimmed).matches()) {
+            return UUID.fromString(trimmed);
+        }
+        List<ProjectDto> matches = projectService.searchByName(trimmed);
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException("No project found matching '" + projectIdOrName + "'");
+        }
+        if (matches.size() > 1) {
+            log.debug("Multiple projects match '{}', using first: {}", projectIdOrName, matches.get(0).getName());
+        }
+        return matches.get(0).getId();
     }
 
     private String toJson(Object obj) {

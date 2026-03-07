@@ -19,7 +19,7 @@ The user presses a **push-to-talk** button and speaks naturally. The system conv
   - Time logging with notes
   - Supabase storage
   - Conversational confirmation messages
-- **Out of scope:** (MVP) Reports, editing logs, multi-user, offline mode beyond basic PWA cache.
+- **Out of scope:** (MVP) Reports, multi-user, offline mode beyond basic PWA cache.
 
 ## Main Capabilities
 

@@ -24,6 +24,9 @@ public class ToolRegistry {
     public static final String GET_CURRENT_DATETIME = "get_current_datetime";
     public static final String GET_TIME_AGGREGATED_FOR_CHART = "get_time_aggregated_for_chart";
     public static final String PROPOSE_CHART = "propose_chart";
+    public static final String PROPOSE_ENTRIES = "propose_entries";
+    public static final String UPDATE_TIME_LOG = "update_time_log";
+    public static final String DELETE_TIME_LOG = "delete_time_log";
 
     public List<ToolDefinition> getAllTools() {
         return List.of(
@@ -237,6 +240,75 @@ public class ToolRegistry {
                                         )
                                 ),
                                 "required", List.of("chartType", "title", "categories", "series")
+                        )
+                ),
+                new ToolDefinition(
+                        PROPOSE_ENTRIES,
+                        "Propose time log entries to display in the conversation. Call this after get_time_logs_for_period or get_recent_logs when the user asked for a list of entries, details, or 'what did I log'. Pass the time_logs array from the tool result. The UI will display them in a table.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "entries", Map.of(
+                                                "type", "array",
+                                                "items", Map.of(
+                                                        "type", "object",
+                                                        "properties", Map.of(
+                                                                "id", Map.of("type", "string", "description", "UUID of the time log"),
+                                                                "projectId", Map.of("type", "string", "description", "UUID of the project"),
+                                                                "projectName", Map.of("type", "string"),
+                                                                "durationMinutes", Map.of("type", "integer"),
+                                                                "note", Map.of("type", "string"),
+                                                                "loggedAt", Map.of("type", "string")
+                                                        )
+                                                ),
+                                                "description", "Time log entries from get_time_logs_for_period or get_recent_logs"
+                                        )
+                                ),
+                                "required", List.of("entries")
+                        )
+                ),
+                new ToolDefinition(
+                        UPDATE_TIME_LOG,
+                        "Update an existing time log entry. Use when the user asks to edit, change, or correct an entry (e.g. change duration, update note). Only provided fields are updated.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "id", Map.of(
+                                                "type", "string",
+                                                "description", "UUID of the time log to update"
+                                        ),
+                                        "durationMinutes", Map.of(
+                                                "type", "integer",
+                                                "description", "New duration in minutes"
+                                        ),
+                                        "note", Map.of(
+                                                "type", "string",
+                                                "description", "New note"
+                                        ),
+                                        "loggedAt", Map.of(
+                                                "type", "string",
+                                                "description", "New logged-at timestamp (ISO-8601)"
+                                        ),
+                                        "projectId", Map.of(
+                                                "type", "string",
+                                                "description", "New project UUID or name"
+                                        )
+                                ),
+                                "required", List.of("id")
+                        )
+                ),
+                new ToolDefinition(
+                        DELETE_TIME_LOG,
+                        "Delete a time log entry. Use when the user asks to remove or delete an entry.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "id", Map.of(
+                                                "type", "string",
+                                                "description", "UUID of the time log to delete"
+                                        )
+                                ),
+                                "required", List.of("id")
                         )
                 )
         );
