@@ -10,7 +10,7 @@ Ce document décrit **quand** mettre à jour **quel** document du workflow de go
 | Nouveau concept, terme ou règle métier | **DOMAIN.md** |
 | Nouveau composant, technologie ou décision structurelle | **ARCH.md**, éventuellement **docs/ADR/** |
 | Changement des outils MCP | **docs/MCP_TOOLS.md** |
-| Changement du schéma de données | **docs/DATA_MODEL.md** |
+| Changement du schéma de données | **docs/DATA_MODEL.md** + migrations Flyway (`db/migration/{vendor}/`) |
 | Changement d'UX ou d'interface | **docs/UX.md** |
 | Nouvelle décision d'architecture explicite | **docs/ADR/*** (nouveau fichier) |
 | Nouvelle tranche, tâche ou jalon | **PLAN.md** |

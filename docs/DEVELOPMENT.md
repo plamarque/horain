@@ -46,6 +46,22 @@ Backend (8080) + frontend (5173). L’URL réseau local s’affiche pour tester 
 
 Voir [docs/PUBLISHING_STORES.md](PUBLISHING_STORES.md) pour le guide complet de publication sur l'App Store et le Play Store (inspiré de [chrono-eps](https://github.com/plamarque/chrono-eps)).
 
+## Migrations de schéma (Flyway)
+
+Le schéma de base de données est géré par **Flyway** et appliqué automatiquement au démarrage du backend.
+
+| Élément | Détail |
+|--------|--------|
+| **Outil** | Flyway (intégration native Spring Boot) |
+| **Emplacement** | `backend/src/main/resources/db/migration/{vendor}/` |
+| **PostgreSQL / Supabase** | `db/migration/postgresql/` |
+| **H2 (dev local)** | `db/migration/h2/` |
+| **Workflow** | 1. Créer `V{n}__description.sql` dans chaque sous-dossier vendor. 2. Mettre à jour [docs/DATA_MODEL.md](DATA_MODEL.md). 3. Commiter. |
+
+**Convention de nommage :** `V<version>__<description>.sql` (ex. `V2__add_source_to_time_logs.sql`). Chaque nouvelle migration incrémente la version.
+
+**À ne pas faire :** modifier une migration déjà appliquée. Créer une nouvelle migration pour tout changement.
+
 ## Contribution
 
 - Lire SPEC, DOMAIN et ARCH avant de modifier le comportement ou la structure.

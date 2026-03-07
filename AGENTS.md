@@ -44,6 +44,12 @@ L'agent conversationnel **ne modifie jamais la base de données directement**. I
   - Messages de commit Git.
 - Cette règle s'applique indépendamment de la langue utilisée pour la communication (ex. discussion en français).
 
+## Évolution du schéma
+
+- **Migrations :** Toute évolution du schéma passe par des scripts Flyway dans `backend/src/main/resources/db/migration/{vendor}/`. Pas de `ddl-auto: update` ni de modification manuelle de la base.
+- **Workflow :** Créer une migration versionnée (ex. `V2__add_column.sql`) dans les dossiers `postgresql/` et `h2/`, puis mettre à jour [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
+- **Cohérence :** Les entités JPA et DATA_MODEL.md doivent rester alignés avec le schéma appliqué par Flyway.
+
 ## Qualité
 
 - **Tests e2e :** Une suite de tests e2e (Playwright) doit exister et être maintenue dès le début du projet. Les nouvelles fonctionnalités doivent inclure ou adapter les tests e2e correspondants.

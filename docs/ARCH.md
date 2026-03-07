@@ -58,7 +58,7 @@ flowchart TB
 - **Front-end:** Vue 3, PrimeVue, Vite, HTML, CSS
 - **Backend:** Java Spring AI (or equivalent) on Render
 - **MCP:** MCP Server exposing tools; MCP Client in backend
-- **Database:** Supabase (PostgreSQL)
+- **Database:** Supabase (PostgreSQL). Schema evolution via Flyway (migrations at startup).
 - **Deployment:** GitHub Pages (front), Render (backend), GitHub Actions
 - **Tests e2e:** Playwright
 
