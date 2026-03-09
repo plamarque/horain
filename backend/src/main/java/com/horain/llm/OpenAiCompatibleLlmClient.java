@@ -9,12 +9,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * LLM client for OpenAI-compatible APIs (OpenAI, OpenRouter, LiteLLM, etc.).
  * Configure via LLM_BASE_URL, LLM_API_KEY, LLM_MODEL.
  */
-public class OpenAiCompatibleLlmClient implements LlmClient {
+public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
 
     private final String baseUrl;
     private final String apiKey;
@@ -103,6 +104,21 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
         return parseResponse(response.getBody());
+    }
+
+    @Override
+    public LlmResponse chatStream(
+            List<ChatMessage> messages,
+            List<ToolDefinition> tools,
+            Consumer<String> textConsumer
+    ) {
+        // Stub: delegates to chat() and passes full content at once.
+        // TODO (streaming slice): implement real streaming with stream=true, SSE parsing, delta consumption.
+        LlmResponse response = chat(messages, tools);
+        if (textConsumer != null && response.content() != null && !response.content().isBlank()) {
+            textConsumer.accept(response.content());
+        }
+        return response;
     }
 
     private LlmResponse parseResponse(String json) {
