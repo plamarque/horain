@@ -33,7 +33,10 @@ test('recent activities displayed on launch when data exists', async ({
     timeout: 5000,
   })
   await expect(
-    page.locator('.log-table').getByText(/Horain|HatCast|Chrono|Festibask|Meeds|Weather/i)
+    page
+      .locator('.log-table')
+      .getByText(/Horain|HatCast|Chrono|Festibask|Meeds|Weather/i)
+      .first()
   ).toBeVisible({ timeout: 10000 })
 })
 
