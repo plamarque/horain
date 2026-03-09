@@ -17,19 +17,23 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ### Input bar
 
 - **Text input** with placeholder "Ask anything" — user can type directly and press Enter.
+- **Send button** (outline arrow up icon) — appears when text is entered; click to send. Same style and dimensions as the mic button. Positioned to the right of the mic (rightmost) for easy one-handed tap.
+- **Stop button** — replaces Send during processing; click to cancel the in-flight request. Restores focus to the input field. No data is modified on cancel.
 - **Microphone icon** — click to start recording, click again to stop and send.
 - Sync icon (discrete) for manual sync; sync also runs automatically after each message.
 
 ### Conversation timeline
 
 - Chronological thread of messages.
+- **Scroll behavior:** When a new assistant message arrives, if the user was at the bottom of the thread, auto-scroll to the new message. If the user had scrolled up (e.g. reading earlier content while the agent was responding), do not auto-scroll; show a floating "New message" indicator that lets them jump to the latest response.
+- **Gap:** Padding at the bottom of the timeline so content does not appear hidden below the input area.
 - **User message:** Transcription of what the user said.
 - **Assistant response:** Text reply, confirmations, clarification questions.
 - **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm."
 
 ### Typical flow
 
-1. User either types in the field (Enter to send) or clicks the mic, speaks, then clicks again to send.
+1. User types in the field and sends via Enter or the Send button, or clicks the mic, speaks, then clicks again to send.
 2. Voice is sent for transcription.
 3. Transcript appears in the conversation.
 4. Agent analyzes, optionally calls MCP tools.
@@ -45,13 +49,14 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ## States
 
-- **Idle:** Input bar ready; user can type or click mic.
+- **Idle:** Input bar ready; user can type or click mic. Send button appears when text is entered.
 - **Recording:** User clicked mic; interim transcript shown above bar.
-- **Processing:** Transcript sent; waiting for assistant reply (loading indicator).
+- **Processing:** Transcript sent; waiting for assistant reply. Send becomes Stop; user can cancel the request.
 - **Response:** Assistant message displayed.
 
 ## Accessibility
 
 - Input bar must be keyboard and screen-reader accessible.
+- Send and Stop buttons must have clear labels (e.g. "Send", "Stop").
 - Mic button must have clear label (e.g. "Click to speak" / "Click to stop").
 - Conversation thread should be announced when updated.

@@ -42,8 +42,13 @@ export async function apiFetch<T>(
   return JSON.parse(text) as T
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+export async function apiPost<T>(
+  path: string,
+  body: unknown,
+  init?: Omit<RequestInit, 'method' | 'body'>
+): Promise<T> {
   return apiFetch<T>(path, {
+    ...init,
     method: 'POST',
     body: JSON.stringify(body),
   })

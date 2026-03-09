@@ -26,6 +26,33 @@ test('log time via text input', async ({ page }) => {
 })
 
 /**
+ * E2E: Send button appears when typing and can submit via click.
+ */
+test('send button appears when typing and submits on click', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
+
+  const input = page.getByPlaceholder('Ask anything')
+  await expect(input).toBeVisible()
+
+  // Send button should not be visible when input is empty
+  await expect(page.getByRole('button', { name: 'Send' })).not.toBeVisible()
+
+  // Type text - Send button should appear
+  await input.fill('30 minutes on HatCast')
+  await expect(page.getByRole('button', { name: 'Send' })).toBeVisible()
+
+  // Submit via Send button click instead of Enter
+  await page.getByRole('button', { name: 'Send' }).click()
+
+  // Expect confirmation
+  await expect(
+    page.getByText(/logged|created|minutes|HatCast/i)
+  ).toBeVisible({ timeout: 5000 })
+})
+
+/**
  * E2E: Log time via French phrase.
  * "J'ai passé 30 minutes sur HatCast à travailler sur l'algo"
  */

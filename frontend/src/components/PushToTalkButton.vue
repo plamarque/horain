@@ -8,10 +8,12 @@ import {
 
 defineProps<{
   disabled?: boolean
+  processing?: boolean
 }>()
 
 const emit = defineEmits<{
   submit: [text: string]
+  stop: []
   permissionError: [message: string]
 }>()
 
@@ -86,6 +88,10 @@ function submitText() {
     inputText.value = ''
   }
 }
+
+function handleStop() {
+  emit('stop')
+}
 </script>
 
 <template>
@@ -101,7 +107,7 @@ function submitText() {
         @keydown.enter="submitText"
       />
       <button
-        class="mic-btn"
+        class="action-btn mic-btn"
         :class="{ listening: isListening }"
         :disabled="disabled"
         type="button"
@@ -122,6 +128,53 @@ function submitText() {
           <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
           <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
           <line x1="12" x2="12" y1="19" y2="22" />
+        </svg>
+      </button>
+      <!-- Send: rightmost for easy click -->
+      <button
+        v-if="inputText.trim().length > 0 && !disabled && !processing"
+        class="action-btn send-btn"
+        type="button"
+        title="Send"
+        aria-label="Send"
+        @click="submitText"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 19V5" />
+          <path d="m5 12 7-7 7 7" />
+        </svg>
+      </button>
+      <!-- Stop: rightmost when processing -->
+      <button
+        v-if="processing"
+        class="action-btn stop-btn"
+        type="button"
+        title="Stop"
+        aria-label="Stop"
+        @click="handleStop"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="6" y="6" width="12" height="12" rx="1" />
         </svg>
       </button>
     </div>
@@ -193,7 +246,8 @@ function submitText() {
   cursor: not-allowed;
 }
 
-.mic-btn {
+/* Shared: send, stop, mic — same dimensions and base style */
+.action-btn {
   width: 36px;
   height: 36px;
   flex-shrink: 0;
@@ -208,9 +262,14 @@ function submitText() {
   transition: color 0.15s, background 0.15s;
 }
 
-.mic-btn:hover:not(:disabled) {
+.action-btn:hover:not(:disabled) {
   color: #e8e8f0;
   background: rgba(255, 255, 255, 0.06);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .mic-btn.listening {
@@ -221,13 +280,22 @@ function submitText() {
   background: rgba(74, 110, 219, 0.2);
 }
 
-.mic-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.send-btn:hover:not(:disabled) {
+  color: #e8e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.stop-btn {
+  color: #c62828;
+}
+
+.stop-btn:hover:not(:disabled) {
+  color: #ef5350;
+  background: rgba(198, 40, 40, 0.2);
 }
 
 @media (max-width: 600px) {
-  .mic-btn {
+  .action-btn {
     width: 56px;
     height: 56px;
     min-width: 56px;

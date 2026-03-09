@@ -40,11 +40,13 @@ export interface ContextEntry {
  * Send a message to the chat endpoint and get the assistant response.
  * Pass history for conversation context (e.g. corrections, follow-ups).
  * Pass contextEntries when the user has selected time log entries to work with.
+ * Pass signal to allow cancellation (e.g. when user clicks Stop).
  */
 export async function sendChatMessage(
   message: string,
   history?: HistoryEntry[],
-  contextEntries?: ContextEntry[]
+  contextEntries?: ContextEntry[],
+  init?: { signal?: AbortSignal }
 ): Promise<ChatMessageResponse> {
   const trimmed =
     history?.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
@@ -65,5 +67,5 @@ export async function sendChatMessage(
       loggedAt: e.loggedAt,
     }))
   }
-  return apiPost<ChatMessageResponse>('/chat/message', body)
+  return apiPost<ChatMessageResponse>('/chat/message', body, init)
 }

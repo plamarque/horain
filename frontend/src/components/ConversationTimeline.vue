@@ -1,20 +1,53 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import MessageBubble from './MessageBubble.vue'
 import type { Message, TimeLogEntry } from '../types'
 
 defineProps<{
   messages: Message[]
   isProcessing?: boolean
+  hasNewMessageBelow?: boolean
 }>()
 
 const emit = defineEmits<{
   selectEntry: [entry: TimeLogEntry]
   editEntry: [entry: TimeLogEntry]
+  indicatorClicked: []
 }>()
+
+const BOTTOM_THRESHOLD = 100
+
+const timelineEl = ref<HTMLDivElement | null>(null)
+const userAtBottom = ref(true)
+
+function updateUserAtBottom() {
+  const el = timelineEl.value
+  if (!el) return
+  const { scrollTop, clientHeight, scrollHeight } = el
+  userAtBottom.value = scrollTop + clientHeight >= scrollHeight - BOTTOM_THRESHOLD
+}
+
+function scrollToBottom() {
+  timelineEl.value?.scrollTo({
+    top: timelineEl.value.scrollHeight,
+    behavior: 'smooth',
+  })
+  userAtBottom.value = true
+}
+
+function handleIndicatorClick() {
+  scrollToBottom()
+  emit('indicatorClicked')
+}
+
+defineExpose({
+  scrollToBottom,
+  isUserAtBottom: () => userAtBottom.value,
+})
 </script>
 
 <template>
-  <div class="timeline">
+  <div ref="timelineEl" class="timeline" @scroll="updateUserAtBottom">
     <div v-if="messages.length === 0 && !isProcessing" class="empty-state">
       <p>Say something like:</p>
       <p class="example">"30 minutes on HatCast working on the selection algorithm"</p>
@@ -34,6 +67,16 @@ const emit = defineEmits<{
       Processing...
     </div>
   </div>
+  <!-- Floating indicator: fixed at bottom of timeline (above input), not in flex flow -->
+  <button
+    v-if="hasNewMessageBelow"
+    type="button"
+    class="new-message-indicator"
+    @click="handleIndicatorClick"
+  >
+    <span class="new-message-indicator-arrow">↓</span>
+    New message
+  </button>
 </template>
 
 <style scoped>
@@ -41,9 +84,11 @@ const emit = defineEmits<{
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  padding-bottom: 3rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
 }
 
 .empty-state {
@@ -74,5 +119,35 @@ const emit = defineEmits<{
   border-radius: 16px;
   font-size: 0.9rem;
   align-self: flex-start;
+}
+
+/* Sibling of timeline: sits between scroll area and input, always at bottom */
+.new-message-indicator {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0.25rem 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  background: #374151;
+  color: #fff;
+  border: 1px solid #4b5563;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.new-message-indicator:hover {
+  background: #4b5563;
+  border-color: #6b7280;
+}
+
+.new-message-indicator-arrow {
+  font-size: 1rem;
+  line-height: 1;
 }
 </style>

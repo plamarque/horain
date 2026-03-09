@@ -38,8 +38,11 @@ function isValidTimeLogEntries(v: unknown): v is TimeLogEntry[] {
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
+const abortControllerRef = ref<AbortController | null>(null)
 const lastSyncedAt = ref<Date | null>(null)
 const inputRef = ref<InstanceType<typeof PushToTalkButton> | null>(null)
+const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
+const hasNewMessageBelow = ref(false)
 const selectedEntries = ref<TimeLogEntry[]>([])
 const editingEntry = ref<TimeLogEntry | null>(null)
 
@@ -112,6 +115,7 @@ function addAssistantMessage(
   chart?: ChartSpec,
   timeLogs?: TimeLogEntry[]
 ) {
+  const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
   messages.value.push({
     id: crypto.randomUUID(),
     role: 'assistant',
@@ -120,6 +124,19 @@ function addAssistantMessage(
     ...(chart && { chart }),
     ...(timeLogs?.length && { timeLogs }),
   })
+  nextTick(() => {
+    const timeline = timelineRef.value
+    if (!timeline) return
+    if (wasAtBottom) {
+      timeline.scrollToBottom()
+    } else {
+      hasNewMessageBelow.value = true
+    }
+  })
+}
+
+function handleIndicatorClicked() {
+  hasNewMessageBelow.value = false
 }
 
 async function handleSubmit(text: string) {
@@ -135,11 +152,14 @@ async function handleSubmit(text: string) {
   selectedEntries.value = []
 
   isProcessing.value = true
+  abortControllerRef.value = new AbortController()
   try {
     const history = messages.value
       .slice(0, -1)
       .map((m) => ({ role: m.role, text: m.text }))
-    const response = await sendChatMessage(text.trim(), history, contextToSend)
+    const response = await sendChatMessage(text.trim(), history, contextToSend, {
+      signal: abortControllerRef.value.signal,
+    })
     const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
       ? (response.data as { chart: unknown }).chart
       : undefined
@@ -153,13 +173,22 @@ async function handleSubmit(text: string) {
     // Pull server updates (e.g. time logs created by backend tools)
     await processQueue()
     lastSyncedAt.value = new Date()
-  } catch {
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      // User clicked Stop — do not show error, just return control
+      return
+    }
     addAssistantMessage(
       'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
     )
   } finally {
     isProcessing.value = false
+    abortControllerRef.value = null
   }
+}
+
+function handleStop() {
+  abortControllerRef.value?.abort()
 }
 
 async function handleSync() {
@@ -197,10 +226,13 @@ async function handleLoadSeed() {
 <template>
   <div class="conversation-view">
     <ConversationTimeline
+      ref="timelineRef"
       :messages="messages"
       :is-processing="isProcessing"
+      :has-new-message-below="hasNewMessageBelow"
       @select-entry="handleSelectEntry"
       @edit-entry="handleEditEntry"
+      @indicator-clicked="handleIndicatorClicked"
     />
     <div class="input-area">
       <div class="input-col">
@@ -224,7 +256,9 @@ async function handleLoadSeed() {
         <PushToTalkButton
           ref="inputRef"
           :disabled="isProcessing"
+          :processing="isProcessing"
           @submit="handleSubmit"
+          @stop="handleStop"
           @permission-error="handlePermissionError"
         />
         <p class="last-synced">
