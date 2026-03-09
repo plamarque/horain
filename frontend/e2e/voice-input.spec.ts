@@ -38,7 +38,7 @@ function installSpeechRecognitionMock(mockTranscript: string) {
 test.describe('voice input', () => {
   test.beforeEach(async ({ page, context }) => {
     await context.grantPermissions(['microphone'])
-    await page.addInitScript(installSpeechRecognitionMock, '30 minutes on HatCast')
+    await page.addInitScript(installSpeechRecognitionMock, '30 minutes on HatCast V1')
     await page.goto('/')
   })
 
@@ -79,7 +79,7 @@ test.describe('voice input', () => {
     await expect(confirmBtn).toBeVisible({ timeout: 3000 })
     await confirmBtn.click()
 
-    await expect(input).toHaveValue('30 minutes on HatCast', { timeout: 5000 })
+    await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await input.press('Enter')
 
     await expect(
@@ -102,6 +102,6 @@ test.describe('voice input', () => {
     await expect(confirmBtn).toBeVisible({ timeout: 3000 })
     await confirmBtn.click()
 
-    await expect(input).toHaveValue('Hello 30 minutes on HatCast', { timeout: 5000 })
+    await expect(input).toHaveValue('Hello 30 minutes on HatCast V1', { timeout: 5000 })
   })
 })

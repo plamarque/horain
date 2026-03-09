@@ -26,7 +26,8 @@ public class DevSeedService {
 
     // Fixed UUIDs for idempotent seeding (same data on repeated runs)
     private static final UUID PROJECT_HORAIN = UUID.fromString("11111111-1111-1111-1111-111111111101");
-    private static final UUID PROJECT_HATCAST = UUID.fromString("22222222-2222-2222-2222-222222222202");
+    private static final UUID PROJECT_HATCAST_V1 = UUID.fromString("22222222-2222-2222-2222-222222222201");
+    private static final UUID PROJECT_HATCAST_V2 = UUID.fromString("22222222-2222-2222-2222-222222222202");
     private static final UUID PROJECT_CHRONO = UUID.fromString("33333333-3333-3333-3333-333333333303");
     private static final UUID PROJECT_FESTIBASK = UUID.fromString("44444444-4444-4444-4444-444444444404");
     private static final UUID PROJECT_MEEDS = UUID.fromString("55555555-5555-5555-5555-555555555505");
@@ -52,7 +53,8 @@ public class DevSeedService {
     public DevSeedResult loadSeed() {
         List<ProjectDto> projects = List.of(
                 createProject(PROJECT_HORAIN, "Horain", "Personal time journal PWA"),
-                createProject(PROJECT_HATCAST, "HatCast", "Podcast production app"),
+                createProject(PROJECT_HATCAST_V1, "HatCast V1", "Podcast production app"),
+                createProject(PROJECT_HATCAST_V2, "HatCast V2", "Podcast production app"),
                 createProject(PROJECT_CHRONO, "Chrono EPS", "School timetable manager"),
                 createProject(PROJECT_FESTIBASK, "Festibask", "Event basket platform"),
                 createProject(PROJECT_MEEDS, "Meeds", "Community engagement"),
@@ -115,7 +117,8 @@ public class DevSeedService {
     private UUID pickProject(java.util.Random rand) {
         int i = rand.nextInt(100);
         if (i < 25) return PROJECT_HORAIN;
-        if (i < 45) return PROJECT_HATCAST;
+        if (i < 35) return PROJECT_HATCAST_V1;
+        if (i < 45) return PROJECT_HATCAST_V2;
         if (i < 60) return PROJECT_CHRONO;
         if (i < 75) return PROJECT_FESTIBASK;
         if (i < 88) return PROJECT_MEEDS;

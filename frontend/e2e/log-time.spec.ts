@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 /**
  * E2E: Log time via text input (demo workflow without microphone).
- * User types "30 minutes on HatCast working on the algorithm",
+ * User types "30 minutes on HatCast V1 working on the algorithm",
  * system creates project, logs time, shows confirmation.
  */
 test('log time via text input', async ({ page }) => {
@@ -14,7 +14,7 @@ test('log time via text input', async ({ page }) => {
   // Type the time log phrase (input is always visible)
   const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
-  await input.fill('30 minutes on HatCast working on the selection algorithm')
+  await input.fill('30 minutes on HatCast V1 working on the selection algorithm')
 
   // Submit with Enter
   await input.press('Enter')
@@ -40,7 +40,7 @@ test('send button appears when typing and submits on click', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Send' })).not.toBeVisible()
 
   // Type text - Send button should appear
-  await input.fill('30 minutes on HatCast')
+  await input.fill('30 minutes on HatCast V1')
   await expect(page.getByRole('button', { name: 'Send' })).toBeVisible()
 
   // Submit via Send button click instead of Enter
@@ -63,7 +63,7 @@ test('log time via French phrase', async ({ page }) => {
 
   const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
-  await input.fill("J'ai passé 30 minutes sur HatCast à travailler sur l'algo.")
+  await input.fill("J'ai passé 30 minutes sur HatCast V1 à travailler sur l'algo.")
 
   await input.press('Enter')
 

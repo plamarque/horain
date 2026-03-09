@@ -1,0 +1,49 @@
+# Clarification - missing duration, unknown project, ambiguous project (HatCast V1/V2)
+
+- description: Missing duration - agent asks for estimate
+  vars:
+    message: "I worked on Horain all morning"
+  assert:
+    - type: icontains-all
+      value:
+        - "Horain"
+    - type: icontains-any
+      value:
+        - "duration"
+        - "estimate"
+        - "how long"
+        - "minutes"
+        - "hours"
+
+- description: Unknown project - agent creates or offers to create
+  vars:
+    message: "40 minutes on ZzzUnknownEvalProject123"
+  assert:
+    - type: icontains-any
+      value:
+        - "create"
+        - "don't know"
+        - "unknown"
+        - "not found"
+        - "no project"
+        - "doesn't exist"
+        - "couldn't find"
+        - "matching"
+        - "logged"
+        - "ZzzUnknownEvalProject123"
+
+- description: Ambiguous project - HatCast matches V1 and V2 (disambiguate or log)
+  vars:
+    message: "25 minutes on HatCast"
+  assert:
+    - type: icontains-all
+      value:
+        - "HatCast"
+        - "25"
+    - type: icontains-any
+      value:
+        - "which"
+        - "V1"
+        - "V2"
+        - "logged"
+        - "created"

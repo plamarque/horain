@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "promptfoo": "^0.120.0",
     "semver": "^7.6.0"
   }
 }

@@ -1,0 +1,38 @@
+# Multi-turn - log then ask analytics (history via provider when vars.history provided)
+# Note: storeOutputAs + conversationId used; history interpolation may vary by Promptfoo version
+
+- description: State transition - log 30 min on Horain
+  vars:
+    message: "30 minutes on Horain"
+  options:
+    storeOutputAs: turn1Message
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: conv1
+  assert:
+    - type: icontains-all
+      value:
+        - "Horain"
+        - "30"
+        - "logged"
+
+- description: State transition - follow-up analytics (standalone or with history)
+  vars:
+    message: "Et combien cette semaine ?"
+    history:
+      - role: user
+        content: "30 minutes on Horain"
+      - role: assistant
+        content: "I've logged 30 minutes on Horain."
+  metadata:
+    conversationId: conv1
+  assert:
+    - type: icontains-any
+      value:
+        - "heure"
+        - "hour"
+        - "total"
+        - "temps"
+        - "time"
+    - type: icontains-any
+      value: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]

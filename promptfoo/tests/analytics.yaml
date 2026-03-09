@@ -1,27 +1,18 @@
-# Analytics - time queries (combien de temps, how much, etc.)
+# Analytics - time queries (totals non-deterministic with dynamic seed)
 
-- description: Analytics - how much time this week
+- description: Analytics - how much time this week (French)
   vars:
     message: "Combien de temps cette semaine ?"
   assert:
     - type: icontains-any
       value:
         - "heure"
+        - "heures"
         - "minutes"
-        - "hours"
         - "temps"
-        - "time"
         - "total"
-        - "0"
-        - "1"
-        - "2"
-        - "3"
-        - "4"
-        - "5"
-        - "6"
-        - "7"
-        - "8"
-        - "9"
+    - type: icontains-any
+      value: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 - description: Analytics - how many hours (English)
   vars:
@@ -30,16 +21,10 @@
     - type: icontains-any
       value:
         - "hour"
+        - "hours"
         - "minute"
+        - "minutes"
         - "time"
         - "total"
-        - "0"
-        - "1"
-        - "2"
-        - "3"
-        - "4"
-        - "5"
-        - "6"
-        - "7"
-        - "8"
-        - "9"
+    - type: icontains-any
+      value: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]

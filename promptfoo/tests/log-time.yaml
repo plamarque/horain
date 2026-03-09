@@ -1,25 +1,31 @@
-# Log time evals - direct log, project from seed (Horain, Chrono EPS, etc.)
+# Log time evals - direct log, project from seed
 
 - description: Log time direct - 30 minutes on Chrono EPS
   vars:
     message: "30 minutes on Chrono EPS"
   assert:
-    - type: icontains-any
+    - type: icontains-all
       value:
         - "Chrono"
         - "30"
         - "logged"
-        - "created"
-        - "minutes"
 
 - description: Log time with note - Horain
   vars:
     message: "45 minutes on Horain working on the sync engine"
   assert:
-    - type: icontains-any
+    - type: icontains-all
       value:
         - "Horain"
         - "45"
         - "logged"
-        - "created"
-        - "minutes"
+
+- description: Log time - 20 minutes on Festibask
+  vars:
+    message: "20 minutes on Festibask"
+  assert:
+    - type: icontains-all
+      value:
+        - "Festibask"
+        - "20"
+        - "logged"

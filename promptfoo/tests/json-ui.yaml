@@ -1,5 +1,4 @@
-# Assertions on data.chart and data.timeLogs (UI JSON structures)
-# Use icontains for robustness: Promptfoo may pass truncated output to assertions.
+# JSON UI - data.timeLogs, data.chart in response
 
 - description: List entries - data.timeLogs or entries in response
   vars:

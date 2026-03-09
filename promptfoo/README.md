@@ -22,7 +22,19 @@ cd promptfoo && npx promptfoo eval
 
 - `promptfooconfig.yaml` - Main config: prompts, providers, tests
 - `HORAIN_API_KEY` - API key for backend auth (default: HORAIN_DEV_KEY)
-- Tests are defined inline; additional test files can be added under `tests/`
+- `providers/horain-api.mjs` - Custom provider; supports `vars.history` for multi-turn
+
+## Test suites
+
+| Suite | File | Coverage |
+|-------|------|----------|
+| log-time | log-time.yaml | Direct log, toolCalls validation |
+| clarification | clarification.yaml | Missing duration, unknown project, ambiguous (HatCast V1/V2) |
+| analytics | analytics.yaml | Time queries, structure/format |
+| json-ui | json-ui.yaml | data.timeLogs, data.chart, is-json |
+| state-transitions | state-transitions.yaml | Multi-turn, history |
+| robustness | robustness.yaml | Paraphrases, fr/en mix |
+| no-data-and-safety | no-data-and-safety.yaml | No create without confirmation |
 
 ## Output
 

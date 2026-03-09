@@ -11,6 +11,20 @@ export default class HorainApiProvider {
 
   async callApi(prompt, context, options) {
     const url = `${API_BASE.replace(/\/$/, '')}/chat/message`;
+    let history = [];
+    if (context?.vars?.history && Array.isArray(context.vars.history)) {
+      history = context.vars.history.map((h) =>
+        typeof h === 'object' && h !== null
+          ? { role: h.role || 'user', content: String(h.content ?? '') }
+          : { role: 'user', content: String(h) }
+      );
+    } else if (context?.vars?.messages && Array.isArray(context.vars.messages)) {
+      history = context.vars.messages.map((m) =>
+        typeof m === 'object' && m !== null
+          ? { role: m.role || (m.user !== undefined ? 'user' : 'assistant'), content: String(m.content ?? m.user ?? m.assistant ?? '') }
+          : { role: 'user', content: String(m) }
+      );
+    }
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -20,7 +34,7 @@ export default class HorainApiProvider {
         },
         body: JSON.stringify({
           message: prompt,
-          history: [],
+          history,
         }),
       });
 

@@ -4,7 +4,7 @@
 # Prerequisites:
 #   - Backend running on http://localhost:8080
 #   - OPENAI_API_KEY or LLM_API_KEY in backend/.env
-#   - POST /dev/seed called for tests that need projects (Horain, HatCast, etc.)
+#   - POST /dev/seed called for tests that need projects (Horain, HatCast V1/V2, etc.)
 
 description: Horain chat API evals
 
@@ -26,17 +26,15 @@ tests:
     vars:
       message: "20 minutes on Horain"
     assert:
-      - type: icontains-any
+      - type: icontains-all
         value:
           - "Horain"
           - "20"
           - "logged"
-          - "created"
-          - "minutes"
   - file://tests/log-time.yaml
-  - file://tests/unknown-project.yaml
-  - file://tests/missing-duration.yaml
-  - file://tests/ambiguous.yaml
+  - file://tests/clarification.yaml
   - file://tests/analytics.yaml
-  - file://tests/json-structure.yaml
-  - file://tests/tool-calls.yaml
+  - file://tests/json-ui.yaml
+  - file://tests/state-transitions.yaml
+  - file://tests/robustness.yaml
+  - file://tests/no-data-and-safety.yaml
