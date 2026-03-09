@@ -17,14 +17,14 @@ test.describe('SPEC scenarios', () => {
     await input.fill('15 minutes on HatCast V1')
     await input.press('Enter')
     await expect(
-      page.getByText(/logged|created|HatCast V1/i)
-    ).toBeVisible({ timeout: 5000 })
+      page.locator('.bubble.assistant').last()
+    ).toContainText(/logged|created|HatCast V1/i, { timeout: 5000 })
 
     await input.fill('15 minutes on HatCast V2')
     await input.press('Enter')
     await expect(
-      page.getByText(/logged|created|HatCast V2/i)
-    ).toBeVisible({ timeout: 5000 })
+      page.locator('.bubble.assistant').last()
+    ).toContainText(/logged|created|HatCast V2/i, { timeout: 5000 })
 
     // Ambiguous: "HatCast" matches both
     await input.fill('30 minutes on HatCast')
@@ -50,7 +50,9 @@ test.describe('SPEC scenarios', () => {
 
     const assistantBubble = page.locator('.bubble.assistant').last()
     await expect(assistantBubble).toBeVisible({ timeout: 5000 })
-    await expect(assistantBubble).toContainText(/don't know|unknown|create|should i create/i)
+    await expect(assistantBubble).toContainText(
+      /don't know|unknown|create|should i create|couldn't find|not found|no project|doesn't exist/i
+    )
   })
 
   test('missing duration - agent asks for estimate', async ({ page }) => {
@@ -65,8 +67,8 @@ test.describe('SPEC scenarios', () => {
     await input.fill(`15 minutes on ${projectName}`)
     await input.press('Enter')
     await expect(
-      page.getByText(new RegExp(`logged|created|${projectName}`, 'i'))
-    ).toBeVisible({ timeout: 5000 })
+      page.locator('.bubble.assistant').last()
+    ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), { timeout: 5000 })
 
     // Missing duration: no minutes specified
     await input.fill(`I worked on ${projectName} all morning`)

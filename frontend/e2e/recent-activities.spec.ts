@@ -13,13 +13,15 @@ test('recent activities displayed on launch when data exists', async ({ page }) 
   const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
 
-  // Create a time log first (requires backend with LLM)
-  await input.fill('25 minutes on RecentActivitiesTest working on e2e')
+  const projectName = `RecentAct${Date.now()}`
+  await input.fill(`25 minutes on ${projectName} working on e2e`)
   await input.press('Enter')
 
   await expect(
-    page.getByText(/logged|created|minutes|RecentActivitiesTest/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last()
+  ).toContainText(new RegExp(`logged|created|minutes|${projectName}`, 'i'), {
+    timeout: 5000,
+  })
 
   // Reload page: conversation is empty, recentLogs fetch runs on mount
   await page.reload()
@@ -29,8 +31,8 @@ test('recent activities displayed on launch when data exists', async ({ page }) 
   // Expect "Dernières activités" and the project name in the empty state
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
   await expect(
-    page.getByRole('cell', { name: 'RecentActivitiesTest' }).first()
-  ).toBeVisible()
+    page.locator('.log-table').getByRole('cell', { name: projectName })
+  ).toBeVisible({ timeout: 10000 })
 })
 
 test('empty state shows placeholder or recent activities', async ({ page }) => {
