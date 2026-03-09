@@ -70,6 +70,10 @@ The user captures voice via the mic (waveform during recording, Confirm/Cancel t
 
 **Assistant:** "I recorded 30 minutes on project HatCast. Note: work on the player selection algorithm."
 
+## First Display
+
+When the user opens Horain with an empty conversation, the app displays the 5 most recent time-logged activities (project, duration, note, date). This is fetched directly via API (no agent/LLM call) to give immediate context. If there are no entries or the backend is unavailable, a placeholder with example phrasing is shown instead.
+
 ## Boundaries
 
 - **Inputs:** Voice (click mic → record → confirm → insert) or direct text input.

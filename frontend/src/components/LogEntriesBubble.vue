@@ -44,9 +44,10 @@ function formatLoggedAt(iso: string): string {
   }
 }
 
+// Chronological: oldest first (top), most recent last (bottom)
 const sortedEntries = computed(() =>
   [...props.entries].sort(
-    (a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
+    (a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime()
   )
 )
 
@@ -183,7 +184,7 @@ const moreCount = computed(
 
 .log-note {
   color: #8888a0;
-  max-width: 180px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -200,7 +201,7 @@ const moreCount = computed(
   }
 
   .log-note {
-    max-width: 100px;
+    max-width: 140px;
   }
 }
 </style>

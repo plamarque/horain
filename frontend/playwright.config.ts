@@ -14,7 +14,8 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run build && npx serve -s dist -l 4173',
+    command:
+      'VITE_API_URL=http://localhost:8080 npm run build && npx serve -s dist -l 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

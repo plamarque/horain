@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage } from '../services/chatClient'
 import { processQueue } from '../sync/syncEngine'
-import { loadDevSeed } from '../services/apiClient'
+import { loadDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
 
 const MAX_CONTEXT_ENTRIES = 5
@@ -46,6 +46,17 @@ const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
 const hasNewMessageBelow = ref(false)
 const selectedEntries = ref<TimeLogEntry[]>([])
 const editingEntry = ref<TimeLogEntry | null>(null)
+const recentLogs = ref<TimeLogEntry[]>([])
+
+onMounted(async () => {
+  if (messages.value.length > 0) return
+  try {
+    const logs = await getRecentTimeLogs(5)
+    recentLogs.value = logs
+  } catch {
+    recentLogs.value = []
+  }
+})
 
 // Refocus input when assistant finishes responding so user can type immediately
 watch(isProcessing, async (now, was) => {
@@ -240,6 +251,7 @@ async function handleLoadSeed() {
     <ConversationTimeline
       ref="timelineRef"
       :messages="messages"
+      :recent-logs="recentLogs"
       :is-processing="isProcessing"
       :has-new-message-below="hasNewMessageBelow"
       @select-entry="handleSelectEntry"
@@ -326,7 +338,7 @@ async function handleLoadSeed() {
 
 .input-area {
   flex-shrink: 0;
-  padding: 1rem;
+  padding: 1rem 0.75rem;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   gap: 0.75rem;

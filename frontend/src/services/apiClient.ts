@@ -138,6 +138,21 @@ export async function deleteTimeLog(id: string): Promise<void> {
   return apiDelete<void>(`/time-logs/${id}`)
 }
 
+/** GET /time-logs/recent - list most recent time logs with project names (for initial display) */
+export async function getRecentTimeLogs(limit = 5): Promise<
+  Array<{
+    id: string
+    projectId: string
+    projectName?: string
+    durationMinutes: number
+    note?: string
+    loggedAt: string
+  }>
+> {
+  const safeLimit = Math.min(Math.max(limit, 1), 50)
+  return apiGet(`/time-logs/recent?limit=${safeLimit}`)
+}
+
 /** POST /dev/seed - load fictional seed data (dev only, when backend enables it) */
 export async function loadDevSeed(): Promise<{ projectsCreated: number; timeLogsCreated: number }> {
   return apiPost<{ projectsCreated: number; timeLogsCreated: number }>('/dev/seed', {})

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MessageBubble from './MessageBubble.vue'
+import LogEntriesBubble from './LogEntriesBubble.vue'
 import type { Message, TimeLogEntry } from '../types'
 
 defineProps<{
   messages: Message[]
+  recentLogs?: TimeLogEntry[]
   isProcessing?: boolean
   hasNewMessageBelow?: boolean
 }>()
@@ -48,10 +50,24 @@ defineExpose({
 
 <template>
   <div ref="timelineEl" class="timeline" @scroll="updateUserAtBottom">
-    <div v-if="messages.length === 0 && !isProcessing" class="empty-state">
-      <p>Say something like:</p>
-      <p class="example">"30 minutes on HatCast working on the selection algorithm"</p>
-      <p class="hint">Type in the field below or tap the mic to speak.</p>
+    <div
+      v-if="messages.length === 0 && !isProcessing"
+      class="empty-state"
+    >
+      <template v-if="recentLogs?.length">
+        <p class="empty-state-title">Dernières activités</p>
+        <LogEntriesBubble
+          :entries="recentLogs"
+          @select-entry="emit('selectEntry', $event)"
+          @edit-entry="emit('editEntry', $event)"
+        />
+        <p class="hint">Type in the field below or tap the mic to speak.</p>
+      </template>
+      <template v-else>
+        <p>Say something like:</p>
+        <p class="example">"30 minutes on HatCast working on the selection algorithm"</p>
+        <p class="hint">Type in the field below or tap the mic to speak.</p>
+      </template>
     </div>
     <MessageBubble
       v-for="msg in messages"
@@ -83,7 +99,7 @@ defineExpose({
 .timeline {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1rem 0.75rem;
   padding-bottom: 3rem;
   display: flex;
   flex-direction: column;
@@ -92,7 +108,7 @@ defineExpose({
 }
 
 .empty-state {
-  padding: 2rem;
+  padding: 1.5rem 0.5rem;
   text-align: center;
   color: #8888a0;
   font-size: 0.9rem;
@@ -107,7 +123,14 @@ defineExpose({
   font-family: monospace;
 }
 
+.empty-state .empty-state-title {
+  margin: 0 0 1rem;
+  font-weight: 600;
+  color: #a0a0c0;
+}
+
 .empty-state .hint {
+  margin-top: 1rem;
   font-size: 0.8rem;
   color: #666680;
 }

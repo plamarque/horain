@@ -25,6 +25,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ### Conversation timeline
 
 - Chronological thread of messages.
+- **Initial state:** On first load, when the thread is empty, the app fetches the 5 most recent logged activities via API (no LLM call) and displays them in the same table format as conversation entries. This gives the user immediate context of where they left off. If no entries exist or the API fails, a placeholder with example phrasing is shown instead.
 - **Scroll behavior:** When a new assistant message arrives, if the user was at the bottom of the thread, auto-scroll to the new message. If the user had scrolled up (e.g. reading earlier content while the agent was responding), do not auto-scroll; show a floating "New message" indicator that lets them jump to the latest response.
 - **Gap:** Padding at the bottom of the timeline so content does not appear hidden below the input area.
 - **User message:** Transcription of what the user said.

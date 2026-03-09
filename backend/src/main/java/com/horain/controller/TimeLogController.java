@@ -1,6 +1,9 @@
 package com.horain.controller;
 
+import com.horain.dto.ProjectDto;
 import com.horain.dto.TimeLogDto;
+import com.horain.dto.TimeLogEntryDto;
+import com.horain.service.ProjectService;
 import com.horain.service.TimeLogService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Time log API controller.
@@ -18,9 +22,30 @@ import java.util.UUID;
 public class TimeLogController {
 
     private final TimeLogService timeLogService;
+    private final ProjectService projectService;
 
-    public TimeLogController(TimeLogService timeLogService) {
+    public TimeLogController(TimeLogService timeLogService, ProjectService projectService) {
         this.timeLogService = timeLogService;
+        this.projectService = projectService;
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<List<TimeLogEntryDto>> getRecent(
+            @RequestParam(defaultValue = "5") int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        List<TimeLogDto> logs = timeLogService.findRecentLogs(safeLimit);
+        Map<String, String> projectNames = projectService.findAll().stream()
+                .collect(Collectors.toMap(p -> p.getId().toString(), ProjectDto::getName));
+        List<TimeLogEntryDto> entries = logs.stream()
+                .map(log -> new TimeLogEntryDto(
+                        log.getId().toString(),
+                        log.getProjectId().toString(),
+                        projectNames.getOrDefault(log.getProjectId().toString(), "?"),
+                        log.getDurationMinutes() != null ? log.getDurationMinutes() : 0,
+                        log.getNote(),
+                        log.getLoggedAt() != null ? log.getLoggedAt().toString() : null))
+                .toList();
+        return ResponseEntity.ok(entries);
     }
 
     @PostMapping

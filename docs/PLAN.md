@@ -22,6 +22,7 @@ Slice 1 — Bootstrap front and minimal conversation UI.
 - [ ] Implement minimal conversation UI (thread, messages)
 - [ ] Push-to-talk button (mock/placeholder)
 - [ ] Layout and styling (mobile-first)
+- [x] Display 5 recent activities on launch (API direct, no LLM)
 
 ## Tasks (Slice 2)
 

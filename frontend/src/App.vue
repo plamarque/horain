@@ -30,7 +30,7 @@ body {
 }
 
 .app {
-  max-width: 480px;
+  max-width: 540px;
   margin: 0 auto;
   min-height: 100vh;
   min-height: 100dvh;
