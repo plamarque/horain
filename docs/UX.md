@@ -19,7 +19,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Text input** with placeholder "Ask anything" — user can type directly and press Enter.
 - **Send button** (outline arrow up icon) — appears when text is entered; click to send. Same style and dimensions as the mic button. Positioned to the right of the mic (rightmost) for easy one-handed tap.
 - **Stop button** — replaces Send during processing; click to cancel the in-flight request. Restores focus to the input field. No data is modified on cancel.
-- **Microphone icon** — click to start recording, click again to stop and send.
+- **Microphone icon** — click to start recording. During recording, the input area is replaced by a waveform (no real-time transcript). Two buttons appear: **Cancel** (X) and **Confirm** (checkmark). Cancel aborts and returns to input. Confirm triggers transcription (with brief “Transcribing…” indicator if needed); the transcript is inserted at the caret position in the input (appending, not replacing existing text). User edits if desired and sends via Enter or Send button.
 - Sync icon (discrete) for manual sync; sync also runs automatically after each message.
 
 ### Conversation timeline
@@ -33,9 +33,9 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ### Typical flow
 
-1. User types in the field and sends via Enter or the Send button, or clicks the mic, speaks, then clicks again to send.
-2. Voice is sent for transcription.
-3. Transcript appears in the conversation.
+1. User types in the field and sends via Enter or the Send button; or clicks the mic, speaks, confirms (checkmark), waits for transcription, edits the inserted text if desired, then sends via Enter or Send button.
+2. Voice is transcribed; the transcript is inserted into the input at the caret position.
+3. Transcript (possibly edited) appears in the conversation when the user sends.
 4. Agent analyzes, optionally calls MCP tools.
 5. Assistant response appears.
 6. UI updates (new message, confirmation).
@@ -50,7 +50,8 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ## States
 
 - **Idle:** Input bar ready; user can type or click mic. Send button appears when text is entered.
-- **Recording:** User clicked mic; interim transcript shown above bar.
+- **Recording:** User clicked mic; input area replaced by waveform and Cancel/Confirm buttons. No real-time transcript.
+- **Transcribing:** User confirmed recording; brief “Transcribing…” indicator and Cancel button while STT finalizes. Cancel aborts transcription and returns to Idle.
 - **Processing:** Transcript sent; waiting for assistant reply. Send becomes Stop; user can cancel the request.
 - **Response:** Assistant message displayed.
 
@@ -58,5 +59,5 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 - Input bar must be keyboard and screen-reader accessible.
 - Send and Stop buttons must have clear labels (e.g. "Send", "Stop").
-- Mic button must have clear label (e.g. "Click to speak" / "Click to stop").
+- Mic button must have clear label (e.g. "Click to speak"). Cancel and Confirm buttons must have clear labels (e.g. "Cancel", "Confirm").
 - Conversation thread should be announced when updated.

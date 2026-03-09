@@ -4,13 +4,13 @@
 
 Horain is a **voice-first personal time journal assistant**.
 
-The user presses a **push-to-talk** button and speaks naturally. The system converts voice to text, detects intent, extracts entities, matches or creates projects, asks for clarification when needed, logs the time entry, and confirms the action conversationally.
+The user captures voice via the mic (waveform during recording, Confirm/Cancel to transcribe); the transcript is inserted into the input and sent manually. The system converts voice to text, detects intent, extracts entities, matches or creates projects, asks for clarification when needed, logs the time entry, and confirms the action conversationally.
 
 ## Scope
 
 - **In scope:**
   - Minimal mobile web interface (PWA)
-  - Push-to-talk voice interaction
+  - Voice input (click mic, record, confirm to transcribe, insert at caret, send manually)
   - Speech-to-text (STT) transcription
   - Agent-based intent detection
   - Project matching (direct, ambiguous, unknown)
@@ -72,7 +72,7 @@ The user presses a **push-to-talk** button and speaks naturally. The system conv
 
 ## Boundaries
 
-- **Inputs:** Voice (push-to-talk), optional text input.
+- **Inputs:** Voice (click mic → record → confirm → insert) or direct text input.
 - **Outputs:** Assistant text responses, confirmations, conversation updates.
 - **External dependencies:** STT service, LLM (agent), MCP Server (tools), Supabase.
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
+import AudioWaveform from './AudioWaveform.vue'
 import {
   startListening,
   stopListening,
@@ -17,52 +18,61 @@ const emit = defineEmits<{
   permissionError: [message: string]
 }>()
 
+type VoiceState = 'idle' | 'recording' | 'transcribing'
+const voiceState = ref<VoiceState>('idle')
+const voiceAction = ref<'confirm' | 'cancel'>('cancel')
+
 const inputText = ref('')
 const inputEl = ref<HTMLInputElement | null>(null)
-const isListening = ref(false)
+const savedCaretStart = ref(0)
+const savedCaretEnd = ref(0)
 
 function focusInput() {
   inputEl.value?.focus()
 }
 
 defineExpose({ focusInput })
-const isReady = ref(false)
-const interimTranscript = ref('')
 
 /**
- * Click-to-talk: click mic to start, click again to stop and submit.
- * Toggle behavior instead of hold-to-talk.
+ * Insert transcript at caret position. Does not replace existing text.
  */
-function toggleVoiceInput() {
-  if (isListening.value) {
-    stopListening()
-    return
-  }
+function insertAtCaret(transcript: string) {
+  const start = savedCaretStart.value
+  const end = savedCaretEnd.value
+  const before = inputText.value.slice(0, start)
+  const after = inputText.value.slice(end)
+  inputText.value = before + transcript + after
+  nextTick(() => {
+    const el = inputEl.value
+    if (el) {
+      const newPos = start + transcript.length
+      el.setSelectionRange(newPos, newPos)
+      el.focus()
+    }
+  })
+}
+
+function startVoiceRecording() {
   if (!isSpeechRecognitionSupported()) {
     return
   }
-  interimTranscript.value = ''
+  const el = inputEl.value
+  savedCaretStart.value = el?.selectionStart ?? inputText.value.length
+  savedCaretEnd.value = el?.selectionEnd ?? inputText.value.length
+
+  voiceState.value = 'recording'
+  voiceAction.value = 'cancel'
+
   startListening(
     (text) => {
-      if (text) {
-        emit('submit', text)
+      if (voiceAction.value === 'confirm') {
+        insertAtCaret(text)
       }
-      interimTranscript.value = ''
-      isListening.value = false
+      voiceState.value = 'idle'
     },
-    (status) => {
-      if (status === 'listening') {
-        isListening.value = true
-        isReady.value = false
-      } else if (status === 'ready') {
-        isReady.value = true
-      } else if (status === 'stopped' || status === 'error') {
-        isListening.value = false
-        isReady.value = false
-        interimTranscript.value = ''
-      }
-    },
+    undefined,
     (errorCode) => {
+      voiceState.value = 'idle'
       if (errorCode === 'not-allowed' || errorCode === 'service-not-allowed') {
         emit(
           'permissionError',
@@ -73,12 +83,25 @@ function toggleVoiceInput() {
       } else if (errorCode === 'network') {
         emit('permissionError', 'Network error. Speech recognition requires an internet connection.')
       }
-    },
-    (interim) => {
-      interimTranscript.value = interim
     }
   )
-  isListening.value = true
+}
+
+function handleVoiceCancel() {
+  voiceAction.value = 'cancel'
+  stopListening()
+  voiceState.value = 'idle'
+}
+
+function handleVoiceConfirm() {
+  voiceAction.value = 'confirm'
+  voiceState.value = 'transcribing'
+  stopListening()
+}
+
+function handleTranscribingCancel() {
+  voiceAction.value = 'cancel'
+  voiceState.value = 'idle'
 }
 
 function submitText() {
@@ -92,94 +115,179 @@ function submitText() {
 function handleStop() {
   emit('stop')
 }
+
+const showIdleView = () => voiceState.value === 'idle'
+const showRecordingView = () => voiceState.value === 'recording'
+const showTranscribingView = () => voiceState.value === 'transcribing'
 </script>
 
 <template>
   <div class="input-bar">
     <div class="pill-wrapper">
-      <input
-        ref="inputEl"
-        v-model="inputText"
-        type="text"
-        placeholder="Ask anything"
-        class="text-input"
-        :disabled="disabled"
-        @keydown.enter="submitText"
-      />
-      <button
-        class="action-btn mic-btn"
-        :class="{ listening: isListening }"
-        :disabled="disabled"
-        type="button"
-        :title="isListening ? 'Click to stop' : 'Click to speak'"
-        @click="toggleVoiceInput"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+      <!-- Idle: input + mic + send -->
+      <template v-if="showIdleView()">
+        <input
+          ref="inputEl"
+          v-model="inputText"
+          type="text"
+          placeholder="Ask anything"
+          class="text-input"
+          :disabled="disabled"
+          @keydown.enter="submitText"
+        />
+        <button
+          class="action-btn mic-btn"
+          :disabled="disabled"
+          type="button"
+          title="Click to speak"
+          aria-label="Click to speak"
+          @click="startVoiceRecording"
         >
-          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-          <line x1="12" x2="12" y1="19" y2="22" />
-        </svg>
-      </button>
-      <!-- Send: rightmost for easy click -->
-      <button
-        v-if="inputText.trim().length > 0 && !disabled && !processing"
-        class="action-btn send-btn"
-        type="button"
-        title="Send"
-        aria-label="Send"
-        @click="submitText"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+          </svg>
+        </button>
+        <button
+          v-if="inputText.trim().length > 0 && !disabled && !processing"
+          class="action-btn send-btn"
+          type="button"
+          title="Send"
+          aria-label="Send"
+          @click="submitText"
         >
-          <path d="M12 19V5" />
-          <path d="m5 12 7-7 7 7" />
-        </svg>
-      </button>
-      <!-- Stop: rightmost when processing -->
-      <button
-        v-if="processing"
-        class="action-btn stop-btn"
-        type="button"
-        title="Stop"
-        aria-label="Stop"
-        @click="handleStop"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 19V5" />
+            <path d="m5 12 7-7 7 7" />
+          </svg>
+        </button>
+        <button
+          v-if="processing"
+          class="action-btn stop-btn"
+          type="button"
+          title="Stop"
+          aria-label="Stop"
+          @click="handleStop"
         >
-          <rect x="6" y="6" width="12" height="12" rx="1" />
-        </svg>
-      </button>
-    </div>
-    <div v-if="isListening && interimTranscript" class="interim-feedback">
-      {{ interimTranscript }}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="6" y="6" width="12" height="12" rx="1" />
+          </svg>
+        </button>
+      </template>
+
+      <!-- Recording: waveform + Cancel + Confirm -->
+      <template v-else-if="showRecordingView()">
+        <div class="recording-content">
+          <div class="waveform-slot">
+            <AudioWaveform :active="true" />
+          </div>
+          <div class="recording-actions">
+            <button
+            class="action-btn cancel-btn"
+            type="button"
+            title="Cancel"
+            aria-label="Cancel"
+            @click="handleVoiceCancel"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" x2="6" y1="6" y2="18" />
+              <line x1="6" x2="18" y1="6" y2="18" />
+            </svg>
+          </button>
+          <button
+            class="action-btn confirm-btn"
+            type="button"
+            title="Confirm"
+            aria-label="Confirm"
+            @click="handleVoiceConfirm"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Transcribing: brief indicator + Cancel to abort -->
+      <template v-else-if="showTranscribingView()">
+        <div class="transcribing-content">
+          <span class="transcribing-text">Transcribing…</span>
+          <button
+            class="action-btn cancel-btn"
+            type="button"
+            title="Cancel"
+            aria-label="Cancel"
+            @click="handleTranscribingCancel"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" x2="6" y1="6" y2="18" />
+              <line x1="6" x2="18" y1="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -246,7 +354,42 @@ function handleStop() {
   cursor: not-allowed;
 }
 
-/* Shared: send, stop, mic — same dimensions and base style */
+.recording-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  min-width: 0;
+}
+
+.waveform-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.recording-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.transcribing-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.transcribing-text {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #8888a0;
+}
+
 .action-btn {
   width: 36px;
   height: 36px;
@@ -272,11 +415,17 @@ function handleStop() {
   cursor: not-allowed;
 }
 
-.mic-btn.listening {
+.cancel-btn:hover:not(:disabled) {
+  color: #ef5350;
+  background: rgba(198, 40, 40, 0.2);
+}
+
+.confirm-btn {
   color: #4a6edb;
 }
 
-.mic-btn.listening:hover:not(:disabled) {
+.confirm-btn:hover:not(:disabled) {
+  color: #6b8aeb;
   background: rgba(74, 110, 219, 0.2);
 }
 
@@ -301,14 +450,5 @@ function handleStop() {
     min-width: 56px;
     min-height: 56px;
   }
-}
-
-.interim-feedback {
-  padding: 0.5rem 0.75rem;
-  background: #1a1a2e;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: #a0a0c0;
-  border-left: 3px solid #4a6edb;
 }
 </style>

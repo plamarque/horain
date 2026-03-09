@@ -118,14 +118,17 @@ onUnmounted(() => {
 .waveform {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 2px;
   height: 32px;
+  width: 100%;
+  min-width: 0;
 }
 
 .wave-bar {
   display: block;
-  width: 4px;
+  flex: 1;
+  min-width: 3px;
   height: 24px;
   min-height: 4px;
   background: #4a6edb;

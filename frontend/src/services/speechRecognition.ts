@@ -81,7 +81,10 @@ export function startListening(
   recognition.onend = () => {
     onStatus?.('stopped')
     const fullTranscript = (finalTranscript + (finalTranscript && pendingInterim ? ' ' : '') + pendingInterim).trim()
-    if (fullTranscript) {
+    const delayMs = Number(import.meta.env.VITE_STT_DELAY_MS) || 0
+    if (delayMs > 0) {
+      setTimeout(() => onTranscript(fullTranscript), delayMs)
+    } else {
       onTranscript(fullTranscript)
     }
   }
