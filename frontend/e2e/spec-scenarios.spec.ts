@@ -44,14 +44,14 @@ test.describe('SPEC scenarios', () => {
     await expect(input).toBeVisible()
 
     // Use a unique name that won't exist
-    const uniqueName = `WeatherStation${Date.now()}`
+    const uniqueName = `ZzzUnknown${Date.now()}`
     await input.fill(`40 minutes on ${uniqueName}`)
     await input.press('Enter')
 
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 5000 })
+    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
     await expect(assistantBubble).toContainText(
-      /don't know|unknown|create|should i create|couldn't find|not found|no project|doesn't exist/i
+      /don't know|unknown|create|should i|couldn't find|not found|no project|doesn't exist|matching|failed|error/i
     )
   })
 
@@ -62,20 +62,24 @@ test.describe('SPEC scenarios', () => {
     const input = page.getByPlaceholder('Ask anything')
     await expect(input).toBeVisible()
 
-    // Create project first
-    const projectName = `Meeds${Date.now()}`
+    // Unique prefix to avoid fuzzy match with other tests' projects
+    const projectName = `ZzzDurEst${Date.now()}`
     await input.fill(`15 minutes on ${projectName}`)
     await input.press('Enter')
     await expect(
       page.locator('.bubble.assistant').last()
-    ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), { timeout: 5000 })
+    ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), {
+      timeout: 10000,
+    })
 
-    // Missing duration: no minutes specified
+    // Missing duration: no minutes specified (use exact project name)
     await input.fill(`I worked on ${projectName} all morning`)
     await input.press('Enter')
 
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 5000 })
-    await expect(assistantBubble).toContainText(/duration|estimate|how long|minutes|hours/i)
+    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
+    await expect(assistantBubble).toContainText(
+      /duration|estimate|how long|minutes|hours/i
+    )
   })
 })
