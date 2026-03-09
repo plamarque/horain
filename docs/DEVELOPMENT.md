@@ -24,6 +24,10 @@ npm install
 
 Backend (8080) + frontend (5173). L’URL réseau local s’affiche pour tester depuis un smartphone sur le même Wi‑Fi.
 
+## LLM (assistant)
+
+Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans backend/.env (voir `backend/.env.example`). Optionnel : `LLM_BASE_URL`, `LLM_MODEL`. Détails : [ENV_SETUP.md](ENV_SETUP.md) section D.
+
 ## Commandes (front-end)
 
 | Commande | Rôle |

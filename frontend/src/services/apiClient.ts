@@ -17,6 +17,7 @@ const API_KEY = import.meta.env.VITE_API_KEY || 'HORAIN_DEV_KEY'
 function headers(): HeadersInit {
   return {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
     Authorization: `Bearer ${API_KEY}`,
   }
 }
@@ -35,7 +36,16 @@ export async function apiFetch<T>(
     },
   })
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${res.statusText}`)
+    const text = await res.text()
+    let detail = ''
+    try {
+      const json = text ? (JSON.parse(text) as Record<string, unknown>) : null
+      if (json && typeof json.message === 'string') detail = `: ${json.message}`
+      else if (json && typeof json.error === 'string') detail = `: ${json.error}`
+    } catch {
+      /* ignore parse errors */
+    }
+    throw new Error(`API error ${res.status}${detail || ` ${res.statusText}`}`)
   }
   const text = await res.text()
   if (!text) return {} as T

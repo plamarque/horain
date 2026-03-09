@@ -41,11 +41,13 @@ Clique sur **Add Environment variable** pour chaque ligne. Remplace les valeurs 
 | `SPRING_DATASOURCE_PASSWORD` | *(ton mot de passe Supabase)* |
 | `HORAIN_API_KEY` | *(ex. `openssl rand -hex 32`)* — **pas** HEALTH_API_KEY |
 
-**Optionnel** (pour l'agent LLM plus tard) :
+**Optionnel** (pour l'assistant LLM) :
 
 | Key | Value |
 |-----|-------|
-| `OPENAI_API_KEY` | *(ta clé OpenAI sk-...)* |
+| `LLM_API_KEY` ou `OPENAI_API_KEY` | *(ta clé API OpenAI sk-... ou OpenRouter sk-or-...)* |
+| `LLM_BASE_URL` | *(optionnel)* `https://api.openai.com/v1` ou `https://openrouter.ai/api/v1` |
+| `LLM_MODEL` | *(optionnel)* `gpt-4o-mini` ou modèle OpenRouter |
 
 ---
 

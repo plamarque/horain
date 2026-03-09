@@ -15,7 +15,9 @@ This document explains how to configure Horain for local development and product
 | `SPRING_DATASOURCE_PASSWORD` | — | Environment | — |
 | `SPRING_PROFILES_ACTIVE` | — | Environment | — |
 | `HORAIN_API_KEY` | — | Environment | — |
-| `OPENAI_API_KEY` | — | Environment | — |
+| `LLM_API_KEY` / `OPENAI_API_KEY` | backend/.env | Environment | Clé API du fournisseur LLM |
+| `LLM_BASE_URL` | backend/.env | Environment | URL de base (optionnel, défaut: OpenAI v1) |
+| `LLM_MODEL` | backend/.env | Environment | Modèle (optionnel, défaut: gpt-4o-mini) |
 
 **Important:** En dev local, laisser `VITE_API_URL` vide pour utiliser le proxy Vite (`/api`). Cela fonctionne à la fois sur localhost et sur smartphone (réseau local).
 
@@ -77,7 +79,9 @@ In your Web Service → **Environment** tab, add:
 | `SPRING_DATASOURCE_USERNAME` | `postgres` |
 | `SPRING_DATASOURCE_PASSWORD` | Your Supabase database password |
 | `HORAIN_API_KEY` | A secure random string (e.g. `openssl rand -hex 32`). The frontend will use this same value. |
-| `OPENAI_API_KEY` | Your OpenAI API key (for future LLM agent) |
+| `LLM_API_KEY` ou `OPENAI_API_KEY` | Your API key (OpenAI sk-..., OpenRouter sk-or-...) |
+| `LLM_BASE_URL` | (optionnel) `https://api.openai.com/v1` ou `https://openrouter.ai/api/v1` |
+| `LLM_MODEL` | (optionnel) `gpt-4o-mini` (OpenAI) ou modèle OpenRouter |
 
 ### 3. Get the backend URL
 
@@ -114,20 +118,27 @@ Le workflow passe ces secrets au build Vite. Le bundle contiendra l’URL de pro
 
 ---
 
-## D. OpenAI (for future Spring AI agent)
+## D. LLM (assistant conversationnel)
 
-### 1. Create an API key
+L'assistant nécessite un fournisseur LLM pour répondre aux questions ("combien d'heures ?", etc.). Sans clé API, un PlaceholderLlmClient renvoie des réponses fixes.
 
-1. Go to [platform.openai.com](https://platform.openai.com)
-2. Sign in or create an account
-3. **API keys** → **Create new secret key**
-4. Copy the key (starts with `sk-`). It is shown only once.
+### 1. Variables (voir `backend/.env.example`)
 
-### 2. Add to Render
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `LLM_API_KEY` ou `OPENAI_API_KEY` | Oui | Clé API du fournisseur (OpenAI, OpenRouter, etc.) |
+| `LLM_BASE_URL` | Non | URL de base de l'API chat. Défaut: `https://api.openai.com/v1`. OpenRouter: `https://openrouter.ai/api/v1` |
+| `LLM_MODEL` | Non | Modèle à utiliser. Défaut: `gpt-4o-mini`. OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-3-haiku`, etc. |
 
-Add `OPENAI_API_KEY` to your Render Web Service environment variables (see section B.2).
+### 2. Fournisseurs supportés
 
-**Note:** The assistant requires an LLM. Configure `LLM_API_KEY` on the backend (or `OPENAI_API_KEY` if using the Spring default). See `backend/.env.example` for the exact variable names.
+- **OpenAI** – Clé sur [platform.openai.com](https://platform.openai.com/api-keys). Base URL par défaut.
+- **OpenRouter** – Clé sur [openrouter.ai](https://openrouter.ai/keys). Définir `LLM_BASE_URL=https://openrouter.ai/api/v1`.
+- **LiteLLM / proxy custom** – Base URL de votre endpoint, se terminant par `/v1`.
+
+### 3. Configurer sur Render
+
+Ajouter les variables dans l’onglet **Environment** du Web Service (section B.2). Ne pas exposer la clé API.
 
 ---
 

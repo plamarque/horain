@@ -190,9 +190,9 @@ async function handleSubmit(text: string) {
       // User clicked Stop — do not show error, just return control
       return
     }
-    addAssistantMessage(
-      'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
-    )
+    const msg = (err as Error).message
+    const fallback = 'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
+    addAssistantMessage(msg?.startsWith('API error') ? msg : fallback)
   } finally {
     isProcessing.value = false
     abortControllerRef.value = null

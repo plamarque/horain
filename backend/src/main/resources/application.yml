@@ -13,6 +13,8 @@ llm:
   base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
   model: ${LLM_MODEL:gpt-4o-mini}
+  # client: openai-compatible (default, RestTemplate) | spring-ai (Spring AI ChatModel - known 404 issues)
+  client: ${LLM_CLIENT:openai-compatible}
 
 # Load .env from backend/ directory when running locally (optional; Render injects env vars directly).
 spring:
@@ -35,6 +37,13 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
     database-platform: org.hibernate.dialect.H2Dialect
+  ai:
+    openai:
+      api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+      base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+      chat:
+        options:
+          model: ${LLM_MODEL:gpt-4o-mini}
 
 ---
 # PostgreSQL profile for deployment (e.g. Render + Supabase)
@@ -72,3 +81,4 @@ llm:
   base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
   model: ${LLM_MODEL:gpt-4o-mini}
+  client: ${LLM_CLIENT:openai-compatible}
