@@ -59,19 +59,23 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 ## Release
 
+Versioning conforme à Maven : le code en développement porte une version SNAPSHOT (ex. `0.1.0-SNAPSHOT`). Chaque release produit une version sans suffixe puis prépare la prochaine SNAPSHOT.
+
 Pour créer une release avec version sémantique et publication sur GitHub :
 
 ```bash
-./scripts/release-version.sh --patch   # 0.1.0 → 0.1.1
-./scripts/release-version.sh --minor   # 0.1.1 → 0.2.0
-./scripts/release-version.sh --major   # 0.2.0 → 1.0.0
+./scripts/release-version.sh --patch   # 0.1.0-SNAPSHOT → release 0.1.1, puis 0.1.2-SNAPSHOT
+./scripts/release-version.sh --minor   # 0.1.0-SNAPSHOT → release 0.2.0, puis 0.2.1-SNAPSHOT
+./scripts/release-version.sh --major   # 0.1.0-SNAPSHOT → release 1.0.0, puis 1.0.1-SNAPSHOT
 ```
 
 Ou via npm : `npm run release -- --patch|--minor|--major`
 
 **Prérequis :** working tree propre, GitHub CLI (`gh`) installé et authentifié.
 
-**Étapes du script :** vérification du working tree et de `gh`, tests backend (`mvn test`), tests e2e frontend, build frontend, bump de version (package.json racine, frontend, backend pom.xml), commit, tag, push. Le workflow GitHub crée la release avec un changelog auto-généré à partir des commits.
+**Étapes du script :** (1) vérification du working tree et de `gh`, tests backend et e2e, build frontend ; (2) phase release : extraction de la base (sans -SNAPSHOT), bump selon option, mise à jour des 3 fichiers, commit, tag, push ; (3) phase next dev : bump patch, ajout de -SNAPSHOT, commit, push. Le workflow GitHub crée la release avec un changelog auto-généré.
+
+**Affichage UI :** En version SNAPSHOT, le header affiche aussi le short commit hash (ex. `v0.1.0-SNAPSHOT (a1b2c3d)`) pour distinguer les builds.
 
 ## Publication sur les stores
 

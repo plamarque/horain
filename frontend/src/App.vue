@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import ConversationView from './views/ConversationView.vue'
 
-// Injected at build time from frontend/package.json
+// Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__
+const gitSha = __GIT_SHA__
+const versionDisplay =
+  appVersion.endsWith('-SNAPSHOT') && gitSha
+    ? `v${appVersion} (${gitSha})`
+    : `v${appVersion}`
 </script>
 
 <template>
@@ -12,7 +17,7 @@ const appVersion = __APP_VERSION__
         <h1>Horain</h1>
         <span class="tagline">Voice-first time logging</span>
       </div>
-      <span class="version">v{{ appVersion }}</span>
+      <span class="version">{{ versionDisplay }}</span>
     </header>
     <main class="main">
       <ConversationView />

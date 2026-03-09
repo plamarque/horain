@@ -7,9 +7,9 @@ cd "$ROOT_DIR"
 
 usage() {
   echo "Usage: $0 --patch | --minor | --major"
-  echo "  --patch   0.1.0 → 0.1.1"
-  echo "  --minor   0.1.1 → 0.2.0"
-  echo "  --major   0.2.0 → 1.0.0"
+  echo "  --patch   0.1.0-SNAPSHOT → release 0.1.1, then 0.1.2-SNAPSHOT"
+  echo "  --minor   0.1.0-SNAPSHOT → release 0.2.0, then 0.2.1-SNAPSHOT"
+  echo "  --major   0.1.0-SNAPSHOT → release 1.0.0, then 1.0.1-SNAPSHOT"
   echo ""
   echo "The release workflow (triggered by the tag) creates the GitHub release"
   echo "with an auto-generated changelog from commits."
@@ -60,38 +60,67 @@ npm run build
 
 cd "$ROOT_DIR"
 
-# 4. Bump version (all 3 files)
+# 4. Phase 1: Release — extract base, bump, update to release version
 CURRENT=$(node -p "require('./package.json').version")
-NEW_VERSION=$(npx semver -i "$BUMP" "$CURRENT")
+if [[ "$CURRENT" == *-SNAPSHOT ]]; then
+  BASE="${CURRENT%-SNAPSHOT}"
+else
+  BASE="$CURRENT"
+fi
 
-echo "Bumping version: $CURRENT → $NEW_VERSION"
+RELEASE_VERSION=$(npx semver -i "$BUMP" "$BASE")
 
-# Update root package.json
+echo "Phase 1: Releasing v$RELEASE_VERSION (from $CURRENT)"
+
+# Update all 3 files with release version
 node -e "
 const p = require('./package.json');
-p.version = '$NEW_VERSION';
+p.version = '$RELEASE_VERSION';
 require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
 "
 
-# Update frontend package.json
 node -e "
 const p = require('./frontend/package.json');
-p.version = '$NEW_VERSION';
+p.version = '$RELEASE_VERSION';
 require('fs').writeFileSync('./frontend/package.json', JSON.stringify(p, null, 2) + '\n');
 "
 
-# Update backend pom.xml (only the project version, not parent or dependencies)
-perl -i -0pe 's/(<artifactId>horain-backend<\/artifactId>\s*)<version>[^<]+<\/version>/\1<version>'"$NEW_VERSION"'<\/version>/' backend/pom.xml
+perl -i -0pe 's/(<artifactId>horain-backend<\/artifactId>\s*)<version>[^<]+<\/version>/\1<version>'"$RELEASE_VERSION"'<\/version>/' backend/pom.xml
 
-# 5. Commit and tag
-TAG="v$NEW_VERSION"
+# 5. Commit, tag, push
+TAG="v$RELEASE_VERSION"
 git add package.json frontend/package.json backend/pom.xml
 git commit -m "chore: release $TAG"
 git tag "$TAG"
 
-# 6. Push
-echo "Pushing to origin..."
+echo "Pushing release to origin..."
 git push origin main --tags
+
+# 6. Phase 2: Prepare next dev — bump patch, add -SNAPSHOT
+NEXT_SNAPSHOT=$(npx semver -i patch "$RELEASE_VERSION")-SNAPSHOT
+
+echo "Phase 2: Preparing next dev $NEXT_SNAPSHOT"
+
+node -e "
+const p = require('./package.json');
+p.version = '$NEXT_SNAPSHOT';
+require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
+"
+
+node -e "
+const p = require('./frontend/package.json');
+p.version = '$NEXT_SNAPSHOT';
+require('fs').writeFileSync('./frontend/package.json', JSON.stringify(p, null, 2) + '\n');
+"
+
+perl -i -0pe 's/(<artifactId>horain-backend<\/artifactId>\s*)<version>[^<]+<\/version>/\1<version>'"$NEXT_SNAPSHOT"'<\/version>/' backend/pom.xml
+
+git add package.json frontend/package.json backend/pom.xml
+git commit -m "chore: prepare next dev $NEXT_SNAPSHOT"
+
+echo "Pushing next dev to origin..."
+git push origin main
 
 echo ""
 echo "Release $TAG pushed. The GitHub Actions workflow will create the release with the changelog."
+echo "Next dev version: $NEXT_SNAPSHOT"

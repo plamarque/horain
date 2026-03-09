@@ -1,14 +1,24 @@
 import { defineConfig } from 'vite'
+import { execSync } from 'child_process'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import mkcert from 'vite-plugin-mkcert'
 import pkg from './package.json'
+
+function getGitSha(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
+  } catch {
+    return ''
+  }
+}
 
 export default defineConfig({
   // GitHub Pages serves at /<repo-name>/, e.g. https://owner.github.io/horain/
   base: process.env.VITE_BASE_PATH || '/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __GIT_SHA__: JSON.stringify(getGitSha()),
   },
   plugins: [
     vue(),
