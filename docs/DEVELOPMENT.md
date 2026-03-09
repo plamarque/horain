@@ -46,6 +46,22 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 - **Outil :** Playwright.
 - **Exécution :** Intégrée au pipeline CI avant déploiement.
 
+## Release
+
+Pour créer une release avec version sémantique et publication sur GitHub :
+
+```bash
+./scripts/release-version.sh --patch   # 0.1.0 → 0.1.1
+./scripts/release-version.sh --minor   # 0.1.1 → 0.2.0
+./scripts/release-version.sh --major   # 0.2.0 → 1.0.0
+```
+
+Ou via npm : `npm run release -- --patch|--minor|--major`
+
+**Prérequis :** working tree propre, GitHub CLI (`gh`) installé et authentifié.
+
+**Étapes du script :** vérification du working tree et de `gh`, tests backend (`mvn test`), tests e2e frontend, build frontend, bump de version (package.json racine, frontend, backend pom.xml), commit, tag, push. Le workflow GitHub crée la release avec un changelog auto-généré à partir des commits.
+
 ## Publication sur les stores
 
 Voir [docs/PUBLISHING_STORES.md](PUBLISHING_STORES.md) pour le guide complet de publication sur l'App Store et le Play Store (inspiré de [chrono-eps](https://github.com/plamarque/chrono-eps)).

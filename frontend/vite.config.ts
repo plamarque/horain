@@ -2,10 +2,14 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import mkcert from 'vite-plugin-mkcert'
+import pkg from './package.json'
 
 export default defineConfig({
   // GitHub Pages serves at /<repo-name>/, e.g. https://owner.github.io/horain/
   base: process.env.VITE_BASE_PATH || '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     vue(),
     mkcert(),

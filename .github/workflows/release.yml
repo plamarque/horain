@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag
+        id: get_tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          TAG="${{ steps.get_tag.outputs.tag }}"
+          PREV=$(git tag -l --sort=-v:refname | sed -n 2p)
+          if [ -n "$PREV" ]; then
+            CHANGELOG=$(git log "$PREV..$TAG" --pretty=format:"- %s (%h)")
+          else
+            CHANGELOG=$(git log "$TAG" --pretty=format:"- %s (%h)" -30)
+          fi
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- No commits since last tag"
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.get_tag.outputs.tag }}"
+          echo "## Changes" > notes.md
+          echo "" >> notes.md
+          echo "${{ steps.changelog.outputs.changelog }}" >> notes.md
+          gh release create "$TAG" --notes-file notes.md
