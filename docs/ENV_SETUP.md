@@ -8,7 +8,7 @@ This document explains how to configure Horain for local development and product
 
 | Variable | Local dev | Render | GitHub Actions |
 |----------|-----------|--------|----------------|
-| `VITE_API_URL` | frontend/.env → `http://localhost:8080` | — | Repository Secret → `https://horain.onrender.com` |
+| `VITE_API_URL` | frontend/.env → vide (proxy /api) | — | Repository Secret → `https://horain.onrender.com` |
 | `VITE_API_KEY` | frontend/.env | — | Repository Secret |
 | `SPRING_DATASOURCE_URL` | — | Environment | — |
 | `SPRING_DATASOURCE_USERNAME` | — | Environment | — |
@@ -17,7 +17,7 @@ This document explains how to configure Horain for local development and product
 | `HORAIN_API_KEY` | — | Environment | — |
 | `OPENAI_API_KEY` | — | Environment | — |
 
-**Important:** En dev local, le frontend tourne sur localhost et utilise `http://localhost:8080`.
+**Important:** En dev local, laisser `VITE_API_URL` vide pour utiliser le proxy Vite (`/api`). Cela fonctionne à la fois sur localhost et sur smartphone (réseau local).
 
 En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets (ex. `https://horain.onrender.com`). Le frontend déployé sur GitHub Pages pointe vers le backend Render.
 
@@ -90,7 +90,7 @@ Cette URL sert pour `VITE_API_URL` du build frontend en production (voir section
 
 Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`. Le backend sur Render se redéploie automatiquement si le repo est connecté (voir [RENDER_SETUP.md](RENDER_SETUP.md)).
 
-**En dev local** (`npm run dev`), le frontend lit `frontend/.env` (ex. `VITE_API_URL=http://localhost:8080`).
+**En dev local** (`npm run dev`), le frontend lit `frontend/.env`. Laisser `VITE_API_URL` vide pour le proxy (localhost + smartphone).
 
 **En production**, le workflow GitHub Actions utilise les secrets. Le frontend déployé pointe vers le backend Render.
 
@@ -146,11 +146,11 @@ Add `OPENAI_API_KEY` to your Render Web Service environment variables (see secti
 ```bash
 cd frontend
 cp .env.example .env
-# .env contient VITE_API_URL=http://localhost:8080 (backend local)
+# .env : VITE_API_URL vide = proxy /api (localhost + smartphone)
 npm run dev
 ```
 
-Le frontend tourne sur localhost et appelle le backend local. Ne pas modifier `VITE_API_URL` en dev — `frontend/.env` reste avec localhost.
+Le frontend utilise le proxy Vite vers le backend. Fonctionne sur localhost et sur smartphone (via l’IP réseau affichée par `start-dev.sh`).
 
 ### Backend
 
