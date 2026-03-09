@@ -26,6 +26,7 @@ spring:
     password:
     driver-class-name: org.h2.Driver
   jpa:
+    open-in-view: false  # REST API: load data in services; no view rendering
     hibernate:
       ddl-auto: validate
     show-sql: false
@@ -49,12 +50,11 @@ spring:
     password: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false  # REST API: load data in services; no view rendering
     hibernate:
       ddl-auto: validate
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           time_zone: UTC
         timezone:
