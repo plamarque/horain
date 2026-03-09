@@ -225,33 +225,58 @@ public class LlmChatService {
                 break;
             }
         }
-        if (lastLogsCall == null || lastLogsCall.result() == null) {
-            return null;
+        if (lastLogsCall != null && lastLogsCall.result() != null) {
+            try {
+                JsonNode root = objectMapper.readTree(lastLogsCall.result());
+                if (!root.has("error")) {
+                    JsonNode timeLogs = root.get("time_logs");
+                    if (timeLogs != null && timeLogs.isArray()) {
+                        List<Map<String, Object>> entries = new ArrayList<>();
+                        for (JsonNode entry : timeLogs) {
+                            Map<String, Object> map = new HashMap<>();
+                            if (entry.has("id")) map.put("id", entry.get("id").asText());
+                            if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
+                            if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
+                            if (entry.has("durationMinutes")) map.put("durationMinutes", entry.get("durationMinutes").asInt());
+                            if (entry.has("note")) map.put("note", entry.get("note").asText());
+                            if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
+                            entries.add(map);
+                        }
+                        if (!entries.isEmpty()) return entries;
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Failed to parse time_logs from tool result: {}", e.getMessage());
+            }
         }
-        try {
-            JsonNode root = objectMapper.readTree(lastLogsCall.result());
-            if (root.has("error")) {
-                return null;
+        // Fallback: extract from create_time_log and update_time_log results (for create/update confirmations)
+        List<Map<String, Object>> createdOrUpdatedEntries = new ArrayList<>();
+        for (ToolCallRecord tc : toolCallsExecuted) {
+            if (!ToolRegistry.CREATE_TIME_LOG.equals(tc.name()) && !ToolRegistry.UPDATE_TIME_LOG.equals(tc.name())) {
+                continue;
             }
-            JsonNode timeLogs = root.get("time_logs");
-            if (timeLogs == null || !timeLogs.isArray()) {
-                return null;
-            }
-            List<Map<String, Object>> entries = new ArrayList<>();
-            for (JsonNode entry : timeLogs) {
+            if (tc.result() == null) continue;
+            try {
+                JsonNode root = objectMapper.readTree(tc.result());
+                if (root.has("error")) continue;
+                JsonNode timeLog = root.get("time_log");
+                if (timeLog == null || !timeLog.isObject()) continue;
+                if (!timeLog.has("durationMinutes") || !timeLog.has("loggedAt")) continue;
                 Map<String, Object> map = new HashMap<>();
-                if (entry.has("id")) map.put("id", entry.get("id").asText());
-                if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
-                if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
-                if (entry.has("durationMinutes")) map.put("durationMinutes", entry.get("durationMinutes").asInt());
-                if (entry.has("note")) map.put("note", entry.get("note").asText());
-                if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
-                entries.add(map);
+                map.put("durationMinutes", timeLog.get("durationMinutes").asInt());
+                map.put("loggedAt", timeLog.get("loggedAt").asText());
+                if (timeLog.has("id")) map.put("id", timeLog.get("id").asText());
+                if (timeLog.has("projectId")) map.put("projectId", timeLog.get("projectId").asText());
+                if (timeLog.has("projectName")) map.put("projectName", timeLog.get("projectName").asText());
+                if (timeLog.has("note")) map.put("note", timeLog.get("note").asText());
+                createdOrUpdatedEntries.add(map);
+            } catch (Exception e) {
+                log.debug("Failed to parse time_log from {} result: {}", tc.name(), e.getMessage());
             }
-            return entries;
-        } catch (Exception e) {
-            log.debug("Failed to parse time_logs from tool result: {}", e.getMessage());
-            return null;
         }
+        if (!createdOrUpdatedEntries.isEmpty()) {
+            return createdOrUpdatedEntries;
+        }
+        return null;
     }
 }

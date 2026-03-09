@@ -29,7 +29,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Gap:** Padding at the bottom of the timeline so content does not appear hidden below the input area.
 - **User message:** Transcription of what the user said.
 - **Assistant response:** Text reply, confirmations, clarification questions.
-- **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm."
+- **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm." When the user creates or updates a time entry, the message is followed by the structured entry table (same format as when listing entries), so the user can verify that the action was correctly captured and can select or edit it if needed.
 
 ### Typical flow
 

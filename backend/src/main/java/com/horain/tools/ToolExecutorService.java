@@ -155,10 +155,14 @@ public class ToolExecutorService {
                 .loggedAt(loggedAt)
                 .build();
         TimeLogDto created = timeLogService.create(dto);
+        String projectName = projectService.findById(created.getProjectId())
+                .map(ProjectDto::getName)
+                .orElse("?");
         return toJson(Map.of(
                 "time_log", Map.of(
                         "id", created.getId().toString(),
                         "projectId", created.getProjectId().toString(),
+                        "projectName", projectName,
                         "durationMinutes", created.getDurationMinutes(),
                         "note", created.getNote() != null ? created.getNote() : "",
                         "loggedAt", created.getLoggedAt().toString())));
@@ -299,10 +303,14 @@ public class ToolExecutorService {
             patch.setProjectId(resolveProjectId(projectIdStr));
         }
         TimeLogDto updated = timeLogService.update(id, patch);
+        String projectName = projectService.findById(updated.getProjectId())
+                .map(ProjectDto::getName)
+                .orElse("?");
         return toJson(Map.of(
                 "time_log", Map.of(
                         "id", updated.getId().toString(),
                         "projectId", updated.getProjectId().toString(),
+                        "projectName", projectName,
                         "durationMinutes", updated.getDurationMinutes(),
                         "note", updated.getNote() != null ? updated.getNote() : "",
                         "loggedAt", updated.getLoggedAt().toString())));

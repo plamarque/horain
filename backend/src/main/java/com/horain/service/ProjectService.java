@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -48,6 +49,11 @@ public class ProjectService {
         if (projectRepository.existsById(id)) return;
         dto.setId(id);
         create(dto);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProjectDto> findById(UUID id) {
+        return projectRepository.findById(id).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

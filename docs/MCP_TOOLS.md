@@ -11,11 +11,11 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | `list_projects` | — | `projects[]` | Returns all existing projects. |
 | `search_project` | `name` (string) | `matching_projects[]` | Fuzzy search by project name. Returns projects whose name matches (exact or similar). |
 | `create_project` | `name` (string), `description` (string, optional) | `project` | Creates a new project. Returns the created project. |
-| `create_time_log` | `projectId` (UUID), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional) | `time_log` | Records a time entry for the given project. Returns the created time_log. |
+| `create_time_log` | `projectId` (UUID or name), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional) | `time_log` | Records a time entry for the given project. Returns the created time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
 | `get_recent_logs` | `limit` (int, optional) | `time_logs[]` | Returns the most recent time logs (default 20, max 50). |
 | `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range. |
 | `propose_entries` | `entries` (array of {id, projectId, projectName, durationMinutes, note, loggedAt}) | `status` | Proposes time log entries for structured table display in the UI. Call after get_time_logs_for_period or get_recent_logs. |
-| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. |
+| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. Returns the updated time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
 | `delete_time_log` | `id` (UUID) | `status` | Deletes a time log entry. |
 | `sum_time_by_project` | `projectId`, `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums logged time for a project in the period. |
 | `sum_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums total logged time in the period. |
@@ -29,6 +29,7 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 
 ## Implementation Notes
 
+- `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.
 - `search_project` should support fuzzy matching (e.g. "HatCast" matches "HatCast V1", "HatCast V2").
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.
 - `log_time` timestamp: defaults to "now" if not provided; used for created_at.
