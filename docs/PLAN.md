@@ -2,54 +2,76 @@
 
 ## Current phase
 
-Slice 1 — Bootstrap front and minimal conversation UI.
+Slice 5 — CI avec tests avant déploiement. Alignement documentation.
+
+## État actuel (codebase)
+
+Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vite, conversation UI, push-to-talk, agent backend avec outils intégrés, PWA et tests e2e sont en place. Voir le détail des slices et tâches ci-dessous.
+
+**Écarts documentés :**
+- **PrimeVue :** ARCH/PLAN indiquaient PrimeVue ; l’implémentation utilise une UI custom (Vue 3, CSS). Décision : garder l’UI custom (ARCH mis à jour).
+- **MCP :** ARCH décrit un « MCP Server » ; les outils sont intégrés au backend (sémantique MCP_TOOLS). Voir ARCH.md section « MCP : outils intégrés ».
 
 ## Slices
 
 | Slice | Objective | Status |
 |-------|-----------|--------|
 | 0 | Documentation governance | Done |
-| 1 | Bootstrap front (Vue 3, PrimeVue, Vite) + minimal conversation UI | To do |
-| 2 | MCP Server + tools + Supabase | To do |
-| 3 | Backend agent + MCP client integration | To do |
-| 4 | Voice (push-to-talk, STT) | To do |
-| 5 | Full flow + e2e tests + CI/CD | To do |
-| 6 | PWA + stores (optional) | To do |
+| 1 | Bootstrap front (Vue 3, Vite) + minimal conversation UI | Done |
+| 2 | Tools + Supabase (integrated in backend) | Done |
+| 3 | Backend agent + tool calling | Done |
+| 4 | Voice (push-to-talk, STT) | Done |
+| 5 | Full flow + e2e tests + CI/CD | In progress |
+| 6 | PWA + stores (optional) | PWA Done, stores optional |
 
 ## Tasks (Slice 1)
 
-- [ ] Create Vite + Vue 3 + PrimeVue project
-- [ ] Implement minimal conversation UI (thread, messages)
-- [ ] Push-to-talk button (mock/placeholder)
-- [ ] Layout and styling (mobile-first)
+- [x] Create Vite + Vue 3 project
+- [x] Implement minimal conversation UI (thread, messages)
+- [x] Push-to-talk button (Web Speech API)
+- [x] Layout and styling (mobile-first)
 - [x] Display 5 recent activities on launch (API direct, no LLM)
+
+*Note: PrimeVue non utilisé ; UI custom conforme à UX.md.*
 
 ## Tasks (Slice 2)
 
-- [ ] MCP Server implementation with tools
-- [ ] Supabase setup (projects, time_logs)
-- [ ] list_projects, search_project, create_project, log_time, list_recent_logs
+- [x] Tools implementation (ToolRegistry, ToolExecutorService)
+- [x] Supabase setup (projects, time_logs via JDBC)
+- [x] list_projects, search_project, create_project, log_time, get_recent_logs, etc.
+
+*Note: Outils intégrés au backend ; pas de serveur MCP externe.*
 
 ## Tasks (Slice 3)
 
-- [ ] Backend agent runtime (e.g. Spring AI)
-- [ ] MCP client integration
-- [ ] Agent orchestration and tool calling
+- [x] Backend agent runtime (Spring AI)
+- [x] Tool integration (Spring AI tool calling)
+- [x] Agent orchestration and tool calling
 
 ## Tasks (Slice 4)
 
-- [ ] Speech-to-text integration
-- [ ] Push-to-talk wiring
-- [ ] Transcript → agent flow
-- [ ] Waveform réaliste : afficher visuellement si le son est reçu (niveau audio réel), remplacer l'animation décorative de fallback par un état « pas de signal » explicite
+- [x] Speech-to-text integration (Web Speech API)
+- [x] Push-to-talk wiring
+- [x] Transcript → agent flow
+- [ ] Waveform réaliste (différé, voir ISSUES.md)
 
 ## Tasks (Slice 5)
 
-- [ ] End-to-end flow: voice → transcript → agent → tools → confirmation
-- [ ] Playwright e2e tests
-- [ ] GitHub Actions CI/CD (build, test, deploy)
+- [x] End-to-end flow: voice → transcript → agent → tools → confirmation
+- [x] Playwright e2e tests
+- [ ] CI: run backend tests + e2e before deploy (deploy.yml)
+- [x] GitHub Actions deploy (frontend → Pages, backend → Render)
 
 ## Tasks (Slice 6)
 
-- [ ] PWA manifest and service worker
+- [x] PWA manifest and service worker
 - [ ] Store packaging (optional, see PUBLISHING_STORES.md)
+
+## Différé (post-MVP)
+
+Voir [docs/ISSUES.md](ISSUES.md) :
+
+- Streaming des réponses agent (SSE / WebSockets)
+- Reasoning interne (o1, o3)
+- STT : migration Whisper
+- Waveform réaliste

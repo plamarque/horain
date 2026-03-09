@@ -46,6 +46,17 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 - **Outil :** Playwright.
 - **Exécution :** Intégrée au pipeline CI avant déploiement.
 
+### CI (.github/workflows/deploy.yml)
+
+À chaque push sur `main`, le job `test` s'exécute avant le déploiement :
+
+1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe)
+2. **Tests e2e :** Démarrage du backend (port 8080), build et serve du frontend (4173), puis `npm run test:e2e`
+
+Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les tests appelent le backend local. Le déploiement utilise les secrets (`VITE_API_URL` pointant vers Render) pour le build de production.
+
+**Secret requis :** `OPENAI_API_KEY` (ou `LLM_API_KEY`). Les tests e2e envoient des messages à l'agent ; sans clé LLM, le backend utilise un placeholder et les tests échouent. Ajouter le secret dans Settings → Secrets and variables → Actions.
+
 ## Release
 
 Pour créer une release avec version sémantique et publication sur GitHub :
