@@ -32,6 +32,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Assistant response:** Text reply, confirmations, clarification questions.
 - **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm." When the user creates or updates a time entry, the message is followed by the structured entry table (same format as when listing entries), so the user can verify that the action was correctly captured and can select or edit it if needed.
 - **Activity table layout:** The entry table (Date, Project, Duration, Note) is displayed full-width below the message bubble, not inside it, so notes wrap on multiple lines without truncation or horizontal scroll.
+- **Chart layout:** Charts (pie, bar, etc.) are displayed full-width below the message bubble, not inside it, for a larger and clearer visualization.
 
 ### Typical flow
 

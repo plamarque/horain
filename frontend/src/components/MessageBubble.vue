@@ -30,8 +30,8 @@ const useHtml = computed(() => props.role === 'assistant')
     <div class="bubble" :class="role">
       <div v-if="text && useHtml" class="content content--markdown" v-html="formattedContent" />
       <div v-else-if="text" class="content">{{ formattedContent }}</div>
-      <ChartBubble v-if="chart" :spec="chart" />
     </div>
+    <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
       v-if="timeLogs?.length"
       :entries="timeLogs"
@@ -97,5 +97,10 @@ const useHtml = computed(() => props.role === 'assistant')
 
 .content--markdown :deep(strong) {
   font-weight: 600;
+}
+
+.chart-standalone {
+  align-self: stretch;
+  width: 100%;
 }
 </style>
