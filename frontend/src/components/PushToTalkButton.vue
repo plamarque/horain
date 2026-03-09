@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import AudioWaveform from './AudioWaveform.vue'
 import {
   startListening,
@@ -21,10 +21,11 @@ const emit = defineEmits<{
 type VoiceState = 'idle' | 'recording' | 'transcribing'
 const voiceState = ref<VoiceState>('idle')
 const voiceAction = ref<'confirm' | 'cancel'>('cancel')
+const userCancelled = ref(false)
 let graceTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 const inputText = ref('')
-const inputEl = ref<HTMLInputElement | null>(null)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
 const savedCaretStart = ref(0)
 const savedCaretEnd = ref(0)
 
@@ -33,6 +34,15 @@ function focusInput() {
 }
 
 defineExpose({ focusInput })
+
+function resizeTextarea() {
+  const el = inputEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+
+watch(inputText, () => nextTick(resizeTextarea))
 
 /**
  * Insert transcript at caret position. Does not replace existing text.
@@ -46,6 +56,7 @@ function insertAtCaret(transcript: string) {
   nextTick(() => {
     const el = inputEl.value
     if (el) {
+      resizeTextarea()
       const newPos = start + transcript.length
       el.setSelectionRange(newPos, newPos)
       el.focus()
@@ -63,10 +74,11 @@ function startVoiceRecording() {
 
   voiceState.value = 'recording'
   voiceAction.value = 'cancel'
+  userCancelled.value = false
 
   startListening(
     (text) => {
-      if (voiceAction.value === 'confirm') {
+      if (text && !userCancelled.value) {
         insertAtCaret(text)
       }
       voiceState.value = 'idle'
@@ -90,6 +102,7 @@ function startVoiceRecording() {
 
 function handleVoiceCancel() {
   voiceAction.value = 'cancel'
+  userCancelled.value = true
   stopListening()
   voiceState.value = 'idle'
 }
@@ -110,6 +123,7 @@ function handleTranscribingCancel() {
     graceTimeoutId = null
   }
   voiceAction.value = 'cancel'
+  userCancelled.value = true
   stopListening()
   voiceState.value = 'idle'
 }
@@ -136,14 +150,15 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
     <div class="pill-wrapper">
       <!-- Idle: input + mic + send -->
       <template v-if="showIdleView()">
-        <input
+        <textarea
           ref="inputEl"
           v-model="inputText"
-          type="text"
           placeholder="Ask anything"
           class="text-input"
+          rows="1"
           :disabled="disabled"
-          @keydown.enter="submitText"
+          @keydown.enter.exact.prevent="submitText"
+          @input="resizeTextarea"
         />
         <button
           class="action-btn mic-btn"
@@ -305,6 +320,7 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
 <style scoped>
 .input-bar {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -312,14 +328,16 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
 }
 
 .pill-wrapper {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.25rem;
   padding: 0.25rem;
   padding-right: 0.25rem;
   background: #1a1a2e;
   border: 1px solid #2a2a3e;
-  border-radius: 999px;
+  border-radius: 16px;
 }
 
 @media (max-width: 600px) {
@@ -336,11 +354,18 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
 
 .text-input {
   flex: 1;
+  min-width: 0;
   padding: 0.5rem 1rem;
   background: transparent;
   border: none;
   color: #e8e8f0;
   font-size: 0.9rem;
+  min-height: 24px;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  resize: none;
+  font-family: inherit;
 }
 
 @media (max-width: 600px) {

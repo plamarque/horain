@@ -71,13 +71,23 @@ export function startListening(
 
   let finalTranscript = ''
   let pendingInterim = ''
+  let lastFinal = ''
 
   recognition.onresult = (event: SpeechRecognitionEvent) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i]
       const text = result[0].transcript
       if (result.isFinal) {
-        finalTranscript += (finalTranscript || pendingInterim ? ' ' : '') + text
+        if (text === lastFinal) {
+          pendingInterim = ''
+          continue
+        }
+        if (lastFinal && text.startsWith(lastFinal) && finalTranscript.endsWith(lastFinal)) {
+          finalTranscript = finalTranscript.slice(0, -lastFinal.length) + text
+        } else {
+          finalTranscript += (finalTranscript || pendingInterim ? ' ' : '') + text
+        }
+        lastFinal = text
         pendingInterim = ''
       } else {
         pendingInterim = text
@@ -90,6 +100,7 @@ export function startListening(
     onStatus?.('stopped')
     const fullTranscript = (finalTranscript + (finalTranscript && pendingInterim ? ' ' : '') + pendingInterim).trim()
     onTranscript(fullTranscript)
+    recognition = null
   }
 
   recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
