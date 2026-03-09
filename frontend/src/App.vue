@@ -19,6 +19,30 @@ import ConversationView from './views/ConversationView.vue'
   box-sizing: border-box;
 }
 
+/* Discrete scrollbar matching dark theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a4e #1a1a2e;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #3a3a4e;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a4a5e;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
