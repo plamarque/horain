@@ -36,6 +36,8 @@ public class LlmChatService {
             - Follow-ups like "et une demi heure sur festibask" (and X on Y) are additional entries; use conversation history for context.
             - Search for projects by name before creating or logging. If multiple projects match, ask which one.
             - If the project doesn't exist, create it with create_project then log time.
+            - When the user asks to rename, edit, or change a project (name or description): use update_project with the project id (or name) and the new name and/or description. If ambiguous (multiple matches), ask which project.
+            - When the user asks to delete or remove a project: use delete_project with the project id or name. This deletes the project and all its time logs. If ambiguous, ask which project to delete.
             - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
             - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
             - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").

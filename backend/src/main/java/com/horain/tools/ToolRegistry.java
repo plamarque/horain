@@ -16,6 +16,8 @@ public class ToolRegistry {
     public static final String LIST_PROJECTS = "list_projects";
     public static final String SEARCH_PROJECT = "search_project";
     public static final String CREATE_PROJECT = "create_project";
+    public static final String UPDATE_PROJECT = "update_project";
+    public static final String DELETE_PROJECT = "delete_project";
     public static final String CREATE_TIME_LOG = "create_time_log";
     public static final String GET_RECENT_LOGS = "get_recent_logs";
     public static final String GET_TIME_LOGS_FOR_PERIOD = "get_time_logs_for_period";
@@ -69,6 +71,42 @@ public class ToolRegistry {
                                         )
                                 ),
                                 "required", List.of("name")
+                        )
+                ),
+                new ToolDefinition(
+                        UPDATE_PROJECT,
+                        "Update an existing project. Use when the user asks to rename, edit, or change a project (name or description). Only provided fields are updated. id accepts UUID or project name.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "id", Map.of(
+                                                "type", "string",
+                                                "description", "Project UUID or name to update"
+                                        ),
+                                        "name", Map.of(
+                                                "type", "string",
+                                                "description", "New project name"
+                                        ),
+                                        "description", Map.of(
+                                                "type", "string",
+                                                "description", "New project description"
+                                        )
+                                ),
+                                "required", List.of("id")
+                        )
+                ),
+                new ToolDefinition(
+                        DELETE_PROJECT,
+                        "Delete a project and all its time logs. Use when the user asks to remove or delete a project. id accepts UUID or project name.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "id", Map.of(
+                                                "type", "string",
+                                                "description", "Project UUID or name to delete"
+                                        )
+                                ),
+                                "required", List.of("id")
                         )
                 ),
                 new ToolDefinition(

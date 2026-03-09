@@ -57,6 +57,8 @@ public class ToolExecutorService {
                 case ToolRegistry.LIST_PROJECTS -> executeListProjects();
                 case ToolRegistry.SEARCH_PROJECT -> executeSearchProject(args);
                 case ToolRegistry.CREATE_PROJECT -> executeCreateProject(args);
+                case ToolRegistry.UPDATE_PROJECT -> executeUpdateProject(args);
+                case ToolRegistry.DELETE_PROJECT -> executeDeleteProject(args);
                 case ToolRegistry.CREATE_TIME_LOG -> executeCreateTimeLog(args);
                 case ToolRegistry.GET_RECENT_LOGS -> executeGetRecentLogs(args);
                 case ToolRegistry.GET_TIME_LOGS_FOR_PERIOD -> executeGetTimeLogsForPeriod(args);
@@ -130,6 +132,42 @@ public class ToolExecutorService {
                         "id", created.getId().toString(),
                         "name", created.getName(),
                         "description", created.getDescription() != null ? created.getDescription() : "")));
+    }
+
+    private String executeUpdateProject(JsonNode args) {
+        String idStr = getText(args, "id");
+        if (idStr == null || idStr.isBlank()) {
+            return toJson(Map.of("error", "id is required"));
+        }
+        UUID projectId = resolveProjectId(idStr);
+        ProjectDto patch = ProjectDto.builder().id(projectId).build();
+        String name = getText(args, "name");
+        if (name != null && !name.isBlank()) {
+            patch.setName(name.trim());
+        }
+        String description = getText(args, "description");
+        if (description != null) {
+            patch.setDescription(description);
+        }
+        if (patch.getName() == null && patch.getDescription() == null) {
+            return toJson(Map.of("error", "At least one of name or description must be provided"));
+        }
+        ProjectDto updated = projectService.update(projectId, patch);
+        return toJson(Map.of(
+                "project", Map.of(
+                        "id", updated.getId().toString(),
+                        "name", updated.getName(),
+                        "description", updated.getDescription() != null ? updated.getDescription() : "")));
+    }
+
+    private String executeDeleteProject(JsonNode args) {
+        String idStr = getText(args, "id");
+        if (idStr == null || idStr.isBlank()) {
+            return toJson(Map.of("error", "id is required"));
+        }
+        UUID projectId = resolveProjectId(idStr);
+        projectService.deleteById(projectId);
+        return toJson(Map.of("status", "deleted"));
     }
 
     private String executeCreateTimeLog(JsonNode args) {

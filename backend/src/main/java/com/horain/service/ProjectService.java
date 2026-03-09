@@ -71,6 +71,33 @@ public class ProjectService {
     }
 
     /**
+     * Updates an existing project. Only non-null fields in the patch are applied.
+     */
+    @Transactional
+    public ProjectDto update(UUID id, ProjectDto patch) {
+        Project entity = projectRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found: " + id));
+        if (patch.getName() != null && !patch.getName().isBlank()) {
+            entity.setName(patch.getName().trim());
+        }
+        if (patch.getDescription() != null) {
+            entity.setDescription(patch.getDescription());
+        }
+        return toDto(projectRepository.save(entity));
+    }
+
+    /**
+     * Deletes a project. Associated time logs are cascade-deleted by the database.
+     */
+    @Transactional
+    public void deleteById(UUID id) {
+        if (!projectRepository.existsById(id)) {
+            throw new IllegalArgumentException("Project not found: " + id);
+        }
+        projectRepository.deleteById(id);
+    }
+
+    /**
      * Fuzzy search by project name. Returns projects whose name contains the query (case-insensitive).
      */
     @Transactional(readOnly = true)

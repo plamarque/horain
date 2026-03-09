@@ -11,6 +11,8 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | `list_projects` | — | `projects[]` | Returns all existing projects. |
 | `search_project` | `name` (string) | `matching_projects[]` | Fuzzy search by project name. Returns projects whose name matches (exact or similar). |
 | `create_project` | `name` (string), `description` (string, optional) | `project` | Creates a new project. Returns the created project. |
+| `update_project` | `id` (UUID or name), `name` (string, optional), `description` (string, optional) | `project` | Updates an existing project. Only provided fields are changed. Returns the updated project. |
+| `delete_project` | `id` (UUID or name) | `status` | Deletes a project and its associated time logs (cascade). |
 | `create_time_log` | `projectId` (UUID or name), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional) | `time_log` | Records a time entry for the given project. Returns the created time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
 | `get_recent_logs` | `limit` (int, optional) | `time_logs[]` | Returns the most recent time logs (default 20, max 50). |
 | `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range. |
@@ -24,7 +26,7 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 ## Constraints
 
 - **Single data path:** The agent must use these tools for all data operations. No direct Supabase access from the agent.
-- **Idempotency:** create_project and create_time_log create new records; update_time_log and delete_time_log modify existing entries.
+- **Idempotency:** create_project and create_time_log create new records; update_project, update_time_log and delete_project, delete_time_log modify existing entries.
 - **Validation:** Tools validate inputs (e.g. project_id exists, duration_minutes > 0) and return errors when invalid.
 
 ## Implementation Notes

@@ -27,7 +27,7 @@ Ne pas contredire ces documents. Le code et les changements doivent s'aligner su
 
 ## Règle MCP
 
-L'agent conversationnel **ne modifie jamais la base de données directement**. Il ne peut accéder aux données que via les outils MCP (list_projects, search_project, create_project, log_time, list_recent_logs). Voir [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md).
+L'agent conversationnel **ne modifie jamais la base de données directement**. Il ne peut accéder aux données que via les outils MCP (list_projects, search_project, create_project, update_project, delete_project, create_time_log, get_recent_logs, update_time_log, delete_time_log, etc.). Voir [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md).
 
 ## Workflow pour les agents
 
