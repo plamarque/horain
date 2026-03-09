@@ -151,6 +151,14 @@ function submitText() {
   border-radius: 999px;
 }
 
+@media (max-width: 600px) {
+  .pill-wrapper {
+    padding: 0.5rem;
+    padding-right: 0.4rem;
+    min-height: 56px;
+  }
+}
+
 .pill-wrapper:focus-within {
   border-color: #4a4a6e;
 }
@@ -162,6 +170,14 @@ function submitText() {
   border: none;
   color: #e8e8f0;
   font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .text-input {
+    padding: 0.75rem 1rem;
+    font-size: 1.0625rem; /* 17px - avoids zoom on iOS */
+    min-height: 48px;
+  }
 }
 
 .text-input::placeholder {
@@ -208,6 +224,15 @@ function submitText() {
 .mic-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .mic-btn {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+  }
 }
 
 .interim-feedback {

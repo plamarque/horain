@@ -275,14 +275,28 @@ async function handleLoadSeed() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .input-area {
+  flex-shrink: 0;
   padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   gap: 0.75rem;
   align-items: flex-end;
   border-top: 1px solid #2a2a3e;
+  background: #0f0f1a;
+}
+
+/* Mobile: keep input bar always visible at bottom */
+@media (max-width: 600px) {
+  .input-area {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
 }
 
 .input-col {

@@ -25,12 +25,17 @@ body {
   background: #0f0f1a;
   color: #e8e8f0;
   min-height: 100vh;
+  /* Prevent full-page scroll on mobile so input bar stays visible */
+  overflow: hidden;
 }
 
 .app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
