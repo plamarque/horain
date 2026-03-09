@@ -18,6 +18,9 @@ llm:
 
 # Load .env from backend/ directory when running locally (optional; Render injects env vars directly).
 spring:
+  threads:
+    virtual:
+      enabled: true  # Java 21: lighter concurrency for LLM/HTTP calls
   config:
     import: optional:file:.env[.properties]
   flyway:

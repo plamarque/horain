@@ -18,5 +18,5 @@
 - Le warning Flyway/PostgreSQL 17 disparaît.
 - Configuration Spring AI : spring.ai.openai.* (api-key, base-url, chat.options.model), alignée avec llm.* pour compatibilité.
 - Le package llm/ conserve l’interface LlmClient ; l’implémentation Spring AI s’ajoute à côté de l’existant.
-- Java 17 inchangé.
+- Java 21 (migré depuis Java 17) : alignement avec Spring Boot 3.5 / Spring AI 1.1, virtual threads, LTS jusqu'en 2031.
 - Tests unitaires backend : passent. Tests e2e : 6/8 passent (2 nécessitent LLM_API_KEY pour les scénarios chat avancés).

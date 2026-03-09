@@ -49,7 +49,7 @@ The system uses an **LLM-driven tool-calling assistant** for intent detection an
 ### Prerequisites
 
 - Node.js 18+
-- Java 17+
+- Java 21+
 - Maven
 
 ### Backend
