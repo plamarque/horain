@@ -57,9 +57,17 @@ export function startListening(
   recognition = new SpeechRecognitionAPI()
   recognition.continuous = true
   recognition.interimResults = true
-  // Use en-US for English locale, fr-FR for French (matches demo phrase "30 minutes on HatCast")
-  const lang = navigator.language?.toLowerCase()
-  recognition.lang = lang?.startsWith('en') ? (lang || 'en-US') : lang?.startsWith('fr') ? (lang || 'fr-FR') : 'en-US'
+  // Language: VITE_STT_LANG override > navigator.language > fr-FR default
+  const envLang = import.meta.env.VITE_STT_LANG
+  if (typeof envLang === 'string' && envLang.trim()) {
+    recognition.lang = envLang.trim()
+  } else {
+    const nav = navigator.language?.toLowerCase() ?? ''
+    recognition.lang =
+      nav.startsWith('fr') ? 'fr-FR'
+      : nav.startsWith('en') ? 'en-US'
+      : nav || 'en-US'
+  }
 
   let finalTranscript = ''
   let pendingInterim = ''
@@ -81,12 +89,7 @@ export function startListening(
   recognition.onend = () => {
     onStatus?.('stopped')
     const fullTranscript = (finalTranscript + (finalTranscript && pendingInterim ? ' ' : '') + pendingInterim).trim()
-    const delayMs = Number(import.meta.env.VITE_STT_DELAY_MS) || 0
-    if (delayMs > 0) {
-      setTimeout(() => onTranscript(fullTranscript), delayMs)
-    } else {
-      onTranscript(fullTranscript)
-    }
+    onTranscript(fullTranscript)
   }
 
   recognition.onerror = (event: SpeechRecognitionErrorEvent) => {

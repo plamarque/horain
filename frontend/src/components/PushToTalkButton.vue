@@ -21,6 +21,7 @@ const emit = defineEmits<{
 type VoiceState = 'idle' | 'recording' | 'transcribing'
 const voiceState = ref<VoiceState>('idle')
 const voiceAction = ref<'confirm' | 'cancel'>('cancel')
+let graceTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 const inputText = ref('')
 const inputEl = ref<HTMLInputElement | null>(null)
@@ -96,11 +97,20 @@ function handleVoiceCancel() {
 function handleVoiceConfirm() {
   voiceAction.value = 'confirm'
   voiceState.value = 'transcribing'
-  stopListening()
+  const graceMs = Number(import.meta.env.VITE_STT_GRACE_MS) || 400
+  graceTimeoutId = setTimeout(() => {
+    graceTimeoutId = null
+    stopListening()
+  }, graceMs)
 }
 
 function handleTranscribingCancel() {
+  if (graceTimeoutId) {
+    clearTimeout(graceTimeoutId)
+    graceTimeoutId = null
+  }
   voiceAction.value = 'cancel'
+  stopListening()
   voiceState.value = 'idle'
 }
 
