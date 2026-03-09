@@ -66,6 +66,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+          lob:
+            non_contextual_creation: true  # PostgreSQL JDBC does not implement createClob()
         timezone:
           default_storage: NORMALIZE_UTC  # Compatible with PostgreSQL timestamptz for Instant fields
         type:
