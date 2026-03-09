@@ -9,6 +9,7 @@ import { loadDevSeed } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
 
 const MAX_CONTEXT_ENTRIES = 5
+const MAX_AUTO_CONTEXT_ENTRIES = 10
 
 function isValidChartSpec(v: unknown): v is ChartSpec {
   if (!v || typeof v !== 'object') return false
@@ -148,7 +149,18 @@ async function handleSubmit(text: string) {
     timestamp: new Date(),
   })
 
-  const contextToSend = selectedEntries.value
+  let contextToSend = selectedEntries.value
+  if (contextToSend.length === 0) {
+    // Auto-inject timeLogs from last assistant message when user hasn't selected entries
+    for (let i = messages.value.length - 1; i >= 0; i--) {
+      const m = messages.value[i]
+      if (m.role === 'assistant' && m.timeLogs?.length) {
+        const withIds = m.timeLogs.filter((e): e is TimeLogEntry & { id: string } => !!e.id)
+        contextToSend = withIds.slice(0, MAX_AUTO_CONTEXT_ENTRIES)
+        break
+      }
+    }
+  }
   selectedEntries.value = []
 
   isProcessing.value = true

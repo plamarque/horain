@@ -58,14 +58,17 @@ export async function sendChatMessage(
     history: trimmed,
   }
   if (contextEntries?.length) {
-    body.contextEntries = contextEntries.map((e) => ({
-      id: e.id,
-      projectId: e.projectId,
-      projectName: e.projectName,
-      durationMinutes: e.durationMinutes,
-      note: e.note,
-      loggedAt: e.loggedAt,
-    }))
+    const entriesWithId = contextEntries.filter((e): e is ContextEntry & { id: string } => !!e.id)
+    if (entriesWithId.length) {
+      body.contextEntries = entriesWithId.map((e) => ({
+        id: e.id,
+        projectId: e.projectId,
+        projectName: e.projectName,
+        durationMinutes: e.durationMinutes,
+        note: e.note,
+        loggedAt: e.loggedAt,
+      }))
+    }
   }
   return apiPost<ChatMessageResponse>('/chat/message', body, init)
 }
