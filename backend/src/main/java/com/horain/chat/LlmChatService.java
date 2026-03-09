@@ -7,6 +7,7 @@ import com.horain.tools.ToolExecutorService;
 import com.horain.tools.ToolRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -37,13 +38,14 @@ public class LlmChatService {
             - Search for projects by name before creating or logging. If multiple projects match, ask which one.
             - If the project doesn't exist, create it with create_project then log time.
             - When the user asks to rename, edit, or change a project (name or description): use update_project with the project id (or name) and the new name and/or description. If ambiguous (multiple matches), ask which project.
-            - When the user asks to delete or remove a project: use delete_project with the project id or name. This deletes the project and all its time logs. If ambiguous, ask which project to delete.
+            - When the user asks to delete or remove a project: use delete_project. If delete_project returns an error (project has time log entries), inform the user of the entry count and ask explicitly whether they want to delete all entries first, then the project. NEVER automatically chain delete_time_log calls without user confirmation. If ambiguous which project, ask which one.
             - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
             - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
             - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").
             - When the user asks to edit, change, or correct an entry (e.g. "change duration to 45 min", "update the note", "fix that entry"): ALWAYS use update_time_log with the entry id and the new values. NEVER use create_time_log for modifying an existing entry. NEVER use create_time_log + delete_time_log to simulate an update.
             - When the user asks to edit/change/correct an entry but no context entries are provided: first call get_recent_logs or get_time_logs_for_period (use get_current_datetime for "today"/"this week") to fetch entries, identify which entry to modify, then call update_time_log with its id.
             - When the user asks to delete or remove an entry: use delete_time_log with the entry id. When context entries are provided (user has selected entries), those entries include their ids; use them for edit/delete.
+            - MASS DELETION GUARD: Before deleting more than 3 entries in one turn, you MUST ask for explicit confirmation: "You are about to delete N entries. Please confirm (yes / delete all)." Do NOT execute the deletions until the user has clearly confirmed. Never suggest or perform mass deletions without confirmation.
             - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): call get_current_datetime, then get_time_aggregated_for_chart with groupBy "day_and_project" (for stacked bar) or "project_only" (for pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Use stackedBar for day x project view, pie for project distribution. Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
             - IMPORTANT: Once you have the tool results needed to answer, respond with a clear text summary. Do NOT make additional tool calls.
             - CRITICAL: When a tool returns an error (e.g. {"error": "..."}), inform the user clearly. Never invent or assume data when tools fail.
@@ -55,13 +57,16 @@ public class LlmChatService {
     private final ToolRegistry toolRegistry;
     private final ToolExecutorService toolExecutor;
     private final ObjectMapper objectMapper;
+    private final int massDeleteLimit;
 
     public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          @Value("${horain.mass-delete-limit:5}") int massDeleteLimit) {
         this.llmClient = llmClient;
         this.toolRegistry = toolRegistry;
         this.toolExecutor = toolExecutor;
         this.objectMapper = objectMapper;
+        this.massDeleteLimit = massDeleteLimit;
     }
 
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history,
@@ -123,7 +128,21 @@ public class LlmChatService {
 
             // Execute each tool and append tool result messages
             for (ToolCallRequest tc : response.toolCalls()) {
-                ToolCallResult result = toolExecutor.execute(tc);
+                ToolCallResult result;
+                if (ToolRegistry.DELETE_TIME_LOG.equals(tc.name())) {
+                    long deleteCount = toolCallsExecuted.stream()
+                            .filter(r -> ToolRegistry.DELETE_TIME_LOG.equals(r.name()))
+                            .count();
+                    if (deleteCount >= massDeleteLimit) {
+                        result = new ToolCallResult(tc.id(),
+                                "{\"error\":\"Mass deletion guard: max " + massDeleteLimit
+                                        + " entries per turn. Ask the user to confirm before deleting more, then proceed in a follow-up message.\"}");
+                    } else {
+                        result = toolExecutor.execute(tc);
+                    }
+                } else {
+                    result = toolExecutor.execute(tc);
+                }
                 toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
                 messages.add(ChatMessage.tool(result.content(), result.toolCallId()));
             }

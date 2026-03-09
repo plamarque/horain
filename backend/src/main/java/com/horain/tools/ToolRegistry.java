@@ -97,7 +97,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         DELETE_PROJECT,
-                        "Delete a project and all its time logs. Use when the user asks to remove or delete a project. id accepts UUID or project name.",
+                        "Delete a project. Fails if the project has time log entries; inform the user and ask what to do. Use when the user asks to remove or delete a project. id accepts UUID or project name.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(

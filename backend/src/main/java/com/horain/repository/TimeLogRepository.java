@@ -22,6 +22,8 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
 
     List<TimeLog> findByProjectIdAndLoggedAtBetweenOrderByLoggedAtDesc(UUID projectId, Instant start, Instant end);
 
+    long countByProjectId(UUID projectId);
+
     @Query("SELECT COALESCE(SUM(t.durationMinutes), 0) FROM TimeLog t WHERE t.loggedAt BETWEEN :start AND :end")
     Integer sumDurationMinutesByLoggedAtBetween(@Param("start") Instant start, @Param("end") Instant end);
 

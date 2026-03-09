@@ -4,6 +4,7 @@ server:
 # API key for frontend auth. Reads HORAIN_API_KEY from .env or env; falls back to HORAIN_DEV_KEY.
 horain:
   api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
+  mass-delete-limit: 5  # Max delete_time_log calls per turn; ask user to confirm before more
   dev:
     seed-enabled: true  # Enable POST /dev/seed for local dev; set false in postgres profile
 
@@ -61,6 +62,7 @@ spring:
 
 horain:
   api-key: ${HORAIN_API_KEY:HORAIN_DEV_KEY}
+  mass-delete-limit: 5  # Max delete_time_log calls per turn; ask user to confirm before more
   dev:
     seed-enabled: false  # Disable dev seed in production
 

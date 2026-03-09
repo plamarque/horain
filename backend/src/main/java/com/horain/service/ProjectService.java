@@ -3,6 +3,7 @@ package com.horain.service;
 import com.horain.dto.ProjectDto;
 import com.horain.model.Project;
 import com.horain.repository.ProjectRepository;
+import com.horain.repository.TimeLogRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +20,11 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final TimeLogRepository timeLogRepository;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(ProjectRepository projectRepository, TimeLogRepository timeLogRepository) {
         this.projectRepository = projectRepository;
+        this.timeLogRepository = timeLogRepository;
     }
 
     @Transactional
@@ -87,12 +90,17 @@ public class ProjectService {
     }
 
     /**
-     * Deletes a project. Associated time logs are cascade-deleted by the database.
+     * Deletes a project. Fails if the project has any time log entries (RESTRICT).
      */
     @Transactional
     public void deleteById(UUID id) {
         if (!projectRepository.existsById(id)) {
             throw new IllegalArgumentException("Project not found: " + id);
+        }
+        long count = timeLogRepository.countByProjectId(id);
+        if (count > 0) {
+            throw new IllegalStateException(
+                    "Cannot delete project: it has " + count + " time log entries. Delete or reassign them first.");
         }
         projectRepository.deleteById(id);
     }

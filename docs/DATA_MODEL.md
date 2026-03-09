@@ -20,7 +20,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY, default gen_random_uuid() |
-| project_id | UUID | NOT NULL, REFERENCES projects(id) ON DELETE CASCADE |
+| project_id | UUID | NOT NULL, REFERENCES projects(id) ON DELETE RESTRICT |
 | duration_minutes | INTEGER | NOT NULL, CHECK (duration_minutes > 0) |
 | note | VARCHAR(2000) | nullable |
 | logged_at | TIMESTAMPTZ | NOT NULL, default now() |
