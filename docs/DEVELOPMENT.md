@@ -65,11 +65,35 @@ Playwright construit le frontend et le sert sur 4173. Les tests appellent le bac
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :
 
 1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe)
-2. **Tests e2e :** Démarrage du backend (port 8080), build et serve du frontend (4173), puis `npm run test:e2e`
+2. **Backend + seed :** Démarrage du backend (port 8080), seed via POST /dev/seed
+3. **Evals Promptfoo :** `npx promptfoo eval` (suite de tests sur l'agent conversationnel)
+4. **Tests e2e :** Build et serve du frontend (4173), puis `npm run test:e2e`
 
 Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les tests appelent le backend local. Le déploiement utilise les secrets (`VITE_API_URL` pointant vers Render) pour le build de production.
 
 **Secret requis :** `OPENAI_API_KEY` (ou `LLM_API_KEY`). Les tests e2e envoient des messages à l'agent ; sans clé LLM, le backend utilise un placeholder et les tests échouent. Ajouter le secret dans Settings → Secrets and variables → Actions.
+
+## Evals Promptfoo
+
+Les evals Promptfoo évaluent le comportement de l'agent conversationnel (POST /chat/message) via des assertions sur les réponses.
+
+**Prérequis :**
+
+1. Backend sur 8080 (comme pour e2e)
+2. `HORAIN_API_KEY` doit correspondre à celle du backend (défaut : `HORAIN_DEV_KEY`)
+3. `OPENAI_API_KEY` ou `LLM_API_KEY` dans `backend/.env` pour des réponses LLM réelles
+
+**Exécution :**
+
+```bash
+# Script complet : démarre le backend si besoin, seed, lance les evals
+./scripts/run-promptfoo-eval.sh
+
+# Ou manuellement (backend déjà lancé)
+cd promptfoo && npx promptfoo eval
+```
+
+Voir [promptfoo/README.md](../promptfoo/README.md) pour la configuration et la structure des tests.
 
 ## Release
 

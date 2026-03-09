@@ -1,0 +1,13 @@
+# Missing duration - agent asks for estimate (project exists from seed)
+
+- description: Missing duration - agent asks for estimate
+  vars:
+    message: "I worked on Horain all morning"
+  assert:
+    - type: icontains-any
+      value:
+        - "duration"
+        - "estimate"
+        - "how long"
+        - "minutes"
+        - "hours"

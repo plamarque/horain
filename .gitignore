@@ -4,6 +4,9 @@ backend/.env
 .env
 .env.local
 .env.*.local
+promptfoo/.env
+promptfoo/output/
+promptfoo/evaluations/
 
 # .env.example is committed (template, no secrets)
 

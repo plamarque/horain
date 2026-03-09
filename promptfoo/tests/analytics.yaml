@@ -1,0 +1,45 @@
+# Analytics - time queries (combien de temps, how much, etc.)
+
+- description: Analytics - how much time this week
+  vars:
+    message: "Combien de temps cette semaine ?"
+  assert:
+    - type: icontains-any
+      value:
+        - "heure"
+        - "minutes"
+        - "hours"
+        - "temps"
+        - "time"
+        - "total"
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"
+
+- description: Analytics - how many hours (English)
+  vars:
+    message: "How many hours did I log this week?"
+  assert:
+    - type: icontains-any
+      value:
+        - "hour"
+        - "minute"
+        - "time"
+        - "total"
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"

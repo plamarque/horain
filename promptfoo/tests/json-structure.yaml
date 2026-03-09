@@ -1,0 +1,24 @@
+# Assertions on data.chart and data.timeLogs (UI JSON structures)
+# Use icontains for robustness: Promptfoo may pass truncated output to assertions.
+
+- description: List entries - data.timeLogs or entries in response
+  vars:
+    message: "What did I log this week?"
+  assert:
+    - type: icontains-any
+      value:
+        - "timeLogs"
+        - "entries"
+        - "durationMinutes"
+
+- description: Chart analytics - data.chart in response
+  vars:
+    message: "Répartition par projet cette semaine"
+  assert:
+    - type: icontains-any
+      value:
+        - "chart"
+        - "series"
+        - "categories"
+        - "pie"
+        - "répartition"

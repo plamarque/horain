@@ -1,0 +1,42 @@
+# Promptfoo configuration for Horain chat API evals.
+# Run: npx promptfoo eval (from promptfoo/ or project root)
+#
+# Prerequisites:
+#   - Backend running on http://localhost:8080
+#   - OPENAI_API_KEY or LLM_API_KEY in backend/.env
+#   - POST /dev/seed called for tests that need projects (Horain, HatCast, etc.)
+
+description: Horain chat API evals
+
+prompts:
+  - "{{message}}"
+
+providers:
+  - id: file://providers/horain-api.mjs
+    label: Horain API
+
+tests:
+  - description: Smoke - backend responds
+    vars:
+      message: "Hello"
+    assert:
+      - type: javascript
+        value: "output && output.length > 0"
+  - description: Log time direct - 20 minutes on Horain
+    vars:
+      message: "20 minutes on Horain"
+    assert:
+      - type: icontains-any
+        value:
+          - "Horain"
+          - "20"
+          - "logged"
+          - "created"
+          - "minutes"
+  - file://tests/log-time.yaml
+  - file://tests/unknown-project.yaml
+  - file://tests/missing-duration.yaml
+  - file://tests/ambiguous.yaml
+  - file://tests/analytics.yaml
+  - file://tests/json-structure.yaml
+  - file://tests/tool-calls.yaml

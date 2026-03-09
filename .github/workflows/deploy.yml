@@ -56,6 +56,7 @@ jobs:
         working-directory: frontend
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HORAIN_API_KEY: ${{ secrets.HORAIN_API_KEY || 'HORAIN_DEV_KEY' }}
         run: |
           cd ..
           cd backend
@@ -70,7 +71,18 @@ jobs:
             sleep 2
           done
           curl -s http://localhost:8080/health || true
+
+          echo "Seeding backend for evals and e2e..."
+          curl -s -X POST http://localhost:8080/dev/seed \
+            -H "Authorization: Bearer ${HORAIN_API_KEY:-HORAIN_DEV_KEY}" \
+            -H "Content-Type: application/json" -d '{}' || true
+
+          echo "Running Promptfoo evals..."
+          cd ../promptfoo
+          npx promptfoo eval --no-cache
           cd ../frontend
+
+          echo "Running e2e tests..."
           npm run test:e2e
 
   build-and-deploy-frontend:

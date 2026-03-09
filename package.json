@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "release": "./scripts/release-version.sh"
+    "release": "./scripts/release-version.sh",
+    "eval": "cd promptfoo && npx promptfoo eval"
   },
   "keywords": [],
   "author": "",
