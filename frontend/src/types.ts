@@ -18,6 +18,7 @@ export interface TimeLogEntry {
   durationMinutes: number
   note?: string
   loggedAt: string
+  createdAt?: string
 }
 
 /**

@@ -32,6 +32,9 @@ public class TimeLog {
     @Column(name = "logged_at", nullable = false)
     private Instant loggedAt;
 
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -48,6 +51,8 @@ public class TimeLog {
     public void setNote(String note) { this.note = note; }
     public Instant getLoggedAt() { return loggedAt; }
     public void setLoggedAt(Instant loggedAt) { this.loggedAt = loggedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public String getUserId() { return userId; }
@@ -57,6 +62,7 @@ public class TimeLog {
     protected void onCreate() {
         Instant now = Instant.now();
         if (loggedAt == null) loggedAt = now;
+        if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
     }
 

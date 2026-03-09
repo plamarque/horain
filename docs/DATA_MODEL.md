@@ -24,6 +24,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | duration_minutes | INTEGER | NOT NULL, CHECK (duration_minutes > 0) |
 | note | VARCHAR(2000) | nullable |
 | logged_at | TIMESTAMPTZ | NOT NULL, default now() |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
 | user_id | VARCHAR(255) | nullable |
 
@@ -40,5 +41,6 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 
 ## Notes
 
-- `logged_at` in time_logs can be overridden when logging past activity (timestamp parameter in log_time).
+- **logged_at** (activity date): The date the activity refers to. Can be overridden when logging past activity (e.g. via `loggedAt` parameter). Displayed in the UI, used for period queries and charts.
+- **created_at** (entry date): When the user created the record. Used for sorting and search ("when did I enter this?"). Not displayed in the log table.
 - `user_id` supports future multi-tenant isolation (Supabase RLS).

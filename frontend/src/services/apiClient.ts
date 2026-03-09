@@ -96,6 +96,7 @@ export interface TimeLogDto {
   durationMinutes: number
   note?: string
   loggedAt: string
+  createdAt?: string
   updatedAt: string
   userId?: string
 }
@@ -147,6 +148,7 @@ export async function getRecentTimeLogs(limit = 5): Promise<
     durationMinutes: number
     note?: string
     loggedAt: string
+    createdAt?: string
   }>
 > {
   const safeLimit = Math.min(Math.max(limit, 1), 50)

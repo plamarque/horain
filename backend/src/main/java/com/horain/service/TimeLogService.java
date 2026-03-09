@@ -142,6 +142,7 @@ public class TimeLogService {
                 .durationMinutes(t.getDurationMinutes())
                 .note(t.getNote())
                 .loggedAt(t.getLoggedAt())
+                .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
                 .userId(t.getUserId())
                 .build();

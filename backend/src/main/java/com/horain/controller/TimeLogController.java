@@ -43,7 +43,8 @@ public class TimeLogController {
                         projectNames.getOrDefault(log.getProjectId().toString(), "?"),
                         log.getDurationMinutes() != null ? log.getDurationMinutes() : 0,
                         log.getNote(),
-                        log.getLoggedAt() != null ? log.getLoggedAt().toString() : null))
+                        log.getLoggedAt() != null ? log.getLoggedAt().toString() : null,
+                        log.getCreatedAt() != null ? log.getCreatedAt().toString() : null))
                 .toList();
         return ResponseEntity.ok(entries);
     }

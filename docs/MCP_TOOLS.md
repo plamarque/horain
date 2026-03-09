@@ -39,4 +39,4 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 - `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.
 - `search_project` should support fuzzy matching (e.g. "HatCast" matches "HatCast V1", "HatCast V2").
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.
-- `log_time` timestamp: defaults to "now" if not provided; used for created_at.
+- `create_time_log` `loggedAt`: Activity date (when the work was done). Defaults to "now" if not provided. Displayed in the table. `created_at` (when the user entered the record) is set server-side.

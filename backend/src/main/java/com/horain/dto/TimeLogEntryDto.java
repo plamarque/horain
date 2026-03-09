@@ -10,5 +10,6 @@ public record TimeLogEntryDto(
     String projectName,
     int durationMinutes,
     String note,
-    String loggedAt
+    String loggedAt,
+    String createdAt
 ) {}
