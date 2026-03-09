@@ -39,6 +39,7 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+          VITE_STT_LANG: ${{ secrets.VITE_STT_LANG }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
 

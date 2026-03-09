@@ -108,6 +108,7 @@ Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et d
 |-------------|-------|
 | `VITE_API_URL` | URL du backend Render, ex. `https://horain.onrender.com` |
 | `VITE_API_KEY` | Même valeur que `HORAIN_API_KEY` sur Render |
+| `VITE_STT_LANG` | (optionnel) Langue STT, ex. `fr-FR` pour forcer le français |
 
 Le workflow passe ces secrets au build Vite. Le bundle contiendra l’URL de prod. L'app sera accessible sur `https://<owner>.github.io/<repo>/` (ex. `https://patrice.github.io/horain/`).
 
