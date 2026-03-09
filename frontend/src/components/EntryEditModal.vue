@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { getProjects, updateTimeLog } from '../services/apiClient'
+import { getProjects, updateTimeLog, deleteTimeLog } from '../services/apiClient'
 import type { TimeLogEntry } from '../types'
 import type { ProjectDto } from '../services/apiClient'
 
@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   saved: []
+  deleted: [entry: TimeLogEntry]
 }>()
 
 const projects = ref<ProjectDto[]>([])
@@ -19,6 +20,8 @@ const durationMinutes = ref(0)
 const note = ref('')
 const loggedAt = ref('')
 const saving = ref(false)
+const deleting = ref(false)
+const confirmDelete = ref(false)
 const error = ref('')
 
 async function loadProjects() {
@@ -40,6 +43,7 @@ watch(
         ? new Date(entry.loggedAt).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16)
       error.value = ''
+      confirmDelete.value = false
       loadProjects()
     }
   },
@@ -68,6 +72,24 @@ async function save() {
     error.value = e instanceof Error ? e.message : 'Update failed'
   } finally {
     saving.value = false
+  }
+}
+
+function cancelDelete() {
+  confirmDelete.value = false
+}
+
+async function doDelete() {
+  if (!props.entry?.id) return
+  deleting.value = true
+  error.value = ''
+  try {
+    await deleteTimeLog(props.entry.id)
+    emit('deleted', props.entry)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Delete failed'
+  } finally {
+    deleting.value = false
   }
 }
 </script>
@@ -117,7 +139,31 @@ async function save() {
           />
         </div>
         <p v-if="error" class="form-error">{{ error }}</p>
-        <div class="modal-actions">
+        <div v-if="confirmDelete" class="modal-actions modal-actions--confirm">
+          <p class="confirm-text">Delete this entry permanently?</p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="cancelDelete">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              :disabled="deleting"
+              @click="doDelete"
+            >
+              {{ deleting ? 'Deleting...' : 'Delete' }}
+            </button>
+          </div>
+        </div>
+        <div v-else class="modal-actions">
+          <button
+            v-if="entry?.id"
+            type="button"
+            class="btn btn-danger"
+            @click="confirmDelete = true"
+          >
+            Delete
+          </button>
           <button type="button" class="btn btn-secondary" @click="emit('close')">
             Cancel
           </button>
@@ -229,5 +275,32 @@ async function save() {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-danger {
+  background: #8b2635;
+  color: white;
+  margin-right: auto;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #a52f42;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-actions--confirm {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.confirm-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #e8e8f0;
 }
 </style>

@@ -106,6 +106,27 @@ async function handleEditSaved() {
   lastSyncedAt.value = new Date()
 }
 
+async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
+  const deletedId = deletedEntry?.id
+  editingEntry.value = null
+  if (deletedId) {
+    selectedEntries.value = selectedEntries.value.filter((e) => e.id !== deletedId)
+    messages.value = messages.value.map((m) => {
+      if (!m.timeLogs?.length) return m
+      const filtered = m.timeLogs.filter((e) => e.id !== deletedId)
+      return filtered.length > 0 ? { ...m, timeLogs: filtered } : { ...m, timeLogs: undefined }
+    })
+  }
+  try {
+    const logs = await getRecentTimeLogs(5)
+    recentLogs.value = logs
+  } catch {
+    recentLogs.value = []
+  }
+  await processQueue()
+  lastSyncedAt.value = new Date()
+}
+
 function formatEntryChipLabel(entry: TimeLogEntry): string {
   const p = entry.projectName || '?'
   const mins = entry.durationMinutes
@@ -323,6 +344,7 @@ async function handleLoadSeed() {
       :entry="editingEntry"
       @close="handleEditModalClose"
       @saved="handleEditSaved"
+      @deleted="handleEntryDeleted"
     />
   </div>
 </template>
