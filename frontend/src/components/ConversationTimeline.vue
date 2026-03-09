@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MessageBubble from './MessageBubble.vue'
-import LogEntriesBubble from './LogEntriesBubble.vue'
+import LogEntriesBlock from './LogEntriesBlock.vue'
 import type { Message, TimeLogEntry } from '../types'
 
 defineProps<{
@@ -55,8 +55,8 @@ defineExpose({
       class="empty-state"
     >
       <template v-if="recentLogs?.length">
-        <p class="empty-state-title">Dernières activités</p>
-        <LogEntriesBubble
+        <LogEntriesBlock
+          title="Dernières activités"
           :entries="recentLogs"
           @select-entry="emit('selectEntry', $event)"
           @edit-entry="emit('editEntry', $event)"
@@ -121,12 +121,6 @@ defineExpose({
   border-radius: 8px;
   color: #a0a0c0;
   font-family: monospace;
-}
-
-.empty-state .empty-state-title {
-  margin: 0 0 1rem;
-  font-weight: 600;
-  color: #a0a0c0;
 }
 
 .empty-state .hint {

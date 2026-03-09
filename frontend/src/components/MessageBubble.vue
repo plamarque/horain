@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ChartBubble from './ChartBubble.vue'
-import LogEntriesBubble from './LogEntriesBubble.vue'
+import LogEntriesBlock from './LogEntriesBlock.vue'
 import { renderMarkdown } from '../utils/markdown'
 import type { ChartSpec, TimeLogEntry } from '../types'
 
@@ -26,20 +26,30 @@ const useHtml = computed(() => props.role === 'assistant')
 </script>
 
 <template>
-  <div class="bubble" :class="role">
-    <div v-if="text && useHtml" class="content content--markdown" v-html="formattedContent" />
-    <div v-else-if="text" class="content">{{ formattedContent }}</div>
-    <LogEntriesBubble
+  <div class="message-block">
+    <div class="bubble" :class="role">
+      <div v-if="text && useHtml" class="content content--markdown" v-html="formattedContent" />
+      <div v-else-if="text" class="content">{{ formattedContent }}</div>
+      <ChartBubble v-if="chart" :spec="chart" />
+    </div>
+    <LogEntriesBlock
       v-if="timeLogs?.length"
       :entries="timeLogs"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
     />
-    <ChartBubble v-if="chart" :spec="chart" />
   </div>
 </template>
 
 <style scoped>
+.message-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 0.5rem;
+}
+
 .bubble {
   max-width: 85%;
   padding: 0.75rem 1rem;

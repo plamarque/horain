@@ -184,10 +184,8 @@ const moreCount = computed(
 
 .log-note {
   color: #8888a0;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 
 @media (max-width: 520px) {
@@ -198,10 +196,6 @@ const moreCount = computed(
   .log-table th,
   .log-table td {
     padding: 0.4rem 0.5rem;
-  }
-
-  .log-note {
-    max-width: 140px;
   }
 }
 </style>
