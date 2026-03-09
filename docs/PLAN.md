@@ -40,6 +40,7 @@ Slice 1 — Bootstrap front and minimal conversation UI.
 - [ ] Speech-to-text integration
 - [ ] Push-to-talk wiring
 - [ ] Transcript → agent flow
+- [ ] Waveform réaliste : afficher visuellement si le son est reçu (niveau audio réel), remplacer l'animation décorative de fallback par un état « pas de signal » explicite
 
 ## Tasks (Slice 5)
 
