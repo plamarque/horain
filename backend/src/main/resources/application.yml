@@ -38,8 +38,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
-    database-platform: org.hibernate.dialect.H2Dialect
   ai:
     openai:
       api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
@@ -65,8 +63,10 @@ spring:
     open-in-view: false  # REST API: load data in services; no view rendering
     hibernate:
       ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           time_zone: UTC
           lob:
