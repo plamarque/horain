@@ -1,28 +1,54 @@
 import { test, expect } from '@playwright/test'
+import { API_BASE, API_KEY } from './e2eEnv'
 
 /**
  * E2E: Delete a time log entry via the edit modal.
- * User creates an entry, double-clicks on the row to open the edit modal,
+ * Creates data via API (no LLM), then double-clicks on the row to open the edit modal,
  * clicks Delete, confirms, and the entry is removed.
  */
-test('delete log entry via edit modal', async ({ page }) => {
+test('delete log entry via edit modal', async ({ page, request }) => {
+  // Create project and time log via API (no LLM) — reliable
+  const projectRes = await request.post(`${API_BASE}/projects`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: { name: 'DeleteLogEntryTest', description: 'e2e delete test' },
+  })
+  if (!projectRes.ok()) {
+    const hint =
+      projectRes.status() === 401
+        ? ' API key mismatch: ensure backend/.env HORAIN_API_KEY matches (or set VITE_API_KEY).'
+        : ' Ensure backend is running on 8080.'
+    throw new Error(`Project API failed (${projectRes.status()}).${hint}`)
+  }
+  const project = (await projectRes.json()) as { id: string }
+
+  const timeLogRes = await request.post(`${API_BASE}/time-logs`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: {
+      projectId: project.id,
+      durationMinutes: 15,
+      note: 'e2e delete test',
+    },
+  })
+  expect(timeLogRes.ok()).toBeTruthy()
+
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  const input = page.getByPlaceholder('Ask anything')
-  await expect(input).toBeVisible()
-
-  // Create a time log (requires backend with LLM)
-  await input.fill('15 minutes on DeleteLogEntryTest working on e2e delete')
-  await input.press('Enter')
-
-  await expect(
-    page.getByText(/logged|created|minutes|DeleteLogEntryTest/i)
-  ).toBeVisible({ timeout: 5000 })
-
-  // Find the table row with DeleteLogEntryTest and double-click to open edit modal
-  const projectCell = page.getByRole('cell', { name: 'DeleteLogEntryTest' }).first()
+  // Recent activities or empty state shows the entry (most recent)
+  await expect(page.getByText('Dernières activités')).toBeVisible({
+    timeout: 5000,
+  })
+  const projectCell = page
+    .locator('.log-table')
+    .getByRole('cell', { name: 'DeleteLogEntryTest' })
+    .first()
   await expect(projectCell).toBeVisible({ timeout: 5000 })
   await projectCell.dblclick()
 

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { API_BASE, API_KEY } from './e2e/e2eEnv'
 
 export default defineConfig({
   testDir: './e2e',
@@ -14,10 +15,13 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command:
-      'VITE_API_URL=http://localhost:8080 npm run build && npx serve -s dist -l 4173',
+    command: 'npm run build && npx serve -s dist -l 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      VITE_API_URL: API_BASE,
+      VITE_API_KEY: API_KEY,
+    },
   },
 })

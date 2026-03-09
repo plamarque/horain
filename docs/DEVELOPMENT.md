@@ -46,6 +46,20 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 - **Outil :** Playwright.
 - **Exécution :** Intégrée au pipeline CI avant déploiement.
 
+### Exécution locale
+
+**Prérequis :**
+
+1. Backend lancé sur le port 8080 (ex. `./scripts/start-dev.sh` ou `cd backend && mvn spring-boot:run`)
+2. Clé API : les tests lisent `HORAIN_API_KEY` depuis `backend/.env` (ou `VITE_API_KEY` / `HORAIN_API_KEY` en env). La clé doit correspondre à celle du backend pour éviter les 401.
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+Playwright construit le frontend et le sert sur 4173. Les tests appellent le backend sur 8080 (seed, API projects/time-logs).
+
 ### CI (.github/workflows/deploy.yml)
 
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :

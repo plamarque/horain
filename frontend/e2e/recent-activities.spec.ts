@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const API_BASE = process.env.PLAYWRIGHT_API_URL || 'http://localhost:8080'
-const API_KEY = process.env.VITE_API_KEY || 'HORAIN_DEV_KEY'
+import { API_BASE, API_KEY } from './e2eEnv'
 
 /**
  * E2E: Recent activities displayed on launch.
@@ -15,6 +13,7 @@ test('recent activities displayed on launch when data exists', async ({
   request,
 }) => {
   // Seed data via API (no LLM) — reliable, works in CI
+  // Prerequisite: backend must be running on port 8080 (e.g. ./scripts/start-dev.sh or mvn spring-boot:run)
   const seedRes = await request.post(`${API_BASE}/dev/seed`, {
     headers: {
       Authorization: `Bearer ${API_KEY}`,
@@ -22,7 +21,14 @@ test('recent activities displayed on launch when data exists', async ({
     },
     data: {},
   })
-  expect(seedRes.ok()).toBeTruthy()
+  if (!seedRes.ok()) {
+    const body = await seedRes.text()
+    const hint =
+      seedRes.status() === 401
+        ? ' API key mismatch: ensure backend/.env HORAIN_API_KEY matches (or set VITE_API_KEY).'
+        : ' Ensure backend is running on 8080.'
+    throw new Error(`Seed API failed (${seedRes.status()}).${hint} Response: ${body}`)
+  }
 
   await page.goto('/')
 
