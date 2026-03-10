@@ -2,6 +2,8 @@ package com.horain.dev;
 
 import com.horain.dto.ProjectDto;
 import com.horain.dto.TimeLogDto;
+import com.horain.repository.ProjectRepository;
+import com.horain.repository.TimeLogRepository;
 import com.horain.service.ProjectService;
 import com.horain.service.TimeLogService;
 import org.springframework.stereotype.Service;
@@ -43,10 +45,23 @@ public class DevSeedService {
 
     private final ProjectService projectService;
     private final TimeLogService timeLogService;
+    private final TimeLogRepository timeLogRepository;
+    private final ProjectRepository projectRepository;
 
-    public DevSeedService(ProjectService projectService, TimeLogService timeLogService) {
+    public DevSeedService(ProjectService projectService, TimeLogService timeLogService,
+                          TimeLogRepository timeLogRepository, ProjectRepository projectRepository) {
         this.projectService = projectService;
         this.timeLogService = timeLogService;
+        this.timeLogRepository = timeLogRepository;
+        this.projectRepository = projectRepository;
+    }
+
+    /** Clears all time logs and projects, then loads seed data. Dev only. */
+    @Transactional
+    public DevSeedResult resetAndLoadSeed(LocalDate fixedToday) {
+        timeLogRepository.deleteAll();
+        projectRepository.deleteAll();
+        return loadSeed(fixedToday);
     }
 
     @Transactional

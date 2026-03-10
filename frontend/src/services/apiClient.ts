@@ -170,6 +170,11 @@ export async function loadDevSeed(): Promise<{ projectsCreated: number; timeLogs
   return apiPost<{ projectsCreated: number; timeLogsCreated: number }>('/dev/seed', {})
 }
 
+/** POST /dev/seed/reset - clear DB and reload seed (dev only) */
+export async function resetDevSeed(): Promise<{ projectsCreated: number; timeLogsCreated: number }> {
+  return apiPost<{ projectsCreated: number; timeLogsCreated: number }>('/dev/seed/reset', {})
+}
+
 /** POST /sync/push - push queued operations (used by sync engine) */
 export async function syncPush(body: {
   operations: Array<{

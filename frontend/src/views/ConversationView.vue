@@ -5,7 +5,7 @@ import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { processQueue } from '../sync/syncEngine'
-import { loadDevSeed, getRecentTimeLogs } from '../services/apiClient'
+import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
 
 const MAX_CONTEXT_ENTRIES = 5
@@ -322,18 +322,19 @@ async function handleSync() {
 const isDev = import.meta.env.DEV
 const isSeeding = ref(false)
 
-async function handleLoadSeed() {
+async function handleResetSeed() {
   if (!isDev) return
   isSeeding.value = true
   try {
-    const result = await loadDevSeed()
+    await resetDevSeed()
     await processQueue()
     lastSyncedAt.value = new Date()
-    addAssistantMessage(
-      `Seed loaded: ${result.projectsCreated} projects, ${result.timeLogsCreated} time logs. Try "Sur quoi j'ai travaillé cette semaine ?"`
-    )
+    const logs = await getRecentTimeLogs(5)
+    recentLogs.value = logs
+    // Clear conversation so the default view shows "Dernières activités" like on app launch
+    messages.value = []
   } catch {
-    addAssistantMessage('Seed load failed. Is the backend running with dev seed enabled?')
+    addAssistantMessage('Seed reset failed. Is the backend running with dev seed enabled?')
   } finally {
     isSeeding.value = false
   }
@@ -401,9 +402,9 @@ async function handleLoadSeed() {
             v-if="isDev"
             class="seed-icon-btn"
             :disabled="isProcessing || isSeeding"
-            title="Load seed data (dev)"
-            aria-label="Load seed data"
-            @click="handleLoadSeed"
+            title="Reset seed (dev): clear DB and reload seed"
+            aria-label="Reset seed"
+            @click="handleResetSeed"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22v-4" />

@@ -41,5 +41,22 @@ public class DevSeedController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/seed/reset")
+    public ResponseEntity<?> resetSeed(@RequestBody(required = false) SeedRequest body) {
+        if (!seedEnabled) {
+            return ResponseEntity.notFound().build();
+        }
+        LocalDate fixedToday = null;
+        if (body != null && body.fixedToday() != null && !body.fixedToday().isBlank()) {
+            try {
+                fixedToday = LocalDate.parse(body.fixedToday());
+            } catch (Exception ignored) {
+                // Ignore invalid date, use now
+            }
+        }
+        DevSeedService.DevSeedResult result = devSeedService.resetAndLoadSeed(fixedToday);
+        return ResponseEntity.ok(result);
+    }
+
     public record SeedRequest(String fixedToday) {}
 }

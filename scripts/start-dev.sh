@@ -25,6 +25,25 @@ until curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev
 done
 echo "Backend ready."
 
+# Use same API key as backend (e.g. from backend/.env) so seed curl is accepted
+if [ -f "$ROOT/backend/.env" ]; then
+  set -a
+  . "$ROOT/backend/.env"
+  set +a
+fi
+
+echo "Loading dev seed..."
+SEED_RES=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/dev/seed \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${HORAIN_API_KEY:-HORAIN_DEV_KEY}" \
+  -d '{}')
+SEED_HTTP=$(echo "$SEED_RES" | tail -n1)
+if [ "$SEED_HTTP" != "200" ]; then
+  echo "Warning: Seed skipped or failed (HTTP $SEED_HTTP)."
+else
+  echo "Seed loaded."
+fi
+
 echo "Starting frontend (port 5173)..."
 cd "$ROOT/frontend"
 npm run dev -- --host &
