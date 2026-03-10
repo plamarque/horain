@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
+import ProjectEditModal from '../components/ProjectEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { processQueue } from '../sync/syncEngine'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
@@ -50,6 +51,7 @@ const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
 const hasNewMessageBelow = ref(false)
 const selectedEntries = ref<TimeLogEntry[]>([])
 const editingEntry = ref<TimeLogEntry | null>(null)
+const editingProjectId = ref<string | null>(null)
 const recentLogs = ref<TimeLogEntry[]>([])
 
 onMounted(async () => {
@@ -94,6 +96,26 @@ function handleSelectEntry(entry: TimeLogEntry) {
 
 function handleEditEntry(entry: TimeLogEntry) {
   if (entry.id) editingEntry.value = entry
+}
+
+function handleEditProject(entry: TimeLogEntry) {
+  if (entry.projectId) editingProjectId.value = entry.projectId
+}
+
+function handleProjectModalClose() {
+  editingProjectId.value = null
+}
+
+async function handleProjectSaved() {
+  editingProjectId.value = null
+  await processQueue()
+  lastSyncedAt.value = new Date()
+  try {
+    const logs = await getRecentTimeLogs(5)
+    recentLogs.value = logs
+  } catch {
+    // keep current recentLogs
+  }
 }
 
 function handleRemoveFromContext(entry: TimeLogEntry) {
@@ -352,6 +374,7 @@ async function handleResetSeed() {
       :has-new-message-below="hasNewMessageBelow"
       @select-entry="handleSelectEntry"
       @edit-entry="handleEditEntry"
+      @edit-project="handleEditProject"
       @indicator-clicked="handleIndicatorClicked"
     />
     <div class="input-area">
@@ -420,6 +443,12 @@ async function handleResetSeed() {
       @close="handleEditModalClose"
       @saved="handleEditSaved"
       @deleted="handleEntryDeleted"
+    />
+    <ProjectEditModal
+      v-if="editingProjectId"
+      :project-id="editingProjectId"
+      @close="handleProjectModalClose"
+      @saved="handleProjectSaved"
     />
   </div>
 </template>

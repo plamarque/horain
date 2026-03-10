@@ -28,13 +28,14 @@ public class TimeLogService {
 
     @Transactional
     public TimeLogDto create(TimeLogDto dto) {
-        if (!projectRepository.existsById(dto.getProjectId())) {
-            throw new IllegalArgumentException("Project not found: " + dto.getProjectId());
-        }
+        var project = projectRepository.findById(dto.getProjectId())
+                .orElseThrow(() -> new IllegalArgumentException("Project not found: " + dto.getProjectId()));
         TimeLog entity = new TimeLog();
         entity.setProjectId(dto.getProjectId());
         entity.setDurationMinutes(dto.getDurationMinutes());
         entity.setNote(dto.getNote());
+        boolean billable = dto.getBillable() != null ? dto.getBillable() : (project.getBillable() != null ? project.getBillable() : true);
+        entity.setBillable(billable);
         entity.setLoggedAt(dto.getLoggedAt() != null ? dto.getLoggedAt() : Instant.now());
         entity.setUserId(dto.getUserId());
         entity.setUpdatedAt(entity.getLoggedAt());
@@ -101,6 +102,12 @@ public class TimeLogService {
     }
 
     @Transactional(readOnly = true)
+    public int sumDurationForPeriodByBillable(Instant start, Instant end, boolean billable) {
+        Integer sum = timeLogRepository.sumDurationMinutesByLoggedAtBetweenAndBillable(start, end, billable);
+        return sum != null ? sum : 0;
+    }
+
+    @Transactional(readOnly = true)
     public java.util.Optional<TimeLogDto> findById(UUID id) {
         return timeLogRepository.findById(id).map(this::toDto);
     }
@@ -124,6 +131,9 @@ public class TimeLogService {
         if (patch.getLoggedAt() != null) {
             entity.setLoggedAt(patch.getLoggedAt());
         }
+        if (patch.getBillable() != null) {
+            entity.setBillable(patch.getBillable());
+        }
         return toDto(timeLogRepository.save(entity));
     }
 
@@ -141,6 +151,7 @@ public class TimeLogService {
                 .projectId(t.getProjectId())
                 .durationMinutes(t.getDurationMinutes())
                 .note(t.getNote())
+                .billable(t.getBillable() != null ? t.getBillable() : true)
                 .loggedAt(t.getLoggedAt())
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())

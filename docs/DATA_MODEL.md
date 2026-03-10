@@ -11,6 +11,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | id | UUID | PRIMARY KEY, default gen_random_uuid() |
 | name | VARCHAR(255) | NOT NULL, UNIQUE |
 | description | VARCHAR(2000) | nullable |
+| billable | BOOLEAN | NOT NULL, default true |
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
 | user_id | VARCHAR(255) | nullable |
@@ -23,6 +24,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | project_id | UUID | NOT NULL, REFERENCES projects(id) ON DELETE RESTRICT |
 | duration_minutes | INTEGER | NOT NULL, CHECK (duration_minutes > 0) |
 | note | VARCHAR(2000) | nullable |
+| billable | BOOLEAN | NOT NULL (set from project at creation; can be overridden per entry) |
 | logged_at | TIMESTAMPTZ | NOT NULL, default now() |
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
@@ -41,6 +43,8 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 
 ## Notes
 
+- **billable** (projects): Whether time logged on this project is billable by default. New time entries inherit this value but can be overridden per entry.
+- **billable** (time_logs): Whether this entry is billable. Set from the project at creation; can be toggled per entry for reporting (billable vs non-billable time).
 - **logged_at** (activity date): The date the activity refers to. Can be overridden when logging past activity (e.g. via `loggedAt` parameter). Displayed in the UI, used for period queries and charts.
 - **created_at** (entry date): When the user created the record. Used for sorting and search ("when did I enter this?"). Not displayed in the log table.
 - `user_id` supports future multi-tenant isolation (Supabase RLS).

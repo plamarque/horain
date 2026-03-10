@@ -10,6 +10,7 @@ defineProps<{
 const emit = defineEmits<{
   selectEntry: [entry: TimeLogEntry]
   editEntry: [entry: TimeLogEntry]
+  editProject: [entry: TimeLogEntry]
 }>()
 </script>
 
@@ -20,6 +21,7 @@ const emit = defineEmits<{
       :entries="entries"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
+      @edit-project="emit('editProject', $event)"
     />
   </div>
 </template>

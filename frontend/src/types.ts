@@ -17,6 +17,7 @@ export interface TimeLogEntry {
   projectName?: string
   durationMinutes: number
   note?: string
+  billable?: boolean
   loggedAt: string
   createdAt?: string
 }

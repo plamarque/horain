@@ -36,8 +36,8 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **User message:** Transcription of what the user said.
 - **Assistant response:** Text reply, confirmations, clarification questions. Assistant messages show the Horain icon (triskelion) next to a violet-toned bubble so it is clear who is speaking. Responses can **stream** (text appears progressively as the agent generates it); a blinking cursor indicates streaming. If the backend does not support streaming, the full message appears at once.
 - **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm." When the user creates or updates a time entry, the message is followed by the structured entry table (same format as when listing entries), so the user can verify that the action was correctly captured and can select, edit or delete it if needed. Double-click on a row opens the edit modal (Save, Cancel, Delete with confirmation).
-- **Activity table layout:** The entry table (Date, Project, Duration, Note) is displayed full-width below the message bubble, not inside it, so notes wrap on multiple lines without truncation or horizontal scroll.
-- **Chart layout:** Charts (pie, bar, etc.) are displayed full-width below the message bubble, not inside it, for a larger and clearer visualization.
+- **Activity table layout:** The entry table (Date, Project, Duration, Facturable, Note) is displayed full-width below the message bubble, not inside it, so notes wrap on multiple lines without truncation or horizontal scroll. The "Facturable" column shows Oui/Non per entry. **Double-click on the project name** (Projet cell) opens the **project** edit modal (name, description, Facturable). Double-click on the row (or any other cell) opens the **entry** edit modal (duration, note, Facturable, date).
+- **Chart layout:** Charts (pie, bar, etc.) are displayed full-width below the message bubble, not inside it, for a larger and clearer visualization. Charts can show billable vs non-billable time (e.g. pie "Facturé / Non facturé") when the user asks for that breakdown.
 
 ### Typical flow
 

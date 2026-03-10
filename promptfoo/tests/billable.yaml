@@ -1,0 +1,56 @@
+# Billable - happy path, edge case, report/clarification
+
+- description: Billable - create project and log time (entry inherits billable)
+  vars:
+    message: "Create a project named BillableEvalTest as billable, then log 25 minutes on it"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasCreateProject = tc.some(t => t.name === 'create_project');
+        const hasCreateTimeLog = tc.some(t => t.name === 'create_time_log');
+        return hasCreateProject && hasCreateTimeLog;
+    - type: icontains-any
+      value:
+        - "BillableEvalTest"
+        - "25"
+        - "logged"
+        - "créé"
+        - "enregistré"
+
+- description: Billable - update entry to non-billable
+  vars:
+    message: "mark that entry as non-billable"
+    contextEntries:
+      - id: "00000000-0000-0000-0000-000000000002"
+        projectId: "11111111-1111-1111-1111-111111111101"
+        projectName: "Horain"
+        durationMinutes: 20
+        note: "billable override test"
+        billable: true
+        loggedAt: "2025-03-10T12:00:00Z"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const updateCall = tc.find(t => t.name === 'update_time_log');
+        if (!updateCall) return false;
+        const args = typeof updateCall.arguments === 'string'
+          ? JSON.parse(updateCall.arguments || '{}') : (updateCall.arguments || {});
+        return args.billable === false;
+
+- description: Billable - report question uses billable sum or chart
+  vars:
+    message: "Combien de temps facturé cette semaine ?"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasBillableSum = tc.some(t => t.name === 'sum_billable_time_for_period');
+        const hasChart = tc.some(t => t.name === 'get_time_aggregated_for_chart'
+          && (t.arguments || '').includes('billable_vs_non_billable'));
+        const hasDatetime = tc.some(t => t.name === 'get_current_datetime');
+        return (hasBillableSum || hasChart) && hasDatetime;

@@ -33,6 +33,7 @@ public class ProjectService {
         Project entity = new Project();
         entity.setName(dto.getName());
         entity.setDescription(dto.getDescription());
+        entity.setBillable(dto.getBillable() != null ? dto.getBillable() : true);
         entity.setUserId(dto.getUserId());
         Instant now = Instant.now();
         entity.setCreatedAt(now);
@@ -86,6 +87,9 @@ public class ProjectService {
         }
         if (patch.getDescription() != null) {
             entity.setDescription(patch.getDescription());
+        }
+        if (patch.getBillable() != null) {
+            entity.setBillable(patch.getBillable());
         }
         return toDto(projectRepository.save(entity));
     }
@@ -182,6 +186,7 @@ public class ProjectService {
                 .id(p.getId())
                 .name(p.getName())
                 .description(p.getDescription())
+                .billable(p.getBillable() != null ? p.getBillable() : true)
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .userId(p.getUserId())

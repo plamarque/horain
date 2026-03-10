@@ -19,7 +19,8 @@ The user captures voice via the mic (waveform during recording, Confirm/Cancel t
   - Time logging with notes
   - Supabase storage
   - Conversational confirmation messages
-- **Out of scope:** (MVP) Reports, multi-user, offline mode beyond basic PWA cache.
+  - Billable flag on projects and time entries (default from project, overridable per entry); reports and charts for billable vs non-billable time
+- **Out of scope:** (MVP) Full generic reports, multi-user, offline mode beyond basic PWA cache.
 
 ## Main Capabilities
 

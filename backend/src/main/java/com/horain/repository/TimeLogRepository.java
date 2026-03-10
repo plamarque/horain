@@ -32,4 +32,10 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
             @Param("projectId") UUID projectId,
             @Param("start") Instant start,
             @Param("end") Instant end);
+
+    @Query("SELECT COALESCE(SUM(t.durationMinutes), 0) FROM TimeLog t WHERE t.loggedAt BETWEEN :start AND :end AND t.billable = :billable")
+    Integer sumDurationMinutesByLoggedAtBetweenAndBillable(
+            @Param("start") Instant start,
+            @Param("end") Instant end,
+            @Param("billable") boolean billable);
 }

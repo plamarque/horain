@@ -29,6 +29,9 @@ public class TimeLog {
     @Column(length = 2000)
     private String note;
 
+    @Column(nullable = false)
+    private Boolean billable = true;
+
     @Column(name = "logged_at", nullable = false)
     private Instant loggedAt;
 
@@ -49,6 +52,8 @@ public class TimeLog {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+    public Boolean getBillable() { return billable; }
+    public void setBillable(Boolean billable) { this.billable = billable; }
     public Instant getLoggedAt() { return loggedAt; }
     public void setLoggedAt(Instant loggedAt) { this.loggedAt = loggedAt; }
     public Instant getCreatedAt() { return createdAt; }

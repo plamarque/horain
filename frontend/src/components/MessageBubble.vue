@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectEntry: [entry: TimeLogEntry]
   editEntry: [entry: TimeLogEntry]
+  editProject: [entry: TimeLogEntry]
 }>()
 
 const formattedContent = computed(() => {
@@ -47,6 +48,7 @@ const useHtml = computed(() => props.role === 'assistant')
       :entries="timeLogs"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
+      @edit-project="emit('editProject', $event)"
     />
   </div>
 </template>

@@ -43,6 +43,7 @@ public class TimeLogController {
                         projectNames.getOrDefault(log.getProjectId().toString(), "?"),
                         log.getDurationMinutes() != null ? log.getDurationMinutes() : 0,
                         log.getNote(),
+                        Boolean.TRUE.equals(log.getBillable()),
                         log.getLoggedAt() != null ? log.getLoggedAt().toString() : null,
                         log.getCreatedAt() != null ? log.getCreatedAt().toString() : null))
                 .toList();
@@ -76,6 +77,10 @@ public class TimeLogController {
         }
         if (patch.containsKey("loggedAt")) {
             dto.setLoggedAt(java.time.Instant.parse(patch.get("loggedAt").toString()));
+        }
+        if (patch.containsKey("billable")) {
+            Object v = patch.get("billable");
+            dto.setBillable(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(v.toString()));
         }
         TimeLogDto updated = timeLogService.update(id, dto);
         return ResponseEntity.ok(updated);

@@ -36,6 +36,14 @@ public class AnalyticsService {
         return timeLogService.sumDurationByProject(projectId, start, end);
     }
 
+    public int sumBillableTimeForPeriod(Instant start, Instant end) {
+        return timeLogService.sumDurationForPeriodByBillable(start, end, true);
+    }
+
+    public int sumNonBillableTimeForPeriod(Instant start, Instant end) {
+        return timeLogService.sumDurationForPeriodByBillable(start, end, false);
+    }
+
     public List<TimeLogDto> getRecentLogs(int limit) {
         return timeLogService.findRecentLogs(limit);
     }
@@ -48,7 +56,8 @@ public class AnalyticsService {
      * Aggregates time logs for chart display.
      *
      * @param groupBy "day_and_project" for stacked bar (days on x-axis, projects as series),
-     *                "project_only" for pie (distribution by project)
+     *                "project_only" for pie (distribution by project),
+     *                "billable_vs_non_billable" for pie or bar (Facturé vs Non facturé)
      * @return Map with "categories" (List of strings) and "series" (List of {name, data})
      *         Values in data are hours (decimal).
      */
@@ -56,6 +65,18 @@ public class AnalyticsService {
         List<TimeLogDto> logs = timeLogService.findLogsForPeriod(start, end, null);
         Map<UUID, String> projectNames = projectService.findAll().stream()
                 .collect(Collectors.toMap(ProjectDto::getId, ProjectDto::getName));
+
+        if ("billable_vs_non_billable".equals(groupBy)) {
+            int billableMinutes = timeLogService.sumDurationForPeriodByBillable(start, end, true);
+            int nonBillableMinutes = timeLogService.sumDurationForPeriodByBillable(start, end, false);
+            List<String> categories = List.of("Facturé", "Non facturé");
+            List<Double> data = List.of(
+                    Math.round(billableMinutes / 6.0) / 10.0,
+                    Math.round(nonBillableMinutes / 6.0) / 10.0);
+            return Map.of(
+                    "categories", categories,
+                    "series", List.of(Map.of("name", "Heures", "data", data)));
+        }
 
         if ("project_only".equals(groupBy)) {
             Map<UUID, Integer> projectToMinutes = new LinkedHashMap<>();

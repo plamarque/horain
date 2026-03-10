@@ -16,6 +16,7 @@ defineProps<{
 const emit = defineEmits<{
   selectEntry: [entry: TimeLogEntry]
   editEntry: [entry: TimeLogEntry]
+  editProject: [entry: TimeLogEntry]
   indicatorClicked: []
 }>()
 
@@ -62,6 +63,7 @@ defineExpose({
           :entries="recentLogs"
           @select-entry="emit('selectEntry', $event)"
           @edit-entry="emit('editEntry', $event)"
+          @edit-project="emit('editProject', $event)"
         />
         <p class="hint">Type in the field below or tap the mic to speak.</p>
       </template>
@@ -81,6 +83,7 @@ defineExpose({
       :is-streaming="msg.isStreaming"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
+      @edit-project="emit('editProject', $event)"
     />
     <div
       v-if="isProcessing && !hasStreamingBubble"

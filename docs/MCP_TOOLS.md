@@ -8,19 +8,22 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 
 | Tool | Input | Output | Description |
 |------|-------|--------|-------------|
-| `list_projects` | — | `projects[]` | Returns all existing projects. |
-| `search_project` | `name` (string) | `matching_projects[]`, optionally `close_matches[]` | Search by project name (contains, case-insensitive). When no match is found, returns `close_matches`: typo-tolerant similar project names. The agent should propose the first close match and ask for confirmation before logging. |
-| `create_project` | `name` (string), `description` (string, optional) | `project` | Creates a new project. Returns the created project. |
-| `update_project` | `id` (UUID or name), `name` (string, optional), `description` (string, optional) | `project` | Updates an existing project. Only provided fields are changed. Returns the updated project. |
+| `list_projects` | — | `projects[]` (each with id, name, description, billable) | Returns all existing projects. |
+| `search_project` | `name` (string) | `matching_projects[]`, optionally `close_matches[]` (each project includes billable) | Search by project name (contains, case-insensitive). When no match is found, returns `close_matches`: typo-tolerant similar project names. The agent should propose the first close match and ask for confirmation before logging. |
+| `create_project` | `name` (string), `description` (string, optional), `billable` (boolean, optional, default true) | `project` | Creates a new project. Returns the created project (includes billable). |
+| `update_project` | `id` (UUID or name), `name` (string, optional), `description` (string, optional), `billable` (boolean, optional) | `project` | Updates an existing project. Only provided fields are changed. Returns the updated project. |
 | `delete_project` | `id` (UUID or name) | `status` | Deletes a project. Fails if the project has time log entries; inform the user and ask what to do. |
-| `create_time_log` | `projectId` (UUID or name), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional) | `time_log` | Records a time entry for the given project. Returns the created time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
-| `get_recent_logs` | `limit` (int, optional) | `time_logs[]` | Returns the most recent time logs (default 20, max 50). |
-| `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range. |
-| `propose_entries` | `entries` (array of {id, projectId, projectName, durationMinutes, note, loggedAt}) | `status` | Proposes time log entries for structured table display in the UI. Call after get_time_logs_for_period or get_recent_logs. |
-| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. `loggedAt` is the activity date (when the work was done); record's updated_at is set to now server-side. Returns the updated time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
+| `create_time_log` | `projectId` (UUID or name), `durationMinutes` (int), `note` (optional), `loggedAt` (ISO-8601, optional), `billable` (boolean, optional) | `time_log` | Records a time entry for the given project. If `billable` is omitted, the entry inherits the project's billable flag. Returns the created time_log with id, projectId, projectName, durationMinutes, note, billable, loggedAt. |
+| `get_recent_logs` | `limit` (int, optional) | `time_logs[]` (each with id, projectId, projectName, durationMinutes, note, billable, loggedAt) | Returns the most recent time logs (default 20, max 50). |
+| `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range (each entry includes billable). |
+| `propose_entries` | `entries` (array of {id, projectId, projectName, durationMinutes, note, billable, loggedAt}) | `status` | Proposes time log entries for structured table display in the UI. Call after get_time_logs_for_period or get_recent_logs. |
+| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId`, `billable` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. Returns the updated time_log with id, projectId, projectName, durationMinutes, note, billable, loggedAt. |
 | `delete_time_log` | `id` (UUID) | `status` | Deletes a time log entry. |
 | `sum_time_by_project` | `projectId`, `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums logged time for a project in the period. |
 | `sum_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums total logged time in the period. |
+| `sum_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums billable (invoicable) time in the period. Use for "how much billable time?" or "temps facturé". |
+| `sum_non_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums non-billable time in the period. |
+| `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project`, `project_only`, or `billable_vs_non_billable` (Facturé vs Non facturé for pie/bar). |
 | `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
 
 ## Constraints
@@ -40,3 +43,4 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 - `search_project`: name contains (case-insensitive) returns `matching_projects`; when empty, backend may return `close_matches` (typo-tolerant similarity). The agent proposes the close match and asks for confirmation before logging.
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.
 - `create_time_log` `loggedAt`: Activity date (when the work was done). Defaults to "now" if not provided. Displayed in the table. `created_at` (when the user entered the record) is set server-side.
+- **Billable:** Projects have a `billable` flag (default true). New time entries inherit the project's billable value; the agent or user can override per entry via `create_time_log` or `update_time_log`. Use `sum_billable_time_for_period` and `sum_non_billable_time_for_period` for reports, or `get_time_aggregated_for_chart` with `groupBy: "billable_vs_non_billable"` for a chart (Facturé / Non facturé).

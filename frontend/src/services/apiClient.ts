@@ -95,6 +95,7 @@ export interface ProjectDto {
   id: string
   name: string
   description?: string
+  billable?: boolean
   createdAt: string
   updatedAt: string
   userId?: string
@@ -105,6 +106,7 @@ export interface TimeLogDto {
   projectId: string
   durationMinutes: number
   note?: string
+  billable?: boolean
   loggedAt: string
   createdAt?: string
   updatedAt: string
@@ -125,6 +127,14 @@ export async function createProjectViaApi(body: {
   return apiPost<ProjectDto>('/projects', body)
 }
 
+/** PATCH /projects/:id - update a project (partial) */
+export async function updateProject(
+  id: string,
+  patch: { name?: string; description?: string; billable?: boolean }
+): Promise<ProjectDto> {
+  return apiPatch<ProjectDto>(`/projects/${id}`, patch)
+}
+
 /** POST /time-logs - create a time log */
 export async function createTimeLogViaApi(body: {
   id?: string
@@ -139,7 +149,13 @@ export async function createTimeLogViaApi(body: {
 /** PATCH /time-logs/:id - update a time log (partial) */
 export async function updateTimeLog(
   id: string,
-  patch: { projectId?: string; durationMinutes?: number; note?: string; loggedAt?: string }
+  patch: {
+    projectId?: string
+    durationMinutes?: number
+    note?: string
+    billable?: boolean
+    loggedAt?: string
+  }
 ): Promise<TimeLogDto> {
   return apiPatch<TimeLogDto>(`/time-logs/${id}`, patch)
 }
@@ -157,6 +173,7 @@ export async function getRecentTimeLogs(limit = 5): Promise<
     projectName?: string
     durationMinutes: number
     note?: string
+    billable?: boolean
     loggedAt: string
     createdAt?: string
   }>

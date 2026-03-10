@@ -12,6 +12,7 @@ public class TimeLogDto {
     private UUID projectId;
     private Integer durationMinutes;
     private String note;
+    private Boolean billable;
     private Instant loggedAt;
     private Instant createdAt;
     private Instant updatedAt;
@@ -22,6 +23,7 @@ public class TimeLogDto {
     public TimeLogDto projectId(UUID projectId) { this.projectId = projectId; return this; }
     public TimeLogDto durationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; return this; }
     public TimeLogDto note(String note) { this.note = note; return this; }
+    public TimeLogDto billable(Boolean billable) { this.billable = billable; return this; }
     public TimeLogDto loggedAt(Instant loggedAt) { this.loggedAt = loggedAt; return this; }
     public TimeLogDto createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
     public TimeLogDto updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
@@ -36,6 +38,8 @@ public class TimeLogDto {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+    public Boolean getBillable() { return billable; }
+    public void setBillable(Boolean billable) { this.billable = billable; }
     public Instant getLoggedAt() { return loggedAt; }
     public void setLoggedAt(Instant loggedAt) { this.loggedAt = loggedAt; }
     public Instant getCreatedAt() { return createdAt; }

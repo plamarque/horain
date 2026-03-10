@@ -18,6 +18,7 @@ const projects = ref<ProjectDto[]>([])
 const projectId = ref('')
 const durationMinutes = ref(0)
 const note = ref('')
+const billable = ref(true)
 const loggedAt = ref('')
 const saving = ref(false)
 const deleting = ref(false)
@@ -39,6 +40,7 @@ watch(
       projectId.value = entry.projectId || ''
       durationMinutes.value = entry.durationMinutes || 0
       note.value = entry.note || ''
+      billable.value = entry.billable !== false
       loggedAt.value = entry.loggedAt
         ? new Date(entry.loggedAt).toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10)
@@ -63,6 +65,7 @@ async function save() {
     const patch: Parameters<typeof updateTimeLog>[1] = {
       durationMinutes: durationMinutes.value,
       note: note.value,
+      billable: billable.value,
       loggedAt: formatLoggedAtForApi(loggedAt.value),
     }
     if (projectId.value) patch.projectId = projectId.value
@@ -128,6 +131,17 @@ async function doDelete() {
             class="form-input"
             placeholder="Optional"
           />
+        </div>
+        <div class="form-row form-row--checkbox">
+          <label class="checkbox-label">
+            <input
+              id="edit-billable"
+              v-model="billable"
+              type="checkbox"
+              class="form-checkbox"
+            />
+            <span>Facturable</span>
+          </label>
         </div>
         <div class="form-row">
           <label for="edit-logged-at">Date</label>
@@ -231,6 +245,26 @@ async function doDelete() {
 .form-input:focus {
   outline: none;
   border-color: #4a6edb;
+}
+
+.form-row--checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #e8e8f0;
+}
+
+.form-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #4a6edb;
 }
 
 .form-error {

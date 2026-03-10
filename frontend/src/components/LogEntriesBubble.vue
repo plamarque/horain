@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectEntry: [entry: TimeLogEntry]
   editEntry: [entry: TimeLogEntry]
+  editProject: [entry: TimeLogEntry]
 }>()
 
 function onRowClick(entry: TimeLogEntry, e: MouseEvent) {
@@ -73,6 +74,7 @@ const moreCount = computed(
             <th>Date</th>
             <th>Projet</th>
             <th>Durée</th>
+            <th>Facturable</th>
             <th>Note</th>
           </tr>
         </thead>
@@ -84,8 +86,15 @@ const moreCount = computed(
             @click="onRowClick(entry, $event)"
           >
             <td class="log-date">{{ formatLoggedAt(entry.loggedAt) }}</td>
-            <td class="log-project">{{ entry.projectName || '—' }}</td>
+            <td
+              class="log-project log-project--editable"
+              title="Double-click to edit project"
+              @dblclick.stop="emit('editProject', entry)"
+            >
+              {{ entry.projectName || '—' }}
+            </td>
             <td class="log-duration">{{ formatDuration(entry.durationMinutes) }}</td>
+            <td class="log-billable">{{ entry.billable !== false ? 'Oui' : 'Non' }}</td>
             <td class="log-note">{{ entry.note || '—' }}</td>
           </tr>
         </tbody>
@@ -175,9 +184,18 @@ const moreCount = computed(
   font-weight: 500;
 }
 
+.log-project--editable {
+  cursor: pointer;
+}
+
 .log-duration {
   color: #7cb342;
   font-variant-numeric: tabular-nums;
+}
+
+.log-billable {
+  color: #8888a0;
+  white-space: nowrap;
 }
 
 .log-note {

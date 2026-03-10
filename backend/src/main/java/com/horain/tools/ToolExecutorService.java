@@ -64,6 +64,8 @@ public class ToolExecutorService {
                 case ToolRegistry.GET_TIME_LOGS_FOR_PERIOD -> executeGetTimeLogsForPeriod(args);
                 case ToolRegistry.SUM_TIME_BY_PROJECT -> executeSumTimeByProject(args);
                 case ToolRegistry.SUM_TIME_FOR_PERIOD -> executeSumTimeForPeriod(args);
+                case ToolRegistry.SUM_BILLABLE_TIME_FOR_PERIOD -> executeSumBillableTimeForPeriod(args);
+                case ToolRegistry.SUM_NON_BILLABLE_TIME_FOR_PERIOD -> executeSumNonBillableTimeForPeriod(args);
                 case ToolRegistry.GET_CURRENT_DATETIME -> executeGetCurrentDatetime();
                 case ToolRegistry.GET_TIME_AGGREGATED_FOR_CHART -> executeGetTimeAggregatedForChart(args);
                 case ToolRegistry.PROPOSE_CHART -> executeProposeChart(args);
@@ -92,11 +94,15 @@ public class ToolExecutorService {
 
     private String executeListProjects() {
         List<ProjectDto> projects = projectService.findAll();
-        List<Map<String, String>> list = projects.stream()
-                .map(p -> Map.<String, String>of(
-                        "id", p.getId().toString(),
-                        "name", p.getName(),
-                        "description", p.getDescription() != null ? p.getDescription() : ""))
+        List<Map<String, Object>> list = projects.stream()
+                .map(p -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", p.getId().toString());
+                    m.put("name", p.getName());
+                    m.put("description", p.getDescription() != null ? p.getDescription() : "");
+                    m.put("billable", Boolean.TRUE.equals(p.getBillable()));
+                    return m;
+                })
                 .toList();
         return toJson(Map.of("projects", list));
     }
@@ -109,26 +115,28 @@ public class ToolExecutorService {
             return toJson(Map.of("error", "name is required"));
         }
         List<ProjectDto> matches = projectService.searchByName(name);
-        List<Map<String, String>> list = matches.stream()
-                .map(p -> Map.<String, String>of(
-                        "id", p.getId().toString(),
-                        "name", p.getName(),
-                        "description", p.getDescription() != null ? p.getDescription() : ""))
-                .toList();
+        List<Map<String, Object>> list = projectsToMaps(matches);
         Map<String, Object> result = new java.util.HashMap<>(Map.of("matching_projects", list));
         if (matches.isEmpty()) {
             List<ProjectDto> closeMatches = projectService.findCloseMatchesByName(name, CLOSE_MATCH_MAX);
             if (!closeMatches.isEmpty()) {
-                List<Map<String, String>> closeList = closeMatches.stream()
-                        .map(p -> Map.<String, String>of(
-                                "id", p.getId().toString(),
-                                "name", p.getName(),
-                                "description", p.getDescription() != null ? p.getDescription() : ""))
-                        .toList();
-                result.put("close_matches", closeList);
+                result.put("close_matches", projectsToMaps(closeMatches));
             }
         }
         return toJson(result);
+    }
+
+    private List<Map<String, Object>> projectsToMaps(List<ProjectDto> projects) {
+        return projects.stream()
+                .map(p -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", p.getId().toString());
+                    m.put("name", p.getName());
+                    m.put("description", p.getDescription() != null ? p.getDescription() : "");
+                    m.put("billable", Boolean.TRUE.equals(p.getBillable()));
+                    return m;
+                })
+                .toList();
     }
 
     private String executeCreateProject(JsonNode args) {
@@ -137,16 +145,19 @@ public class ToolExecutorService {
             return toJson(Map.of("error", "name is required"));
         }
         String description = getText(args, "description");
+        Boolean billable = getBoolean(args, "billable");
         ProjectDto dto = ProjectDto.builder()
                 .name(name)
                 .description(description)
+                .billable(billable != null ? billable : true)
                 .build();
         ProjectDto created = projectService.create(dto);
-        return toJson(Map.of(
-                "project", Map.of(
-                        "id", created.getId().toString(),
-                        "name", created.getName(),
-                        "description", created.getDescription() != null ? created.getDescription() : "")));
+        Map<String, Object> projectMap = new java.util.HashMap<>();
+        projectMap.put("id", created.getId().toString());
+        projectMap.put("name", created.getName());
+        projectMap.put("description", created.getDescription() != null ? created.getDescription() : "");
+        projectMap.put("billable", Boolean.TRUE.equals(created.getBillable()));
+        return toJson(Map.of("project", projectMap));
     }
 
     private String executeUpdateProject(JsonNode args) {
@@ -164,15 +175,20 @@ public class ToolExecutorService {
         if (description != null) {
             patch.setDescription(description);
         }
-        if (patch.getName() == null && patch.getDescription() == null) {
-            return toJson(Map.of("error", "At least one of name or description must be provided"));
+        Boolean billableArg = getBoolean(args, "billable");
+        if (billableArg != null) {
+            patch.setBillable(billableArg);
+        }
+        if (patch.getName() == null && patch.getDescription() == null && patch.getBillable() == null) {
+            return toJson(Map.of("error", "At least one of name, description or billable must be provided"));
         }
         ProjectDto updated = projectService.update(projectId, patch);
-        return toJson(Map.of(
-                "project", Map.of(
-                        "id", updated.getId().toString(),
-                        "name", updated.getName(),
-                        "description", updated.getDescription() != null ? updated.getDescription() : "")));
+        Map<String, Object> projectMap = new java.util.HashMap<>();
+        projectMap.put("id", updated.getId().toString());
+        projectMap.put("name", updated.getName());
+        projectMap.put("description", updated.getDescription() != null ? updated.getDescription() : "");
+        projectMap.put("billable", Boolean.TRUE.equals(updated.getBillable()));
+        return toJson(Map.of("project", projectMap));
     }
 
     private String executeDeleteProject(JsonNode args) {
@@ -200,25 +216,28 @@ public class ToolExecutorService {
         Instant loggedAt = loggedAtStr != null && !loggedAtStr.isBlank()
                 ? Instant.parse(loggedAtStr)
                 : Instant.now();
+        Boolean billableArg = getBoolean(args, "billable");
 
         TimeLogDto dto = TimeLogDto.builder()
                 .projectId(projectId)
                 .durationMinutes(durationMinutes)
                 .note(note)
+                .billable(billableArg)
                 .loggedAt(loggedAt)
                 .build();
         TimeLogDto created = timeLogService.create(dto);
         String projectName = projectService.findById(created.getProjectId())
                 .map(ProjectDto::getName)
                 .orElse("?");
-        return toJson(Map.of(
-                "time_log", Map.of(
-                        "id", created.getId().toString(),
-                        "projectId", created.getProjectId().toString(),
-                        "projectName", projectName,
-                        "durationMinutes", created.getDurationMinutes(),
-                        "note", created.getNote() != null ? created.getNote() : "",
-                        "loggedAt", created.getLoggedAt().toString())));
+        Map<String, Object> timeLogMap = new java.util.HashMap<>();
+        timeLogMap.put("id", created.getId().toString());
+        timeLogMap.put("projectId", created.getProjectId().toString());
+        timeLogMap.put("projectName", projectName);
+        timeLogMap.put("durationMinutes", created.getDurationMinutes());
+        timeLogMap.put("note", created.getNote() != null ? created.getNote() : "");
+        timeLogMap.put("billable", Boolean.TRUE.equals(created.getBillable()));
+        timeLogMap.put("loggedAt", created.getLoggedAt().toString());
+        return toJson(Map.of("time_log", timeLogMap));
     }
 
     private String executeGetRecentLogs(JsonNode args) {
@@ -230,13 +249,15 @@ public class ToolExecutorService {
 
         List<Map<String, Object>> entries = new ArrayList<>();
         for (TimeLogDto log : logs) {
-            entries.add(Map.of(
-                    "id", log.getId().toString(),
-                    "projectId", log.getProjectId().toString(),
-                    "projectName", projectMap.getOrDefault(log.getProjectId().toString(), "?"),
-                    "durationMinutes", log.getDurationMinutes(),
-                    "note", log.getNote() != null ? log.getNote() : "",
-                    "loggedAt", log.getLoggedAt().toString()));
+            Map<String, Object> e = new java.util.HashMap<>();
+            e.put("id", log.getId().toString());
+            e.put("projectId", log.getProjectId().toString());
+            e.put("projectName", projectMap.getOrDefault(log.getProjectId().toString(), "?"));
+            e.put("durationMinutes", log.getDurationMinutes());
+            e.put("note", log.getNote() != null ? log.getNote() : "");
+            e.put("billable", Boolean.TRUE.equals(log.getBillable()));
+            e.put("loggedAt", log.getLoggedAt().toString());
+            entries.add(e);
         }
         return toJson(Map.of("time_logs", entries));
     }
@@ -258,13 +279,15 @@ public class ToolExecutorService {
 
         List<Map<String, Object>> entries = new ArrayList<>();
         for (TimeLogDto log : logs) {
-            entries.add(Map.of(
-                    "id", log.getId().toString(),
-                    "projectId", log.getProjectId().toString(),
-                    "projectName", projectMap.getOrDefault(log.getProjectId().toString(), "?"),
-                    "durationMinutes", log.getDurationMinutes(),
-                    "note", log.getNote() != null ? log.getNote() : "",
-                    "loggedAt", log.getLoggedAt().toString()));
+            Map<String, Object> e = new java.util.HashMap<>();
+            e.put("id", log.getId().toString());
+            e.put("projectId", log.getProjectId().toString());
+            e.put("projectName", projectMap.getOrDefault(log.getProjectId().toString(), "?"));
+            e.put("durationMinutes", log.getDurationMinutes());
+            e.put("note", log.getNote() != null ? log.getNote() : "");
+            e.put("billable", Boolean.TRUE.equals(log.getBillable()));
+            e.put("loggedAt", log.getLoggedAt().toString());
+            entries.add(e);
         }
         return toJson(Map.of("time_logs", entries));
     }
@@ -295,6 +318,30 @@ public class ToolExecutorService {
         return toJson(Map.of("totalMinutes", minutes, "totalHours", Math.round(minutes / 6.0) / 10.0));
     }
 
+    private String executeSumBillableTimeForPeriod(JsonNode args) {
+        String startStr = getText(args, "start");
+        String endStr = getText(args, "end");
+        if (startStr == null || endStr == null) {
+            return toJson(Map.of("error", "start and end (ISO-8601) are required"));
+        }
+        Instant start = Instant.parse(startStr);
+        Instant end = Instant.parse(endStr);
+        int minutes = analyticsService.sumBillableTimeForPeriod(start, end);
+        return toJson(Map.of("totalMinutes", minutes, "totalHours", Math.round(minutes / 6.0) / 10.0));
+    }
+
+    private String executeSumNonBillableTimeForPeriod(JsonNode args) {
+        String startStr = getText(args, "start");
+        String endStr = getText(args, "end");
+        if (startStr == null || endStr == null) {
+            return toJson(Map.of("error", "start and end (ISO-8601) are required"));
+        }
+        Instant start = Instant.parse(startStr);
+        Instant end = Instant.parse(endStr);
+        int minutes = analyticsService.sumNonBillableTimeForPeriod(start, end);
+        return toJson(Map.of("totalMinutes", minutes, "totalHours", Math.round(minutes / 6.0) / 10.0));
+    }
+
     private String executeGetCurrentDatetime() {
         ZonedDateTime now = ZonedDateTime.now(DEFAULT_ZONE);
         return toJson(Map.of(
@@ -316,7 +363,7 @@ public class ToolExecutorService {
             return toJson(Map.of("error", "start and end (ISO-8601) are required"));
         }
         if (groupBy == null || groupBy.isBlank()) {
-            return toJson(Map.of("error", "groupBy is required (day_and_project or project_only)"));
+            return toJson(Map.of("error", "groupBy is required (day_and_project, project_only, or billable_vs_non_billable)"));
         }
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
@@ -355,18 +402,23 @@ public class ToolExecutorService {
         if (projectIdStr != null && !projectIdStr.isBlank()) {
             patch.setProjectId(resolveProjectId(projectIdStr));
         }
+        Boolean billableArg = getBoolean(args, "billable");
+        if (billableArg != null) {
+            patch.setBillable(billableArg);
+        }
         TimeLogDto updated = timeLogService.update(id, patch);
         String projectName = projectService.findById(updated.getProjectId())
                 .map(ProjectDto::getName)
                 .orElse("?");
-        return toJson(Map.of(
-                "time_log", Map.of(
-                        "id", updated.getId().toString(),
-                        "projectId", updated.getProjectId().toString(),
-                        "projectName", projectName,
-                        "durationMinutes", updated.getDurationMinutes(),
-                        "note", updated.getNote() != null ? updated.getNote() : "",
-                        "loggedAt", updated.getLoggedAt().toString())));
+        Map<String, Object> timeLogMap = new java.util.HashMap<>();
+        timeLogMap.put("id", updated.getId().toString());
+        timeLogMap.put("projectId", updated.getProjectId().toString());
+        timeLogMap.put("projectName", projectName);
+        timeLogMap.put("durationMinutes", updated.getDurationMinutes());
+        timeLogMap.put("note", updated.getNote() != null ? updated.getNote() : "");
+        timeLogMap.put("billable", Boolean.TRUE.equals(updated.getBillable()));
+        timeLogMap.put("loggedAt", updated.getLoggedAt().toString());
+        return toJson(Map.of("time_log", timeLogMap));
     }
 
     private String executeDeleteTimeLog(JsonNode args) {
@@ -387,6 +439,14 @@ public class ToolExecutorService {
     private Integer getInt(JsonNode args, String key) {
         JsonNode n = args != null ? args.get(key) : null;
         return n != null && n.isNumber() ? n.intValue() : null;
+    }
+
+    private Boolean getBoolean(JsonNode args, String key) {
+        JsonNode n = args != null ? args.get(key) : null;
+        if (n == null) return null;
+        if (n.isBoolean()) return n.asBoolean();
+        if (n.isTextual()) return Boolean.parseBoolean(n.asText());
+        return null;
     }
 
     private static final Pattern UUID_PATTERN = Pattern.compile(

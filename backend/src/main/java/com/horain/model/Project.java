@@ -22,6 +22,9 @@ public class Project {
     @Column(length = 2000)
     private String description;
 
+    @Column(nullable = false)
+    private Boolean billable = true;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -37,6 +40,8 @@ public class Project {
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public Boolean getBillable() { return billable; }
+    public void setBillable(Boolean billable) { this.billable = billable; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

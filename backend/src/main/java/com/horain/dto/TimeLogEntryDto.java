@@ -10,6 +10,7 @@ public record TimeLogEntryDto(
     String projectName,
     int durationMinutes,
     String note,
+    boolean billable,
     String loggedAt,
     String createdAt
 ) {}

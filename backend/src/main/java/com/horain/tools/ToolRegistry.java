@@ -23,6 +23,8 @@ public class ToolRegistry {
     public static final String GET_TIME_LOGS_FOR_PERIOD = "get_time_logs_for_period";
     public static final String SUM_TIME_BY_PROJECT = "sum_time_by_project";
     public static final String SUM_TIME_FOR_PERIOD = "sum_time_for_period";
+    public static final String SUM_BILLABLE_TIME_FOR_PERIOD = "sum_billable_time_for_period";
+    public static final String SUM_NON_BILLABLE_TIME_FOR_PERIOD = "sum_non_billable_time_for_period";
     public static final String GET_CURRENT_DATETIME = "get_current_datetime";
     public static final String GET_TIME_AGGREGATED_FOR_CHART = "get_time_aggregated_for_chart";
     public static final String PROPOSE_CHART = "propose_chart";
@@ -68,6 +70,10 @@ public class ToolRegistry {
                                         "description", Map.of(
                                                 "type", "string",
                                                 "description", "Optional project description"
+                                        ),
+                                        "billable", Map.of(
+                                                "type", "boolean",
+                                                "description", "Whether time on this project is billable by default (default true)"
                                         )
                                 ),
                                 "required", List.of("name")
@@ -90,6 +96,10 @@ public class ToolRegistry {
                                         "description", Map.of(
                                                 "type", "string",
                                                 "description", "New project description"
+                                        ),
+                                        "billable", Map.of(
+                                                "type", "boolean",
+                                                "description", "Whether time on this project is billable by default"
                                         )
                                 ),
                                 "required", List.of("id")
@@ -130,6 +140,10 @@ public class ToolRegistry {
                                         "loggedAt", Map.of(
                                                 "type", "string",
                                                 "description", "Activity date (when the work was done). ISO-8601. Omit for now."
+                                        ),
+                                        "billable", Map.of(
+                                                "type", "boolean",
+                                                "description", "Override billable for this entry (default: project's billable)"
                                         )
                                 ),
                                 "required", List.of("projectId", "durationMinutes")
@@ -195,6 +209,30 @@ public class ToolRegistry {
                         )
                 ),
                 new ToolDefinition(
+                        SUM_BILLABLE_TIME_FOR_PERIOD,
+                        "Sum billable (invoicable) time for a period. Use when the user asks 'how much billable time this week?' or 'temps facturé'.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "start", Map.of("type", "string", "description", "Start of period (ISO-8601)"),
+                                        "end", Map.of("type", "string", "description", "End of period (ISO-8601)")
+                                ),
+                                "required", List.of("start", "end")
+                        )
+                ),
+                new ToolDefinition(
+                        SUM_NON_BILLABLE_TIME_FOR_PERIOD,
+                        "Sum non-billable time for a period. Use when the user asks about non-billable or non-invoiced time.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "start", Map.of("type", "string", "description", "Start of period (ISO-8601)"),
+                                        "end", Map.of("type", "string", "description", "End of period (ISO-8601)")
+                                ),
+                                "required", List.of("start", "end")
+                        )
+                ),
+                new ToolDefinition(
                         SUM_TIME_FOR_PERIOD,
                         "Sum total logged time for a period across all projects. Use for 'how much time this month?'",
                         Map.of(
@@ -223,7 +261,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_AGGREGATED_FOR_CHART,
-                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'project_only' for pie (distribution by project).",
+                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'project_only' for pie (distribution by project), 'billable_vs_non_billable' for pie (Facturé vs Non facturé).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -237,7 +275,7 @@ public class ToolRegistry {
                                         ),
                                         "groupBy", Map.of(
                                                 "type", "string",
-                                                "description", "day_and_project for stacked bar, project_only for pie"
+                                                "description", "day_and_project for stacked bar, project_only for pie, billable_vs_non_billable for billable vs non-billable"
                                         )
                                 ),
                                 "required", List.of("start", "end", "groupBy")
@@ -296,6 +334,7 @@ public class ToolRegistry {
                                                                 "projectName", Map.of("type", "string"),
                                                                 "durationMinutes", Map.of("type", "integer"),
                                                                 "note", Map.of("type", "string"),
+                                                                "billable", Map.of("type", "boolean", "description", "Whether this entry is billable"),
                                                                 "loggedAt", Map.of("type", "string")
                                                         )
                                                 ),
@@ -330,6 +369,10 @@ public class ToolRegistry {
                                         "projectId", Map.of(
                                                 "type", "string",
                                                 "description", "New project UUID or name"
+                                        ),
+                                        "billable", Map.of(
+                                                "type", "boolean",
+                                                "description", "Whether this entry is billable"
                                         )
                                 ),
                                 "required", List.of("id")
