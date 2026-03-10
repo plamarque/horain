@@ -14,6 +14,11 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ## Main Components
 
+### Header
+
+- App name "Horain" and tagline on the left.
+- **Version** (e.g. v0.2.1 or v0.2.1-SNAPSHOT (sha)) on the right. The version label is a clickable control: **Refresh app** — tap or click to reload the application and pick up the latest PWA update.
+
 ### Input bar
 
 - **Text input** with placeholder "Ask anything" — user can type directly and press Enter.

@@ -8,6 +8,10 @@ const versionDisplay =
   appVersion.endsWith('-SNAPSHOT') && gitSha
     ? `v${appVersion} (${gitSha})`
     : `v${appVersion}`
+
+function refreshApp(): void {
+  window.location.reload()
+}
 </script>
 
 <template>
@@ -17,7 +21,15 @@ const versionDisplay =
         <h1>Horain</h1>
         <span class="tagline">Voice-first time logging</span>
       </div>
-      <span class="version">{{ versionDisplay }}</span>
+      <button
+        type="button"
+        class="version"
+        title="Refresh app"
+        aria-label="Refresh app"
+        @click="refreshApp"
+      >
+        {{ versionDisplay }}
+      </button>
     </header>
     <main class="main">
       <ConversationView />
@@ -104,6 +116,15 @@ body {
   font-size: 0.7rem;
   color: #6a6a80;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.version:hover {
+  color: #8888a0;
 }
 
 .main {
