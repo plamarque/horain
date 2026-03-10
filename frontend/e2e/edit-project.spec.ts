@@ -12,10 +12,17 @@ test('update project - rename via natural language', async ({ page }) => {
   const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
 
-  // Create project first
+  // Create project first (agent may ask to create if unknown; confirm then)
   await input.fill('30 minutes on EditTestProject working on features')
   await input.press('Enter')
 
+  const createBubble1 = page.locator('.bubble.assistant').last()
+  await expect(createBubble1).toBeVisible({ timeout: 10000 })
+  const createText1 = await createBubble1.textContent()
+  if (/should i|create|don't know|couldn't find|not found/i.test(createText1 ?? '')) {
+    await input.fill('yes')
+    await input.press('Enter')
+  }
   await expect(
     page.locator('.bubble.assistant').last()
   ).toContainText(/logged|created|minutes|EditTestProject/i, { timeout: 10000 })
@@ -45,10 +52,17 @@ test('delete project via natural language', async ({ page }) => {
   const input = page.getByPlaceholder('Ask anything')
   await expect(input).toBeVisible()
 
-  // Create project first (creates project + 1 time log entry)
+  // Create project first (agent may ask to create if unknown; confirm then)
   await input.fill('15 minutes on DeleteTestProject')
   await input.press('Enter')
 
+  const createBubble2 = page.locator('.bubble.assistant').last()
+  await expect(createBubble2).toBeVisible({ timeout: 10000 })
+  const createText2 = await createBubble2.textContent()
+  if (/should i|create|don't know|couldn't find|not found/i.test(createText2 ?? '')) {
+    await input.fill('yes')
+    await input.press('Enter')
+  }
   await expect(
     page.locator('.bubble.assistant').last()
   ).toContainText(/logged|created|minutes|DeleteTestProject/i, { timeout: 10000 })

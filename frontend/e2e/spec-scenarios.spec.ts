@@ -13,18 +13,32 @@ test.describe('SPEC scenarios', () => {
     const input = page.getByPlaceholder('Ask anything')
     await expect(input).toBeVisible()
 
-    // Create two similar projects
+    // Create two similar projects (agent may ask to create if not seeded; confirm then)
     await input.fill('15 minutes on HatCast V1')
     await input.press('Enter')
+    const bubble1 = page.locator('.bubble.assistant').last()
+    await expect(bubble1).toBeVisible({ timeout: 10000 })
+    const text1 = await bubble1.textContent()
+    if (/should i|create|don't know|couldn't find|not found/i.test(text1 ?? '')) {
+      await input.fill('yes')
+      await input.press('Enter')
+    }
     await expect(
       page.locator('.bubble.assistant').last()
-    ).toContainText(/logged|created|HatCast V1/i, { timeout: 5000 })
+    ).toContainText(/logged|created|HatCast V1/i, { timeout: 10000 })
 
     await input.fill('15 minutes on HatCast V2')
     await input.press('Enter')
+    const bubble2 = page.locator('.bubble.assistant').last()
+    await expect(bubble2).toBeVisible({ timeout: 10000 })
+    const text2 = await bubble2.textContent()
+    if (/should i|create|don't know|couldn't find|not found/i.test(text2 ?? '')) {
+      await input.fill('yes')
+      await input.press('Enter')
+    }
     await expect(
       page.locator('.bubble.assistant').last()
-    ).toContainText(/logged|created|HatCast V2/i, { timeout: 5000 })
+    ).toContainText(/logged|created|HatCast V2/i, { timeout: 10000 })
 
     // Ambiguous: "HatCast" matches both
     await input.fill('30 minutes on HatCast')
@@ -32,7 +46,7 @@ test.describe('SPEC scenarios', () => {
 
     // Assistant should mention both projects and ask which one
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 5000 })
+    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
     await expect(assistantBubble).toContainText(/HatCast V1|HatCast V2|similar|which one|which project/i)
   })
 
