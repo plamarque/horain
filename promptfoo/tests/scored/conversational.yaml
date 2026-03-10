@@ -1,0 +1,29 @@
+# Conversational appropriateness - scored (LLM-as-judge)
+# Anchor on first item; others merge with <<: *conv-defaults
+
+- &conv-defaults
+  description: Conversational - 20 minutes on Horain
+  options:
+    provider:
+      id: mistral:{{ env.PROMPTFOO_JUDGE_MODEL | default("mistral-small-latest") }}
+      config:
+        apiKeyEnvar: PROMPTFOO_JUDGE_MISTRAL_API_KEY
+        temperature: 0
+    rubricPrompt: |
+      [{"role":"system","content":"Evaluate the assistant's tone and style. The response should be concise and suited to a time-tracking assistant. No over-explanation, no unnecessarily long replies, no apologies without reason. Return JSON: {\"reason\":\"string\",\"score\":number,\"pass\":boolean}."},{"role":"user","content":"User asked: {{message}}\nOutput: {{output}}\nRubric: {{rubric}}"}]
+  assert:
+    - type: llm-rubric
+      value: The response is concise and appropriate for a time-tracking assistant. No over-explanation or unnecessary apologies.
+      threshold: 0.7
+  vars:
+    message: "20 minutes on Horain"
+
+- description: Conversational - Combien de temps cette semaine ?
+  vars:
+    message: "Combien de temps cette semaine ?"
+  <<: *conv-defaults
+
+- description: Conversational - What did I log this week?
+  vars:
+    message: "What did I log this week?"
+  <<: *conv-defaults

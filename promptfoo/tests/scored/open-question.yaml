@@ -1,0 +1,40 @@
+# Open-ended analytics questions - scored (LLM-as-judge)
+# Anchor on first item; others merge with <<: *open-defaults
+
+- &open-defaults
+  description: Open question - What did I work on this week?
+  options:
+    provider:
+      id: mistral:{{ env.PROMPTFOO_JUDGE_MODEL | default("mistral-small-latest") }}
+      config:
+        apiKeyEnvar: PROMPTFOO_JUDGE_MISTRAL_API_KEY
+        temperature: 0
+    rubricPrompt: |
+      [{"role":"system","content":"Evaluate the assistant's answer. The output is JSON with 'message' (text) and 'data' (timeLogs or chart). The message must be consistent with data.timeLogs or data.chart. No invented projects. Return JSON: {\"reason\":\"string\",\"score\":number,\"pass\":boolean}."},{"role":"user","content":"User asked: {{message}}\nOutput: {{output}}\nRubric: {{rubric}}"}]
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasTool = tc.some(t => t.name === 'propose_entries' || t.name === 'propose_chart');
+        const data = o.data || {};
+        const hasTimeLogs = Array.isArray(data.timeLogs) && data.timeLogs.length > 0;
+        const hasChart = data.chart && Array.isArray(data.chart.series) && data.chart.series.length > 0;
+        const hasData = hasTimeLogs || hasChart;
+        const msgLen = (o.message || '').trim().length;
+        return hasTool || (hasData && msgLen > 30);
+    - type: llm-rubric
+      value: The answer is consistent with data.timeLogs or data.chart. No hallucinated projects. Mentions or implies the actual logged projects.
+      threshold: 0.8
+  vars:
+    message: "What did I work on this week?"
+
+- description: Open question - Sur quoi j'ai travaillé ?
+  vars:
+    message: "Sur quoi j'ai travaillé ?"
+  <<: *open-defaults
+
+- description: Open question - What did I log?
+  vars:
+    message: "What did I log?"
+  <<: *open-defaults

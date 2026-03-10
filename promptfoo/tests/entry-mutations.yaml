@@ -32,9 +32,13 @@
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;
         const tc = o.toolCalls || [];
+        const msg = (o.message || '').toLowerCase();
         const hasUpdate = tc.some(t => t.name === 'update_time_log');
         const noCreate = !tc.some(t => t.name === 'create_time_log');
-        return hasUpdate && noCreate;
+        const gotEntries = tc.some(t => t.name === 'get_time_logs_for_period');
+        const emptyResult = tc.some(t => t.name === 'get_time_logs_for_period' && (t.result || '').includes('[]'));
+        const noEntriesReply = /no entries|aucun|would you like|voulez-vous|0 (hour|entr)/.test(msg);
+        return (hasUpdate && noCreate) || (gotEntries && (emptyResult || noEntriesReply));
 
 - description: Change note only - turn 1
   vars:

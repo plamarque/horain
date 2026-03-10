@@ -1,0 +1,40 @@
+# Weekly summary quality - scored (LLM-as-judge)
+# Requires PROMPTFOO_JUDGE_MISTRAL_API_KEY and PROMPTFOO_JUDGE_MODEL in promptfoo/.env
+# Anchor is on first item; others merge with <<: *scored-defaults
+
+- &scored-defaults
+  description: Weekly summary - Combien de temps cette semaine ?
+  options:
+    provider:
+      id: mistral:{{ env.PROMPTFOO_JUDGE_MODEL | default("mistral-small-latest") }}
+      config:
+        apiKeyEnvar: PROMPTFOO_JUDGE_MISTRAL_API_KEY
+        temperature: 0
+    rubricPrompt: |
+      [{"role":"system","content":"Evaluate the assistant's time summary. The output is JSON with 'message' (text) and 'data' (chart/timeLogs). The message must accurately reflect the data. Return JSON: {\"reason\":\"string\",\"score\":number,\"pass\":boolean}."},{"role":"user","content":"User asked: {{message}}\nOutput: {{output}}\nRubric: {{rubric}}"}]
+  assert:
+    - type: llm-rubric
+      value: The summary accurately reflects the chart/timeLogs data. No hallucinated projects or hours. Clear and concise.
+      threshold: 0.75
+  vars:
+    message: "Combien de temps cette semaine ?"
+
+- description: Weekly summary - How many hours did I log this week?
+  vars:
+    message: "How many hours did I log this week?"
+  <<: *scored-defaults
+
+- description: Weekly summary - Répartition par projet cette semaine
+  vars:
+    message: "Répartition par projet cette semaine"
+  <<: *scored-defaults
+
+- description: Weekly summary - Hours per project this week
+  vars:
+    message: "Hours per project this week"
+  <<: *scored-defaults
+
+- description: Weekly summary - Combien d'heures cette semaine ?
+  vars:
+    message: "Combien d'heures cette semaine ?"
+  <<: *scored-defaults

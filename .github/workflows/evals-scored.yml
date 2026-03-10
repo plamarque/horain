@@ -1,0 +1,47 @@
+# Run full Promptfoo evals (deterministic + scored) on release.
+# Requires PROMPTFOO_JUDGE_MISTRAL_API_KEY secret. Uses --max-concurrency 1 for Mistral rate limit (6 req/min).
+
+name: Evals scored (release)
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  evals-full:
+    name: Full evals (deterministic + scored)
+    runs-on: ubuntu-latest
+    env:
+      PROMPTFOO_JUDGE_MISTRAL_API_KEY: ${{ secrets.PROMPTFOO_JUDGE_MISTRAL_API_KEY }}
+      PROMPTFOO_JUDGE_MODEL: ${{ vars.PROMPTFOO_JUDGE_MODEL || 'mistral-small-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full Promptfoo evals (with scored)
+        run: ./scripts/run-promptfoo-eval.sh --scored --no-cache
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HORAIN_API_KEY: ${{ secrets.HORAIN_API_KEY || 'HORAIN_DEV_KEY' }}

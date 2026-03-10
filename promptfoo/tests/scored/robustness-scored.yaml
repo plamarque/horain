@@ -1,0 +1,29 @@
+# Robustness to vague language - scored (LLM-as-judge)
+# Anchor on first item; others merge with <<: *robust-defaults
+
+- &robust-defaults
+  description: Robustness - J'ai passé un peu de temps sur Horain
+  options:
+    provider:
+      id: mistral:{{ env.PROMPTFOO_JUDGE_MODEL | default("mistral-small-latest") }}
+      config:
+        apiKeyEnvar: PROMPTFOO_JUDGE_MISTRAL_API_KEY
+        temperature: 0
+    rubricPrompt: |
+      [{"role":"system","content":"Evaluate the assistant's response to a vague time-logging request. The user did not give a precise duration. The assistant should either log time (with a reasonable interpretation) OR ask for clarification (e.g. duration). The response must be helpful and not overly apologetic. Return JSON: {\"reason\":\"string\",\"score\":number,\"pass\":boolean}."},{"role":"user","content":"User asked: {{message}}\nOutput: {{output}}\nRubric: {{rubric}}"}]
+  assert:
+    - type: llm-rubric
+      value: The assistant either logged time appropriately or asked for clarification. Response is helpful. No excessive apologies.
+      threshold: 0.75
+  vars:
+    message: "J'ai passé un peu de temps sur Horain"
+
+- description: Robustness - I worked a bit on Festibask
+  vars:
+    message: "I worked a bit on Festibask"
+  <<: *robust-defaults
+
+- description: Robustness - Some time on Chrono EPS
+  vars:
+    message: "Some time on Chrono EPS"
+  <<: *robust-defaults

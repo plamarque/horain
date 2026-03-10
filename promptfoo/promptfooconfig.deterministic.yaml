@@ -1,14 +1,8 @@
-# Promptfoo configuration for Horain chat API evals.
-# Run: npx promptfoo eval (from promptfoo/ or project root)
-#
-# Prerequisites:
-#   - Backend running on http://localhost:8080
-#   - OPENAI_API_KEY or LLM_API_KEY in backend/.env
-#   - POST /dev/seed called for tests that need projects (Horain, HatCast V1/V2, etc.)
+# Promptfoo configuration - deterministic tests only (no LLM-as-judge).
+# Use for CI on PR/push. Run: npx promptfoo eval -c promptfooconfig.deterministic.yaml
 
-description: Horain chat API evals
+description: Horain chat API evals (deterministic only)
 
-# Default var for unique project name (overridden by run-promptfoo-eval.sh --var)
 defaultTest:
   vars:
     evalProposalProject: "EvalProposal_default"
@@ -53,7 +47,3 @@ tests:
   - file://tests/entry-mutations.yaml
   - file://tests/multi-entry-and-followups.yaml
   - file://tests/empty-and-errors.yaml
-  - file://tests/scored/weekly-summary.yaml
-  - file://tests/scored/open-question.yaml
-  - file://tests/scored/robustness-scored.yaml
-  - file://tests/scored/conversational.yaml

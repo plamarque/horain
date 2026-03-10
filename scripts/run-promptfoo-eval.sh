@@ -88,6 +88,26 @@ if [ -f "$PROMPTFOO_ENV" ]; then
   [ -n "$JUDGE_MODEL" ] && export PROMPTFOO_JUDGE_MODEL="$JUDGE_MODEL"
 fi
 
+# Parse mode: --deterministic-only (no scored) or --scored (full run with rate limit)
+PROMPTFOO_ARGS=()
+CONFIG_FILE="promptfooconfig.yaml"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --deterministic-only)
+      CONFIG_FILE="promptfooconfig.deterministic.yaml"
+      shift
+      ;;
+    --scored)
+      PROMPTFOO_ARGS+=(--max-concurrency 1)
+      shift
+      ;;
+    *)
+      PROMPTFOO_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 # Unique run ID for eval-only project names (avoids DB pollution between runs)
 export EVAL_RUN_ID="${EVAL_RUN_ID:-$(date +%s)}"
 EVAL_PROPOSAL_PROJECT="EvalProposal_${EVAL_RUN_ID}"
@@ -99,4 +119,4 @@ cd "$ROOT/promptfoo"
 export HORAIN_API_KEY="$API_KEY"
 export PROMPTFOO_API_URL="$API_BASE"
 export PROMPTFOO_DISABLE_WAL_MODE="${PROMPTFOO_DISABLE_WAL_MODE:-true}"
-npx promptfoo eval --var "evalProposalProject=${EVAL_PROPOSAL_PROJECT}" "$@"
+npx promptfoo eval -c "$CONFIG_FILE" --var "evalProposalProject=${EVAL_PROPOSAL_PROJECT}" "${PROMPTFOO_ARGS[@]}"

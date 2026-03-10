@@ -80,9 +80,9 @@ jobs:
             -H "Authorization: Bearer ${HORAIN_API_KEY:-HORAIN_DEV_KEY}" \
             -H "Content-Type: application/json" -d '{"fixedToday":"2025-03-10"}' || true
 
-          echo "Running Promptfoo evals..."
+          echo "Running Promptfoo evals (deterministic only)..."
           cd ..
-          npm run eval -- --no-cache
+          npm run eval:deterministic -- --no-cache
           cd frontend
 
           echo "Running e2e tests..."

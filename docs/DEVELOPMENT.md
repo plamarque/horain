@@ -66,8 +66,10 @@ Playwright construit le frontend et le sert sur 4173. Les tests appellent le bac
 
 1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe)
 2. **Backend + seed :** Démarrage du backend (port 8080), seed via POST /dev/seed
-3. **Evals Promptfoo :** `npx promptfoo eval` (suite de tests sur l'agent conversationnel)
+3. **Evals Promptfoo :** `npm run eval:deterministic` (suite déterministe uniquement ; pas de juge Mistral)
 4. **Tests e2e :** Build et serve du frontend (4173), puis `npm run test:e2e`
+
+Les evals **scorés** (LLM-as-judge) sont exécutés uniquement lors d'une **release** (workflow `.github/workflows/evals-scored.yml` sur événement release ou tag `v*`). Secret requis : `PROMPTFOO_JUDGE_MISTRAL_API_KEY`.
 
 Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les tests appelent le backend local. Le déploiement utilise les secrets (`VITE_API_URL` pointant vers Render) pour le build de production.
 
@@ -91,9 +93,27 @@ Pour les **règles de maintenance** (quand ajouter, modifier ou supprimer des te
 # Script complet : démarre le backend si besoin, seed, lance les evals
 ./scripts/run-promptfoo-eval.sh
 
+# Déterministe uniquement (pas de juge Mistral, adapté à la CI)
+./scripts/run-promptfoo-eval.sh --deterministic-only
+
+# Suite complète avec evals scorés (juge Mistral, --max-concurrency 1 pour 6 req/min)
+./scripts/run-promptfoo-eval.sh --scored
+
 # Ou manuellement (backend déjà lancé)
 cd promptfoo && npx promptfoo eval
+npm run eval:deterministic   # déterministe seulement
 ```
+
+### Evals scorés (LLM-as-judge)
+
+Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter la qualité des réponses (résumés hebdomadaires, questions ouvertes, robustesse au langage vague, pertinence conversationnelle). Les variables sont chargées depuis `promptfoo/.env` par le script ; on peut aussi les exporter avant d'appeler le script.
+
+| Variable | Rôle |
+|----------|------|
+| `PROMPTFOO_JUDGE_MISTRAL_API_KEY` ou `PROMPTFOO_JUDGE_MISTRAL_KEY` | Clé API Mistral pour le juge |
+| `PROMPTFOO_JUDGE_MODEL` | Modèle Mistral (défaut : `mistral-small-latest`) |
+
+Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. En CI (release), le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml`.
 
 Voir [promptfoo/README.md](../promptfoo/README.md) pour la configuration et la structure des tests.
 

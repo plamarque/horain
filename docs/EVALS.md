@@ -60,17 +60,15 @@ Rare mais nécessaire. Supprimer si :
 
 ## 4. Types de tests à maintenir séparément
 
-### Tests stables (CI)
+### Tests déterministes (CI sur chaque PR/push)
 
-Doivent être rapides, déterministes, peu dépendants du modèle.
+Doivent être rapides, déterministes, peu dépendants du modèle. Exécutés avec `promptfooconfig.deterministic.yaml` (ou `./scripts/run-promptfoo-eval.sh --deterministic-only`).
 
-Exemples pour Horain : `log-time`, `clarification`, `robustness`.
+Exemples pour Horain : `log-time`, `clarification`, `robustness`, `analytics`, `json-ui`, `state-transitions`, etc.
 
-### Tests exploratoires (hors CI ou avant release)
+### Tests scorés (LLM-as-judge, release uniquement)
 
-Plus flexibles : `analytics`, `multi-turn`, `json-ui`. Ils dépendent davantage du modèle ou du contexte.
-
-Souvent lancés avant release ou après upgrade modèle.
+Fichiers sous `promptfoo/tests/scored/` : `weekly-summary`, `open-question`, `robustness-scored`, `conversational`. Ils utilisent un modèle Mistral configuré comme juge (`llm-rubric`) pour évaluer la qualité des réponses (exactitude des résumés, cohérence avec les données, robustesse au langage vague, pertinence conversationnelle). Seuils typiques : 0.75 ou 0.8. Exécutés **uniquement en release** (workflow `evals-scored.yml` sur événement release ou tag `v*`), avec `PROMPTFOO_JUDGE_MISTRAL_API_KEY` et `--max-concurrency 1` (limite Mistral 6 req/min). Voir [DEVELOPMENT.md](DEVELOPMENT.md) section Evals scorés.
 
 ---
 
@@ -88,8 +86,9 @@ Souvent lancés avant release ou après upgrade modèle.
 
 | Moment | Action |
 |--------|--------|
-| **À chaque PR** | Exécuter `promptfoo eval` pour détecter une régression |
-| **À chaque changement de modèle** | Exécuter la suite complète des evals |
+| **À chaque PR / push main** | Exécuter la suite **déterministe** (`npm run eval:deterministic` ou `run-promptfoo-eval.sh --deterministic-only`) pour détecter une régression |
+| **À chaque release** | Workflow `evals-scored.yml` exécute la suite complète (déterministe + scorée) avec le juge Mistral |
+| **À chaque changement de modèle** | Exécuter la suite complète des evals (déterministe + scorée) |
 | **Une fois par mois** | Revue rapide : tests inutiles, tests fragiles, cas utilisateurs réels non couverts |
 
 ---

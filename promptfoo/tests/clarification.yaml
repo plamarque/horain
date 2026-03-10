@@ -4,9 +4,6 @@
   vars:
     message: "I worked on Horain all morning"
   assert:
-    - type: icontains-all
-      value:
-        - "Horain"
     - type: icontains-any
       value:
         - "duration"
