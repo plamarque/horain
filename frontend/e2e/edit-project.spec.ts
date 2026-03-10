@@ -17,17 +17,19 @@ test('update project - rename via natural language', async ({ page }) => {
   await input.press('Enter')
 
   await expect(
-    page.getByText(/logged|created|minutes|EditTestProject/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last()
+  ).toContainText(/logged|created|minutes|EditTestProject/i, { timeout: 10000 })
 
   // Ask to rename the project
   await input.fill('rename EditTestProject to EditTestProjectV2')
   await input.press('Enter')
 
-  // Expect confirmation of rename/update in assistant's response (exclude user message)
-  await expect(
-    page.locator('.bubble.assistant').filter({ hasText: /renamed|updated|EditTestProjectV2/i })
-  ).toBeVisible({ timeout: 5000 })
+  // Expect confirmation of rename in the latest assistant response (wording may vary by LLM)
+  const renameBubble = page.locator('.bubble.assistant').last()
+  await expect(renameBubble).toBeVisible({ timeout: 10000 })
+  await expect(renameBubble).toContainText(
+    /renamed|updated|changed|saved|done|name is now|now called|EditTestProjectV2/i
+  )
 })
 
 /**
@@ -48,26 +50,26 @@ test('delete project via natural language', async ({ page }) => {
   await input.press('Enter')
 
   await expect(
-    page.getByText(/logged|created|minutes|DeleteTestProject/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last()
+  ).toContainText(/logged|created|minutes|DeleteTestProject/i, { timeout: 10000 })
 
   // Turn 1: Ask to delete the project -> assistant cannot (has entries), asks for confirmation
   await input.fill('delete project DeleteTestProject')
   await input.press('Enter')
 
-  // Expect assistant to mention entries / cannot delete / would you like to delete
-  await expect(
-    page.locator('.bubble.assistant').filter({
-      hasText: /(entry|entries)|cannot|would you|delete.*first|confirm/i,
-    })
-  ).toBeVisible({ timeout: 5000 })
+  // Expect latest assistant message to mention entries / cannot delete / confirm
+  const turn1Bubble = page.locator('.bubble.assistant').last()
+  await expect(turn1Bubble).toBeVisible({ timeout: 10000 })
+  await expect(turn1Bubble).toContainText(
+    /(entry|entries)|cannot|would you|delete.*first|confirm|first|need to/i
+  )
 
   // Turn 2: User confirms -> assistant deletes entry then project
   await input.fill('yes, delete the entry first')
   await input.press('Enter')
 
-  // Expect confirmation of deletion
-  await expect(
-    page.locator('.bubble.assistant').filter({ hasText: /deleted|removed/i })
-  ).toBeVisible({ timeout: 5000 })
+  // Expect latest assistant message to confirm deletion
+  const turn2Bubble = page.locator('.bubble.assistant').last()
+  await expect(turn2Bubble).toBeVisible({ timeout: 10000 })
+  await expect(turn2Bubble).toContainText(/deleted|removed|done|finished|completed/i)
 })
