@@ -40,8 +40,8 @@ watch(
       durationMinutes.value = entry.durationMinutes || 0
       note.value = entry.note || ''
       loggedAt.value = entry.loggedAt
-        ? new Date(entry.loggedAt).toISOString().slice(0, 16)
-        : new Date().toISOString().slice(0, 16)
+        ? new Date(entry.loggedAt).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10)
       error.value = ''
       confirmDelete.value = false
       loadProjects()
@@ -50,9 +50,9 @@ watch(
   { immediate: true }
 )
 
+/** Sends date-only (YYYY-MM-DD) as noon UTC so the calendar day is preserved. */
 function formatLoggedAtForApi(val: string): string {
-  const d = new Date(val)
-  return d.toISOString()
+  return `${val}T12:00:00.000Z`
 }
 
 async function save() {
@@ -130,11 +130,11 @@ async function doDelete() {
           />
         </div>
         <div class="form-row">
-          <label for="edit-logged-at">Date & time</label>
+          <label for="edit-logged-at">Date</label>
           <input
             id="edit-logged-at"
             v-model="loggedAt"
-            type="datetime-local"
+            type="date"
             class="form-input"
           />
         </div>
