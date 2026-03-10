@@ -51,9 +51,28 @@ echo "Running backend tests..."
 cd "$ROOT_DIR/backend"
 mvn test -q
 
+# E2E require backend on 8080 (same as CI). Start it, then run Playwright.
+echo "Starting backend for e2e..."
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
+BACKEND_PID=$!
+cleanup_backend() { kill $BACKEND_PID 2>/dev/null || true; }
+trap cleanup_backend EXIT
+
+echo "Waiting for backend to be ready..."
+for i in $(seq 1 60); do
+  if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+    echo "Backend ready."
+    break
+  fi
+  sleep 2
+done
+curl -s http://localhost:8080/health || true
+
 echo "Running frontend e2e tests..."
 cd "$ROOT_DIR/frontend"
 npm run test:e2e
+cleanup_backend
+trap - EXIT
 
 echo "Building frontend..."
 npm run build

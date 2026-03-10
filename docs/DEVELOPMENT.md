@@ -75,6 +75,10 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 **Secret requis :** `OPENAI_API_KEY` (ou `LLM_API_KEY`). Les tests e2e envoient des messages à l'agent ; sans clé LLM, le backend utilise un placeholder et les tests échouent. Ajouter le secret dans Settings → Secrets and variables → Actions.
 
+### Release locale (scripts/release-version.sh)
+
+Le script démarre le backend automatiquement avant les e2e (comme en CI), attend `/health` puis lance Playwright. Pour que les tests passant par le chat (assistant) réussissent, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans `backend/.env` (voir section LLM ci-dessus).
+
 ## Evals Promptfoo
 
 Les evals Promptfoo évaluent le comportement de l'agent conversationnel (POST /chat/message) via des assertions sur les réponses.
