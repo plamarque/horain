@@ -40,9 +40,11 @@
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;
         const msg = (o.message || '').toLowerCase();
-        const hasRate = /\d+[,.]?\d*%/.test(msg) || (/taux|occupation/.test(msg) && /\d+[,.]?\d*/.test(msg));
+        const hasPercent = /\d+[,.]?\d*%/.test(msg);
+        const hasTauxAndNumber = (/taux|occupation/.test(msg) && /\d+[,.]?\d*/.test(msg));
+        const hasBaseAndTotal = (/base|7\s*h|heures?\s*par\s*jour|jour\s*de\s*travail/.test(msg) && /\d+[,.]?\d*\s*(heures?|minutes?|jour)/.test(msg));
         const noData = /pas de données|aucun|no (data|entries|logs)|rien (enregistré|logué)/i.test(msg);
-        return hasRate || noData;
+        return hasPercent || hasTauxAndNumber || hasBaseAndTotal || noData;
 
 - description: Analytics taux - clarification (question ambiguë)
   vars:

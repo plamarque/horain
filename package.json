@@ -10,7 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "release": "./scripts/release-version.sh",
     "eval": "cd promptfoo && npx promptfoo eval",
-    "eval:deterministic": "cd promptfoo && npx promptfoo eval -c promptfooconfig.deterministic.yaml"
+    "eval:deterministic": "npx promptfoo eval -c promptfoo/promptfooconfig.deterministic.yaml"
   },
   "keywords": [],
   "author": "",

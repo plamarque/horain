@@ -96,10 +96,14 @@ Pour les **règles de maintenance** (quand ajouter, modifier ou supprimer des te
 # Déterministe uniquement (pas de juge Mistral, adapté à la CI)
 ./scripts/run-promptfoo-eval.sh --deterministic-only
 
+# Depuis la racine du dépôt (npm run a pour CWD la racine) :
+npm run eval:deterministic
+
 # Suite complète avec evals scorés (juge Mistral, --max-concurrency 1 pour 6 req/min)
 ./scripts/run-promptfoo-eval.sh --scored
 
-# Ou manuellement (backend déjà lancé)
+# Ou manuellement (backend déjà lancé) — exporter la clé pour éviter 401 Unauthorized
+export HORAIN_API_KEY="${HORAIN_API_KEY:-HORAIN_DEV_KEY}"   # ou depuis backend/.env
 cd promptfoo && npx promptfoo eval
 npm run eval:deterministic   # déterministe seulement
 ```
@@ -118,6 +122,12 @@ npm run eval:deterministic   # déterministe seulement
 ```
 
 Les descriptions sont dans `promptfooconfig.yaml` et dans les YAML sous `promptfoo/tests/`.
+
+**Erreur « No configuration file found at promptfoo/promptfooconfig.deterministic.yaml » :** le chemin est résolu par rapport au répertoire courant. Depuis le dépôt, lancer `npm run eval:deterministic` (CWD = racine) ou `./scripts/run-promptfoo-eval.sh --deterministic-only`. Si vous êtes dans `promptfoo/`, utiliser `-c promptfooconfig.deterministic.yaml` (sans préfixe `promptfoo/`).
+
+**Rapport et relance des échecs :**
+- Générer un rapport HTML : `./scripts/run-promptfoo-eval.sh --deterministic-only --output report.html` (fichier créé dans `promptfoo/`).
+- Relancer uniquement les tests qui ont échoué lors d’un run précédent : il faut d’abord exporter en JSON (ex. `--output results.json`), puis `--filter-failing-only results.json` (ou `--filter-failing results.json`). Les options `--filter-failing` et `--filter-failing-only` exigent donc un chemin vers un fichier de résultats ou un eval ID.
 
 ### Evals scorés (LLM-as-judge)
 
