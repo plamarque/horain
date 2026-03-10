@@ -1,18 +1,19 @@
 # Robustness - paraphrases, fr/en mix
 
-- description: Robustness - paraphrase "demi-heure" = 30 min
+- description: Robustness - "demi-heure" normalized to 30 min
   vars:
     message: "J'ai passé une demi-heure sur Chrono EPS ce matin"
   assert:
     - type: icontains-all
       value:
         - "Chrono"
+        - "30"
     - type: icontains-any
       value:
-        - "30"
-        - "demi-heure"
-        - "demi heure"
         - "logged"
+        - "créé"
+        - "enregistré"
+        - "recorded"
 
 - description: Robustness - mixed French/English
   vars:
@@ -22,4 +23,8 @@
       value:
         - "Horain"
         - "45"
+    - type: icontains-any
+      value:
         - "logged"
+        - "created"
+        - "recorded"

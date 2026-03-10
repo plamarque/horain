@@ -9,7 +9,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY, default gen_random_uuid() |
-| name | VARCHAR(255) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL, UNIQUE |
 | description | VARCHAR(2000) | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
@@ -37,7 +37,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 
 - `time_logs(project_id)` — for lookups by project
 - `time_logs(logged_at DESC)` — for list_recent_logs
-- `projects(name)` — for search_project
+- `projects(name)` — for search_project; UNIQUE constraint enforces one project per name.
 
 ## Notes
 

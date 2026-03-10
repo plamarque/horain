@@ -51,6 +51,11 @@ public class DevSeedService {
 
     @Transactional
     public DevSeedResult loadSeed() {
+        return loadSeed(null);
+    }
+
+    @Transactional
+    public DevSeedResult loadSeed(LocalDate fixedToday) {
         List<ProjectDto> projects = List.of(
                 createProject(PROJECT_HORAIN, "Horain", "Personal time journal PWA"),
                 createProject(PROJECT_HATCAST_V1, "HatCast V1", "Podcast production app"),
@@ -66,7 +71,7 @@ public class DevSeedService {
         }
 
         int logsCreated = 0;
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = fixedToday != null ? fixedToday : LocalDate.now(ZONE);
         LocalDate start = today.minusMonths(4);
 
         java.util.Random rand = new java.util.Random(42);

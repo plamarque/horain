@@ -1,0 +1,119 @@
+# Entry mutations - update, delete, mass deletion guard
+
+- description: Update with context - change duration
+  vars:
+    message: "change duration to 45 min"
+    contextEntries:
+      - id: "00000000-0000-0000-0000-000000000001"
+        projectId: "11111111-1111-1111-1111-111111111101"
+        projectName: "Horain"
+        durationMinutes: 30
+        note: "some note"
+        loggedAt: "2025-03-10T10:00:00Z"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasUpdate = tc.some(t => t.name === 'update_time_log');
+        const noCreate = !tc.some(t => t.name === 'create_time_log');
+        return hasUpdate && noCreate;
+
+- description: Update without context - fix that entry
+  vars:
+    message: "change the last entry to 45 min"
+    history:
+      - role: user
+        content: "What did I log this week?"
+      - role: assistant
+        content: "Here are your entries for this week."
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasUpdate = tc.some(t => t.name === 'update_time_log');
+        const noCreate = !tc.some(t => t.name === 'create_time_log');
+        return hasUpdate && noCreate;
+
+- description: Change note only - turn 1
+  vars:
+    message: "30 minutes on Horain"
+  options:
+    storeOutputAs: noteChangeTurn1
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: noteChangeFlow
+  assert:
+    - type: icontains-all
+      value:
+        - "Horain"
+        - "30"
+
+- description: Change note only - turn 2
+  vars:
+    message: "update the note to bug fix"
+    history:
+      - role: user
+        content: "30 minutes on Horain"
+      - role: assistant
+        content: "{{noteChangeTurn1}}"
+  metadata:
+    conversationId: noteChangeFlow
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'update_time_log') && !tc.some(t => t.name === 'create_time_log');
+
+- description: Delete entry - with history
+  vars:
+    message: "delete that entry"
+    history:
+      - role: user
+        content: "What did I log today?"
+      - role: assistant
+        content: "Here are your entries for today."
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'delete_time_log');
+
+- description: Mass deletion - turn 1 request
+  vars:
+    message: "Delete all my time entries from this week"
+  options:
+    storeOutputAs: turn1MassDeleteResponse
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: massDel1
+  assert:
+    - type: icontains-any
+      value:
+        - "delete"
+        - "confirm"
+        - "supprim"
+        - "entries"
+        - "entrées"
+
+- description: Mass deletion - turn 2 confirm (guard must block after 5)
+  vars:
+    message: "Yes, delete all of them. I confirm."
+    history:
+      - role: user
+        content: "Delete all my time entries from this week"
+      - role: assistant
+        content: "{{turn1MassDeleteResponse}}"
+  metadata:
+    conversationId: massDel1
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const deleteCalls = tc.filter(t => t.name === 'delete_time_log');
+        const blocked = deleteCalls.some(t => (t.result || '').includes('Mass deletion guard'));
+        return blocked || deleteCalls.length <= 5;

@@ -6,9 +6,16 @@
   assert:
     - type: icontains-all
       value:
-        - "Chrono"
+        - "Chrono EPS"
         - "30"
+    - type: icontains-any
+      value:
         - "logged"
+        - "créé"
+        - "ajouté"
+        - "enregistré"
+        - "created"
+        - "recorded"
 
 - description: Log time with note - Horain
   vars:
@@ -18,7 +25,14 @@
       value:
         - "Horain"
         - "45"
+    - type: icontains-any
+      value:
         - "logged"
+        - "créé"
+        - "ajouté"
+        - "enregistré"
+        - "created"
+        - "recorded"
 
 - description: Log time - 20 minutes on Festibask
   vars:
@@ -28,4 +42,11 @@
       value:
         - "Festibask"
         - "20"
+    - type: icontains-any
+      value:
         - "logged"
+        - "créé"
+        - "ajouté"
+        - "enregistré"
+        - "created"
+        - "recorded"

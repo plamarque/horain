@@ -1,30 +1,43 @@
-# Analytics - time queries (totals non-deterministic with dynamic seed)
+# Analytics - totaux déterministes (seed eval)
 
-- description: Analytics - how much time this week (French)
+- description: Analytics - total this week (French)
   vars:
     message: "Combien de temps cette semaine ?"
   assert:
-    - type: icontains-any
-      value:
-        - "heure"
-        - "heures"
-        - "minutes"
-        - "temps"
-        - "total"
-    - type: icontains-any
-      value: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'get_current_datetime');
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const totalMatch = msg.match(/(\d+)[,.]?\d*\s*(?:heures?|hours?|minutes?)/);
+        return totalMatch && parseInt(totalMatch[1], 10) > 0;
 
-- description: Analytics - how many hours (English)
+- description: Analytics - total this week (English)
   vars:
     message: "How many hours did I log this week?"
   assert:
-    - type: icontains-any
-      value:
-        - "hour"
-        - "hours"
-        - "minute"
-        - "minutes"
-        - "time"
-        - "total"
-    - type: icontains-any
-      value: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'get_current_datetime');
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const totalMatch = msg.match(/(\d+)[,.]?\d*\s*(?:heures?|hours?|minutes?)/);
+        return totalMatch && parseInt(totalMatch[1], 10) > 0;
+
+- description: Analytics - chart (propose_chart)
+  vars:
+    message: "hours per project this month"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'propose_chart');

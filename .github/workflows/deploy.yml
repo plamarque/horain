@@ -78,7 +78,7 @@ jobs:
           echo "Seeding backend for evals and e2e..."
           curl -s -X POST http://localhost:8080/dev/seed \
             -H "Authorization: Bearer ${HORAIN_API_KEY:-HORAIN_DEV_KEY}" \
-            -H "Content-Type: application/json" -d '{}' || true
+            -H "Content-Type: application/json" -d '{"fixedToday":"2025-03-10"}' || true
 
           echo "Running Promptfoo evals..."
           cd ..

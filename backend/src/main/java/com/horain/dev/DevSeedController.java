@@ -4,9 +4,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+
 /**
  * Dev-only endpoint to load fictional seed data.
  * Disabled when horain.dev.seed-enabled is false (e.g. production).
+ * Optional body: { "fixedToday": "2025-03-10" } for deterministic evals.
  */
 @RestController
 @RequestMapping("/dev")
@@ -22,11 +25,21 @@ public class DevSeedController {
     }
 
     @PostMapping("/seed")
-    public ResponseEntity<?> loadSeed() {
+    public ResponseEntity<?> loadSeed(@RequestBody(required = false) SeedRequest body) {
         if (!seedEnabled) {
             return ResponseEntity.notFound().build();
         }
-        DevSeedService.DevSeedResult result = devSeedService.loadSeed();
+        LocalDate fixedToday = null;
+        if (body != null && body.fixedToday() != null && !body.fixedToday().isBlank()) {
+            try {
+                fixedToday = LocalDate.parse(body.fixedToday());
+            } catch (Exception ignored) {
+                // Ignore invalid date, use now
+            }
+        }
+        DevSeedService.DevSeedResult result = devSeedService.loadSeed(fixedToday);
         return ResponseEntity.ok(result);
     }
+
+    public record SeedRequest(String fixedToday) {}
 }

@@ -1,0 +1,106 @@
+# Multiple entries in one message, follow-up additive
+
+- description: Multiple entries - 2 (FR)
+  vars:
+    message: "2h sur Horain et une demi-heure sur Festibask"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const createLogs = tc.filter(t => t.name === 'create_time_log');
+        return createLogs.length >= 2;
+    - type: icontains-all
+      value:
+        - "Horain"
+        - "Festibask"
+    - type: icontains-any
+      value:
+        - "120"
+        - "2"
+    - type: icontains-any
+      value:
+        - "30"
+        - "demi"
+
+- description: Multiple entries - 2 (EN)
+  vars:
+    message: "1h30 on HatCast and 45 min on Horain"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const createLogs = tc.filter(t => t.name === 'create_time_log');
+        return createLogs.length >= 2;
+    - type: icontains-all
+      value:
+        - "HatCast"
+        - "Horain"
+    - type: icontains-any
+      value:
+        - "90"
+        - "45"
+
+- description: Multiple entries - 3
+  vars:
+    message: "2h sur Horain, 30 min sur Festibask, et 15 min sur Chrono EPS"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const createLogs = tc.filter(t => t.name === 'create_time_log');
+        return createLogs.length >= 3;
+    - type: icontains-all
+      value:
+        - "Horain"
+        - "Festibask"
+        - "Chrono"
+
+- description: Follow-up additif - turn 1
+  vars:
+    message: "2h sur Horain"
+  options:
+    storeOutputAs: followupTurn1
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: followupAdditive
+  assert:
+    - type: icontains-all
+      value:
+        - "Horain"
+        - "120"
+    - type: icontains-any
+      value:
+        - "logged"
+        - "créé"
+        - "recorded"
+
+- description: Follow-up additif - turn 2
+  vars:
+    message: "et une demi-heure sur Festibask"
+    history:
+      - role: user
+        content: "2h sur Horain"
+      - role: assistant
+        content: "{{followupTurn1}}"
+  metadata:
+    conversationId: followupAdditive
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const createLogs = tc.filter(t => t.name === 'create_time_log');
+        return createLogs.length >= 1;
+    - type: icontains-all
+      value:
+        - "Festibask"
+        - "30"
+    - type: icontains-any
+      value:
+        - "logged"
+        - "créé"
+        - "enregistré"
+        - "recorded"

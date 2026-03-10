@@ -1,0 +1,20 @@
+# Empty data / no hallucination - 0 hours, no entries, jamais de total inventé
+
+- description: No data - future period (prudent response)
+  vars:
+    message: "What did I log in 2030?"
+  assert:
+    - type: icontains-any
+      value:
+        - "0"
+        - "no"
+        - "aucun"
+        - "nothing"
+        - "empty"
+        - "pas"
+        - "none"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        return !/\d{2,}\s*(?:heures?|hours?|minutes?)/.test(msg) || msg.includes('0');

@@ -8,6 +8,11 @@
 
 description: Horain chat API evals
 
+# Default var for unique project name (overridden by run-promptfoo-eval.sh --var)
+defaultTest:
+  vars:
+    evalProposalProject: "EvalProposal_default"
+
 prompts:
   - "{{message}}"
 
@@ -30,11 +35,21 @@ tests:
         value:
           - "Horain"
           - "20"
+      - type: icontains-any
+        value:
           - "logged"
+          - "créé"
+          - "ajouté"
+          - "enregistré"
+          - "created"
+          - "recorded"
   - file://tests/log-time.yaml
   - file://tests/clarification.yaml
   - file://tests/analytics.yaml
   - file://tests/json-ui.yaml
   - file://tests/state-transitions.yaml
   - file://tests/robustness.yaml
-  - file://tests/no-data-and-safety.yaml
+  - file://tests/project-lifecycle.yaml
+  - file://tests/entry-mutations.yaml
+  - file://tests/multi-entry-and-followups.yaml
+  - file://tests/empty-and-errors.yaml

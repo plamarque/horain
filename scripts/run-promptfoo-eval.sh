@@ -1,11 +1,13 @@
 #!/bin/bash
 # Run Promptfoo evals: start backend (if needed), seed DB, run evals.
-# Usage: ./scripts/run-promptfoo-eval.sh
+# Usage: ./scripts/run-promptfoo-eval.sh [promptfoo eval args...]
 #
 # Prerequisites:
 #   - Java 21+, Maven (backend)
 #   - Node 20+ (for npx promptfoo)
 #   - OPENAI_API_KEY or LLM_API_KEY in backend/.env for real LLM responses
+#   - For scored evals: PROMPTFOO_JUDGE_MISTRAL_KEY (or PROMPTFOO_JUDGE_MISTRAL_API_KEY)
+#     and PROMPTFOO_JUDGE_MODEL in promptfoo/.env (loaded automatically)
 
 set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -63,7 +65,7 @@ echo "Seeding database..."
 SEED_RES=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/dev/seed" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $API_KEY" \
-  -d '{}')
+  -d '{"fixedToday":"2025-03-10"}')
 SEED_HTTP=$(echo "$SEED_RES" | tail -n1)
 if [ "$SEED_HTTP" != "200" ]; then
   echo "Warning: Seed request failed (HTTP $SEED_HTTP). Some evals may fail."
@@ -72,6 +74,24 @@ else
   echo "Seed complete."
 fi
 
+# Load judge vars from promptfoo/.env (for scored evals with Mistral)
+# Supports PROMPTFOO_JUDGE_MISTRAL_API_KEY or PROMPTFOO_JUDGE_MISTRAL_KEY
+PROMPTFOO_ENV="$ROOT/promptfoo/.env"
+if [ -f "$PROMPTFOO_ENV" ]; then
+  _extract() {
+    grep -E "^${1}\s*=" "$PROMPTFOO_ENV" 2>/dev/null | head -1 | cut -d= -f2- | sed -e 's/[#].*$//' -e 's/[[:space:]]*$//' -e 's/^["'\'']*//' -e 's/["'\'']*$//'
+  }
+  JUDGE_KEY="$(_extract PROMPTFOO_JUDGE_MISTRAL_API_KEY)"
+  [ -z "$JUDGE_KEY" ] && JUDGE_KEY="$(_extract PROMPTFOO_JUDGE_MISTRAL_KEY)"
+  [ -n "$JUDGE_KEY" ] && export PROMPTFOO_JUDGE_MISTRAL_API_KEY="$JUDGE_KEY"
+  JUDGE_MODEL="$(_extract PROMPTFOO_JUDGE_MODEL)"
+  [ -n "$JUDGE_MODEL" ] && export PROMPTFOO_JUDGE_MODEL="$JUDGE_MODEL"
+fi
+
+# Unique run ID for eval-only project names (avoids DB pollution between runs)
+export EVAL_RUN_ID="${EVAL_RUN_ID:-$(date +%s)}"
+EVAL_PROPOSAL_PROJECT="EvalProposal_${EVAL_RUN_ID}"
+
 # Run Promptfoo evals
 echo ""
 echo "Running Promptfoo evals..."
@@ -79,4 +99,4 @@ cd "$ROOT/promptfoo"
 export HORAIN_API_KEY="$API_KEY"
 export PROMPTFOO_API_URL="$API_BASE"
 export PROMPTFOO_DISABLE_WAL_MODE="${PROMPTFOO_DISABLE_WAL_MODE:-true}"
-npx promptfoo eval "$@"
+npx promptfoo eval --var "evalProposalProject=${EVAL_PROPOSAL_PROJECT}" "$@"

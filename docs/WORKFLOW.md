@@ -19,6 +19,8 @@ Ce document décrit **quand** mettre à jour **quel** document du workflow de go
 | Nouvelle commande, outil ou étape de setup | **DEVELOPMENT.md** |
 | Changement du processus de publication stores | **docs/PUBLISHING_STORES.md** |
 | Changement de gouvernance ou de workflow | **AGENTS.md**, **docs/WORKFLOW.md** |
+| Nouvelle capability agent ou correction bug IA | **docs/EVALS.md** (si règles évoluent), **promptfoo/tests/** (nouveaux tests) |
+| Changement de modèle LLM | Exécuter la suite evals ; ajuster tests si dérive (voir **docs/EVALS.md**) |
 
 ## Ordre de lecture recommandé
 
@@ -31,13 +33,14 @@ Pour comprendre le projet :
 5. **docs/MCP_TOOLS.md** — Outils MCP
 6. **docs/DATA_MODEL.md** — Schéma base de données
 7. **docs/UX.md** — Expérience utilisateur
-8. **docs/PLAN.md** — État de la livraison
-9. **docs/ROADMAP.md** — Vision long terme
-10. **docs/ISSUES.md** — Problèmes connus
-11. **docs/PUBLISHING_STORES.md** — Publication sur les stores (si applicable)
+8. **docs/EVALS.md** — Maintenance des evals Promptfoo
+9. **docs/PLAN.md** — État de la livraison
+10. **docs/ROADMAP.md** — Vision long terme
+11. **docs/ISSUES.md** — Problèmes connus
+12. **docs/PUBLISHING_STORES.md** — Publication sur les stores (si applicable)
 
 ## Documents normatifs vs suivi
 
-- **Normatifs** : SPEC, DOMAIN, ARCH, MCP_TOOLS, DATA_MODEL, UX, WORKFLOW, ADRs, AGENTS. Ils définissent le comportement et la structure attendus.
+- **Normatifs** : SPEC, DOMAIN, ARCH, MCP_TOOLS, DATA_MODEL, UX, EVALS, WORKFLOW, ADRs, AGENTS. Ils définissent le comportement et la structure attendus.
 - **Suivi** : PLAN, ROADMAP, ISSUES. Factuels, ne définissent pas le contrat.
 - **Opérationnel** : DEVELOPMENT. Workflow développeur.

@@ -25,6 +25,21 @@ export default class HorainApiProvider {
           : { role: 'user', content: String(m) }
       );
     }
+    let contextEntries = [];
+    if (context?.vars?.contextEntries && Array.isArray(context.vars.contextEntries)) {
+      contextEntries = context.vars.contextEntries
+        .filter((e) => typeof e === 'object' && e != null && e.id != null)
+        .map((e) => ({
+          id: e.id,
+          projectId: e.projectId,
+          projectName: e.projectName,
+          durationMinutes: e.durationMinutes,
+          note: e.note,
+          loggedAt: e.loggedAt,
+        }));
+    }
+    const body = { message: prompt, history };
+    if (contextEntries.length > 0) body.contextEntries = contextEntries;
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -32,10 +47,7 @@ export default class HorainApiProvider {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${API_KEY}`,
         },
-        body: JSON.stringify({
-          message: prompt,
-          history,
-        }),
+        body: JSON.stringify(body),
       });
 
       const text = await res.text();

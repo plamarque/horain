@@ -1,0 +1,257 @@
+# Project lifecycle - unknown, ambiguous, rename, delete project
+
+- description: Unknown project - proposition seule
+  vars:
+    message: "40 minutes on ZzzPropositionOnly999"
+  assert:
+    - type: icontains-any
+      value:
+        - "create"
+        - "don't know"
+        - "unknown"
+        - "not found"
+        - "couldn't find"
+        - "should I"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const noCreate = !tc.some(t => t.name === 'create_time_log');
+        const noCreateProject = !tc.some(t => t.name === 'create_project');
+        return noCreate && noCreateProject;
+
+- description: Unknown project - turn 1 proposal
+  vars:
+    message: "40 minutes on {{evalProposalProject}}"
+  options:
+    storeOutputAs: unknownProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: unknownLifecycle
+  assert:
+    - type: icontains-any
+      value:
+        - "create"
+        - "should I"
+        - "don't know"
+
+- description: Unknown project + confirmation
+  vars:
+    message: "yes, create it"
+    history:
+      - role: user
+        content: "40 minutes on {{evalProposalProject}}"
+      - role: assistant
+        content: "{{unknownProposal}}"
+  metadata:
+    conversationId: unknownLifecycle
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasCreateProject = tc.some(t => t.name === 'create_project');
+        const hasCreateTimeLog = tc.some(t => t.name === 'create_time_log');
+        const msg = (o.message || '').toLowerCase();
+        const confirmsInMessage = msg.includes('logged') || msg.includes('créé') || msg.includes('created') || msg.includes('recorded');
+        return (hasCreateProject && hasCreateTimeLog) || confirmsInMessage;
+
+- description: Unknown project + refus - turn 1
+  vars:
+    message: "40 minutes on RefuseProject123"
+  options:
+    storeOutputAs: unknownRefuseProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: unknownRefuse
+  assert:
+    - type: icontains-any
+      value:
+        - "create"
+        - "should I"
+
+- description: Unknown project + refus
+  vars:
+    message: "no"
+    history:
+      - role: user
+        content: "40 minutes on RefuseProject123"
+      - role: assistant
+        content: "{{unknownRefuseProposal}}"
+  metadata:
+    conversationId: unknownRefuse
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return !tc.some(t => t.name === 'create_project') && !tc.some(t => t.name === 'create_time_log');
+
+- description: Ambiguous - question
+  vars:
+    message: "25 minutes on HatCast"
+  assert:
+    - type: icontains-all
+      value:
+        - "HatCast"
+        - "25"
+    - type: icontains-any
+      value:
+        - "which"
+        - "V1"
+        - "V2"
+        - "quel"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return !tc.some(t => t.name === 'create_time_log');
+
+- description: Ambiguous - turn 1
+  vars:
+    message: "25 minutes on HatCast"
+  options:
+    storeOutputAs: ambiguousProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: ambiguousChoice
+  assert:
+    - type: icontains-any
+      value:
+        - "V1"
+        - "V2"
+        - "which"
+
+- description: Ambiguous + choix V2
+  vars:
+    message: "HatCast V2"
+    history:
+      - role: user
+        content: "25 minutes on HatCast"
+      - role: assistant
+        content: "{{ambiguousProposal}}"
+  metadata:
+    conversationId: ambiguousChoice
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasCreate = tc.some(t => t.name === 'create_time_log');
+        const msg = (o.message || '').toLowerCase();
+        const confirmsLog = msg.includes('v2') || msg.includes('hatcast') || msg.includes('logged') || msg.includes('créé') || msg.includes('recorded');
+        return hasCreate && confirmsLog;
+
+- description: Ambiguous + confirmation floue - turn 1
+  vars:
+    message: "25 minutes on HatCast"
+  options:
+    storeOutputAs: ambiguousFlouProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: ambiguousFlou
+  assert:
+    - type: icontains-any
+      value:
+        - "V1"
+        - "V2"
+
+- description: Ambiguous + confirmation floue
+  vars:
+    message: "yes"
+    history:
+      - role: user
+        content: "25 minutes on HatCast"
+      - role: assistant
+        content: "{{ambiguousFlouProposal}}"
+  metadata:
+    conversationId: ambiguousFlou
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return !tc.some(t => t.name === 'create_time_log');
+    - type: icontains-any
+      value:
+        - "which"
+        - "V1"
+        - "V2"
+
+- description: Rename project
+  vars:
+    message: "rename Meeds to Meeds Pro"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const updateProj = tc.find(t => t.name === 'update_project');
+        return updateProj && (updateProj.arguments || '').toLowerCase().includes('pro');
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return !tc.some(t => t.name === 'create_project');
+
+- description: Change description
+  vars:
+    message: "change description of Horain to AI time tracking agent"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'update_project');
+
+- description: Delete project with logs - avertissement
+  vars:
+    message: "delete project Horain"
+  assert:
+    - type: icontains-any
+      value:
+        - "entries"
+        - "entrées"
+        - "delete"
+        - "confirm"
+        - "first"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const deleteLogCount = tc.filter(t => t.name === 'delete_time_log').length;
+        return deleteLogCount <= 2;
+
+- description: Delete project - turn 1 request
+  vars:
+    message: "delete project Festibask"
+  options:
+    storeOutputAs: deleteProjectProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: deleteProjectFlow
+  assert:
+    - type: icontains-any
+      value:
+        - "entries"
+        - "delete"
+        - "confirm"
+
+- description: Delete project - après confirmation
+  vars:
+    message: "yes, delete all entries then the project"
+    history:
+      - role: user
+        content: "delete project Festibask"
+      - role: assistant
+        content: "{{deleteProjectProposal}}"
+  metadata:
+    conversationId: deleteProjectFlow
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasDeleteProject = tc.some(t => t.name === 'delete_project');
+        const hasDeleteTimeLog = tc.some(t => t.name === 'delete_time_log');
+        return hasDeleteProject || hasDeleteTimeLog;

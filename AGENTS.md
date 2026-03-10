@@ -15,6 +15,7 @@ Ne pas contredire ces documents. Le code et les changements doivent s'aligner su
 | **docs/DATA_MODEL.md** | Schéma base de données |
 | **docs/UX.md** | Expérience utilisateur et interface |
 | **docs/WORKFLOW.md** | Quand mettre à jour quel document |
+| **docs/EVALS.md** | Maintenance des evals Promptfoo ; contrat produit de l'agent |
 | **docs/ADR/** | Décisions d'architecture (un fichier par décision) |
 
 ## Suivi et opérationnel (non normatifs)
@@ -53,3 +54,9 @@ L'agent conversationnel **ne modifie jamais la base de données directement**. I
 ## Qualité
 
 - **Tests e2e :** Une suite de tests e2e (Playwright) doit exister et être maintenue dès le début du projet. Les nouvelles fonctionnalités doivent inclure ou adapter les tests e2e correspondants.
+
+## Règle evals
+
+- Les evals Promptfoo sont un **contrat produit** entre l'agent et ses utilisateurs.
+- À chaque nouvelle capability, bug IA corrigé ou dérive observée : consulter [docs/EVALS.md](docs/EVALS.md) et ajouter ou modifier les tests selon les règles définies.
+- Minimum 3 tests par capability : happy path, edge case, clarification.

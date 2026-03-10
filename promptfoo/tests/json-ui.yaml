@@ -1,23 +1,44 @@
-# JSON UI - data.timeLogs, data.chart in response
+# JSON UI - contrat de structure data.timeLogs, data.chart
 
-- description: List entries - data.timeLogs or entries in response
+- description: List entries - data.timeLogs structure
   vars:
     message: "What did I log this week?"
   assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'propose_entries');
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        if (!o.data?.timeLogs) return false;
+        const arr = o.data.timeLogs;
+        if (!Array.isArray(arr)) return false;
+        return arr.every(e => typeof e.durationMinutes === 'number' && (e.projectName || e.projectId));
     - type: icontains-any
       value:
         - "timeLogs"
         - "entries"
-        - "durationMinutes"
 
-- description: Chart analytics - data.chart in response
+- description: Chart analytics - data.chart structure
   vars:
     message: "Répartition par projet cette semaine"
   assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'propose_chart');
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        if (!o.data?.chart) return false;
+        const c = o.data.chart;
+        return c.type && Array.isArray(c.series) && c.series.length > 0;
     - type: icontains-any
       value:
         - "chart"
         - "series"
-        - "categories"
-        - "pie"
-        - "répartition"

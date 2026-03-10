@@ -1,4 +1,4 @@
-# Clarification - missing duration, unknown project, ambiguous project (HatCast V1/V2)
+# Clarification - missing duration, unknown project, ambiguous project (SPEC)
 
 - description: Missing duration - agent asks for estimate
   vars:
@@ -15,7 +15,7 @@
         - "minutes"
         - "hours"
 
-- description: Unknown project - agent creates or offers to create
+- description: Unknown project - agent proposes creation (no direct log)
   vars:
     message: "40 minutes on ZzzUnknownEvalProject123"
   assert:
@@ -25,14 +25,22 @@
         - "don't know"
         - "unknown"
         - "not found"
-        - "no project"
-        - "doesn't exist"
         - "couldn't find"
-        - "matching"
-        - "logged"
-        - "ZzzUnknownEvalProject123"
+        - "should I"
+    - type: javascript
+      value: |
+        try {
+          let raw = typeof output === 'string' ? output : (output?.output ?? JSON.stringify(output));
+          if (typeof raw === 'object') raw = JSON.stringify(raw);
+          const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const tc = Array.isArray(o?.toolCalls) ? o.toolCalls : (Array.isArray(o?.tool_calls) ? o.tool_calls : []);
+          const hasCreate = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_time_log');
+          if (!hasCreate) return true;
+          const msg = (o?.message || raw || '').toLowerCase();
+          return msg.includes('should i') && msg.includes('create') && !msg.includes('logged');
+        } catch (e) { return false; }
 
-- description: Ambiguous project - HatCast matches V1 and V2 (disambiguate or log)
+- description: Ambiguous project - agent asks which one (no direct log)
   vars:
     message: "25 minutes on HatCast"
   assert:
@@ -45,5 +53,14 @@
         - "which"
         - "V1"
         - "V2"
-        - "logged"
-        - "created"
+        - "quel"
+    - type: javascript
+      value: |
+        try {
+          let raw = typeof output === 'string' ? output : (output?.output ?? JSON.stringify(output));
+          if (typeof raw === 'object') raw = JSON.stringify(raw);
+          const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const tc = Array.isArray(o?.toolCalls) ? o.toolCalls : (Array.isArray(o?.tool_calls) ? o.tool_calls : []);
+          const hasCreate = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_time_log');
+          return !hasCreate;
+        } catch (e) { return false; }

@@ -25,11 +25,10 @@ Shared vocabulary and rules for Horain: projects, time logs, intent detection, a
 
 1. A time_log must reference an existing project (project_id FK).
 2. source = "voice" for entries created from voice input (MVP).
-3. Projects are matched by name (exact or fuzzy search); names should be unique or disambiguated.
+3. Project names are unique; at most one project per name. The database enforces this with a UNIQUE constraint.
 4. Duration is in minutes; required for logging (agent prompts if missing).
 5. The agent never writes directly to the database; all writes go through MCP tools.
 
 ## Assumptions and Uncertainties
 
 - [ASSUMPTION] Project names are case-sensitive for matching; fuzzy match used for variants.
-- [UNCERTAIN] Whether to allow duplicate project names with different descriptions.

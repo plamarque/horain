@@ -77,6 +77,8 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 Les evals Promptfoo évaluent le comportement de l'agent conversationnel (POST /chat/message) via des assertions sur les réponses.
 
+Pour les **règles de maintenance** (quand ajouter, modifier ou supprimer des tests), voir [docs/EVALS.md](EVALS.md).
+
 **Prérequis :**
 
 1. Backend sur 8080 (comme pour e2e)
