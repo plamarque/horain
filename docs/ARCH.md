@@ -27,8 +27,8 @@ flowchart TB
     end
     
     Voice -->|STT| UI
-    UI -->|POST /chat/message| ChatClient
-    ChatClient -->|HTTP| ChatCtrl
+    UI -->|POST /chat/message/stream or /chat/message| ChatClient
+    ChatClient -->|HTTP / SSE| ChatCtrl
     ChatCtrl --> LlmSvc
     LlmSvc -->|messages + tools| LlmClient
     LlmClient -->|tool_calls| LlmSvc
@@ -47,7 +47,7 @@ flowchart TB
 | Component | Responsibility | Location / Tech |
 |-----------|----------------|-----------------|
 | Client | PWA, push-to-talk, conversation UI | Vue 3, Vite, custom UI (see UX.md) |
-| Chat Client | Sends messages to POST /chat/message | frontend/src/services/chatClient.ts |
+| Chat Client | Sends messages to POST /chat/message/stream (SSE); fallback to POST /chat/message on 404/405 | frontend/src/services/chatClient.ts |
 | Backend | Chat endpoint, LLM orchestration, tool execution | Spring Boot (Cloud Run) |
 | LLM Client | Spring AI ChatModel (OpenAI-compatible) or fallback RestTemplate client | backend llm/ package |
 | Tool Executor | Dispatches tool calls to ProjectService, TimeLogService, AnalyticsService | backend tools/ package |

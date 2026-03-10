@@ -8,6 +8,8 @@ defineProps<{
   messages: Message[]
   recentLogs?: TimeLogEntry[]
   isProcessing?: boolean
+  /** When true, a message has isStreaming; hide "Processing..." and show the streaming bubble. */
+  hasStreamingBubble?: boolean
   hasNewMessageBelow?: boolean
 }>()
 
@@ -76,10 +78,11 @@ defineExpose({
       :text="msg.text"
       :chart="msg.chart"
       :time-logs="msg.timeLogs"
+      :is-streaming="msg.isStreaming"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
     />
-    <div v-if="isProcessing" class="processing-indicator">
+    <div v-if="isProcessing && !hasStreamingBubble" class="processing-indicator">
       Processing...
     </div>
   </div>

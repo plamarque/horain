@@ -31,4 +31,6 @@ export interface Message {
   timestamp: Date
   chart?: ChartSpec
   timeLogs?: TimeLogEntry[]
+  /** True while assistant text is streaming into this message. */
+  isStreaming?: boolean
 }

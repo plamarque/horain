@@ -163,6 +163,12 @@ The next frontend build and deploy will use the new backend URL.
 
 ---
 
+## 9. Request timeout (streaming)
+
+The chat stream endpoint (`POST /chat/message/stream`) keeps the connection open while the agent may run several tool-call rounds. Cloud Run allows configuring the **request timeout** (default is 5 minutes). If users hit timeouts on long conversations, in **Cloud Run** → your service → **Edit & deploy new revision** → **Container** → set **Request timeout** to e.g. 300 seconds (or leave the default). The backend uses a 5-minute timeout for the SSE emitter.
+
+---
+
 ## Reference
 
 - [Continuous deployment from a repository (Cloud Run)](https://cloud.google.com/run/docs/continuous-deployment)

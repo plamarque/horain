@@ -64,6 +64,16 @@ export async function apiPost<T>(
   })
 }
 
+/** Get URL and headers for a streaming request (e.g. SSE). Caller must use fetch and read body as stream. */
+export function getStreamRequestConfig(path: string): { url: string; headers: HeadersInit } {
+  const p = path.startsWith('/') ? path : `/${path}`
+  const url = `${API_BASE.replace(/\/$/, '')}${p}`
+  return {
+    url,
+    headers: { ...headers(), Accept: 'text/event-stream' },
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   return apiFetch<T>(path)
 }

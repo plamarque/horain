@@ -10,6 +10,7 @@ const props = defineProps<{
   text: string
   chart?: ChartSpec
   timeLogs?: TimeLogEntry[]
+  isStreaming?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,8 +29,9 @@ const useHtml = computed(() => props.role === 'assistant')
 <template>
   <div class="message-block">
     <div class="bubble" :class="role">
-      <div v-if="text && useHtml" class="content content--markdown" v-html="formattedContent" />
-      <div v-else-if="text" class="content">{{ formattedContent }}</div>
+      <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
+      <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
+      <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
     </div>
     <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
@@ -97,6 +99,22 @@ const useHtml = computed(() => props.role === 'assistant')
 
 .content--markdown :deep(strong) {
   font-weight: 600;
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .chart-standalone {

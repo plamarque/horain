@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
-import { sendChatMessage } from '../services/chatClient'
+import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { processQueue } from '../sync/syncEngine'
 import { loadDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
@@ -39,7 +39,11 @@ function isValidTimeLogEntries(v: unknown): v is TimeLogEntry[] {
 
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
+const streamingMessageId = ref<string | null>(null)
 const abortControllerRef = ref<AbortController | null>(null)
+
+/** True when the last assistant message is streaming; used so timeline hides "Processing..." as soon as the streaming bubble exists. */
+const hasStreamingBubble = computed(() => messages.value.some((m) => m.isStreaming === true))
 const lastSyncedAt = ref<Date | null>(null)
 const inputRef = ref<InstanceType<typeof PushToTalkButton> | null>(null)
 const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
@@ -196,38 +200,107 @@ async function handleSubmit(text: string) {
   selectedEntries.value = []
 
   isProcessing.value = true
+  streamingMessageId.value = null
   abortControllerRef.value = new AbortController()
-  try {
-    const history = messages.value
-      .slice(0, -1)
-      .map((m) => ({ role: m.role, text: m.text }))
-    const response = await sendChatMessage(text.trim(), history, contextToSend, {
-      signal: abortControllerRef.value.signal,
-    })
-    const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
-      ? (response.data as { chart: unknown }).chart
-      : undefined
-    const chart = isValidChartSpec(rawChart) ? rawChart : undefined
-    const rawTimeLogs = response.data && typeof response.data === 'object' && 'timeLogs' in response.data
-      ? (response.data as { timeLogs: unknown }).timeLogs
-      : undefined
-    const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
-    addAssistantMessage(response.assistantMessage, chart, timeLogs)
+  const history = messages.value
+    .slice(0, -1)
+    .map((m) => ({ role: m.role, text: m.text }))
 
-    // Pull server updates (e.g. time logs created by backend tools)
-    await processQueue()
-    lastSyncedAt.value = new Date()
+  try {
+    await sendChatMessageStream(
+      text.trim(),
+      {
+        onChunk(chunk) {
+          if (!streamingMessageId.value) {
+            const id = crypto.randomUUID()
+            streamingMessageId.value = id
+            const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
+            messages.value.push({
+              id,
+              role: 'assistant',
+              text: chunk,
+              timestamp: new Date(),
+              isStreaming: true,
+            })
+            nextTick(() => {
+              if (wasAtBottom) timelineRef.value?.scrollToBottom()
+              else hasNewMessageBelow.value = true
+            })
+          } else {
+            const msg = messages.value.find((m) => m.id === streamingMessageId.value)
+            if (msg) msg.text += chunk
+          }
+        },
+        onDone(payload) {
+          const rawChart = payload.data && typeof payload.data === 'object' && 'chart' in payload.data
+            ? (payload.data as { chart: unknown }).chart
+            : undefined
+          const chart = isValidChartSpec(rawChart) ? rawChart : undefined
+          const rawTimeLogs = payload.data && typeof payload.data === 'object' && 'timeLogs' in payload.data
+            ? (payload.data as { timeLogs: unknown }).timeLogs
+            : undefined
+          const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
+          if (streamingMessageId.value) {
+            const msg = messages.value.find((m) => m.id === streamingMessageId.value)
+            if (msg) {
+              msg.text = payload.assistantMessage ?? msg.text
+              msg.isStreaming = false
+              if (chart) msg.chart = chart
+              if (timeLogs?.length) msg.timeLogs = timeLogs
+            }
+          } else {
+            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs)
+          }
+          streamingMessageId.value = null
+          processQueue().then(() => {
+            lastSyncedAt.value = new Date()
+          })
+        },
+        onError(err) {
+          if ((err as Error).name === 'AbortError') return
+          const msg = (err as Error).message
+          const fallback = 'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
+          addAssistantMessage(msg?.startsWith('API error') ? msg : fallback)
+        },
+      },
+      history,
+      contextToSend,
+      { signal: abortControllerRef.value?.signal }
+    )
   } catch (err) {
-    if ((err as Error).name === 'AbortError') {
-      // User clicked Stop — do not show error, just return control
-      return
+    if ((err as Error).name === 'AbortError') return
+    const status = (err as Error & { status?: number }).status
+    if (status === 404 || status === 405) {
+      try {
+        const response = await sendChatMessage(text.trim(), history, contextToSend, {
+          signal: abortControllerRef.value?.signal,
+        })
+        const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
+          ? (response.data as { chart: unknown }).chart
+          : undefined
+        const chart = isValidChartSpec(rawChart) ? rawChart : undefined
+        const rawTimeLogs = response.data && typeof response.data === 'object' && 'timeLogs' in response.data
+          ? (response.data as { timeLogs: unknown }).timeLogs
+          : undefined
+        const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
+        addAssistantMessage(response.assistantMessage, chart, timeLogs)
+        await processQueue()
+        lastSyncedAt.value = new Date()
+      } catch (fallbackErr) {
+        if ((fallbackErr as Error).name === 'AbortError') return
+        const msg = (fallbackErr as Error).message
+        const fallback = 'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
+        addAssistantMessage(msg?.startsWith('API error') ? msg : fallback)
+      }
+    } else {
+      const msg = (err as Error).message
+      const fallback = 'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
+      addAssistantMessage(msg?.startsWith('API error') ? msg : fallback)
     }
-    const msg = (err as Error).message
-    const fallback = 'Unable to reach the assistant. Check that the backend is running and LLM_API_KEY is configured.'
-    addAssistantMessage(msg?.startsWith('API error') ? msg : fallback)
   } finally {
     isProcessing.value = false
     abortControllerRef.value = null
+    streamingMessageId.value = null
   }
 }
 
@@ -274,6 +347,7 @@ async function handleLoadSeed() {
       :messages="messages"
       :recent-logs="recentLogs"
       :is-processing="isProcessing"
+      :has-streaming-bubble="hasStreamingBubble"
       :has-new-message-below="hasNewMessageBelow"
       @select-entry="handleSelectEntry"
       @edit-entry="handleEditEntry"

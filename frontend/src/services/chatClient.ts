@@ -11,7 +11,7 @@
  * refreshes local state. Unify write orchestration so that both paths remain consistent.
  */
 
-import { apiPost } from './apiClient'
+import { apiPost, getStreamRequestConfig } from './apiClient'
 
 export interface ChatMessageResponse {
   assistantMessage: string
@@ -71,4 +71,145 @@ export async function sendChatMessage(
     }
   }
   return apiPost<ChatMessageResponse>('/chat/message', body, init)
+}
+
+export interface StreamCallbacks {
+  onChunk: (text: string) => void
+  onDone: (payload: ChatMessageResponse) => void
+  onError?: (err: Error) => void
+}
+
+/**
+ * Send a message to the streaming endpoint and process SSE events.
+ * Calls onChunk for each text delta, onDone with the final payload, and onError on failure or error event.
+ * Pass signal to allow cancellation (e.g. when user clicks Stop).
+ */
+export async function sendChatMessageStream(
+  message: string,
+  callbacks: StreamCallbacks,
+  history?: HistoryEntry[],
+  contextEntries?: ContextEntry[],
+  init?: { signal?: AbortSignal }
+): Promise<void> {
+  const trimmed =
+    history?.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
+      role: m.role,
+      content: m.text,
+    })) ?? []
+  const body: Record<string, unknown> = {
+    message,
+    history: trimmed,
+  }
+  if (contextEntries?.length) {
+    const entriesWithId = contextEntries.filter((e): e is ContextEntry & { id: string } => !!e.id)
+    if (entriesWithId.length) {
+      body.contextEntries = entriesWithId.map((e) => ({
+        id: e.id,
+        projectId: e.projectId,
+        projectName: e.projectName,
+        durationMinutes: e.durationMinutes,
+        note: e.note,
+        loggedAt: e.loggedAt,
+      }))
+    }
+  }
+
+  const { url, headers } = getStreamRequestConfig('/chat/message/stream')
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: init?.signal,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let msg = `API error ${res.status}`
+    try {
+      const json = text ? (JSON.parse(text) as Record<string, unknown>) : null
+      if (json && typeof json.message === 'string') msg = json.message
+      else if (json && typeof json.error === 'string') msg = json.error
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(msg) as Error & { status?: number }
+    err.status = res.status
+    callbacks.onError?.(err)
+    throw err
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) {
+    const err = new Error('No response body')
+    callbacks.onError?.(err)
+    throw err
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let currentEvent: string | null = null
+  let currentData: string[] = []
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          if (currentEvent !== null && currentData.length > 0) {
+            const dataStr = currentData.join('\n').trim()
+            dispatchEvent(currentEvent, dataStr, callbacks)
+          }
+          currentEvent = line.slice(6).trim()
+          currentData = []
+        } else if (line.startsWith('data:')) {
+          currentData.push(line.slice(5))
+        } else if (line === '' && currentEvent !== null) {
+          if (currentData.length > 0) {
+            const dataStr = currentData.join('\n').trim()
+            dispatchEvent(currentEvent, dataStr, callbacks)
+          }
+          currentEvent = null
+          currentData = []
+        }
+      }
+    }
+    if (currentEvent !== null && currentData.length > 0) {
+      const dataStr = currentData.join('\n').trim()
+      dispatchEvent(currentEvent, dataStr, callbacks)
+    }
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') {
+      callbacks.onError?.(e as Error)
+    }
+    throw e
+  }
+}
+
+function dispatchEvent(
+  event: string,
+  dataStr: string,
+  callbacks: StreamCallbacks
+): void {
+  if (!dataStr) return
+  try {
+    if (event === 'chunk') {
+      const data = JSON.parse(dataStr) as { text?: string }
+      if (typeof data.text === 'string') {
+        callbacks.onChunk(data.text)
+      }
+    } else if (event === 'done') {
+      const payload = JSON.parse(dataStr) as ChatMessageResponse
+      callbacks.onDone(payload)
+    } else if (event === 'error') {
+      const data = JSON.parse(dataStr) as { message?: string }
+      const err = new Error(data.message ?? 'Stream error')
+      callbacks.onError?.(err)
+    }
+  } catch (e) {
+    callbacks.onError?.(e as Error)
+  }
 }

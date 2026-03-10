@@ -1,11 +1,15 @@
 package com.horain.chat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.horain.llm.LlmClient;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Chat API controller.
@@ -16,12 +20,42 @@ import java.util.Map;
 @RequestMapping("/chat")
 public class ChatController {
 
+    private static final long SSE_EMITTER_TIMEOUT_MS = 300_000L;
+
     private final LlmChatService chatService;
     private final LlmClient llmClient;
+    private final ObjectMapper objectMapper;
 
-    public ChatController(LlmChatService chatService, LlmClient llmClient) {
+    public ChatController(LlmChatService chatService, LlmClient llmClient, ObjectMapper objectMapper) {
         this.chatService = chatService;
         this.llmClient = llmClient;
+        this.objectMapper = objectMapper;
+    }
+
+    @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessage(@RequestBody ChatMessageRequest request) {
+        String userMessage = request != null && request.message() != null ? request.message().trim() : "";
+        if (userMessage.isBlank()) {
+            SseEmitter emitter = new SseEmitter(SSE_EMITTER_TIMEOUT_MS);
+            emitter.completeWithError(new IllegalArgumentException("Please provide a message."));
+            return emitter;
+        }
+        List<ChatHistoryEntry> history = request != null && request.history() != null
+                ? request.history()
+                : List.of();
+        List<Map<String, Object>> contextEntries = request != null && request.contextEntries() != null
+                ? request.contextEntries()
+                : List.of();
+        SseEmitter emitter = new SseEmitter(SSE_EMITTER_TIMEOUT_MS);
+        StreamEventWriter writer = new SseEmitterStreamEventWriter(emitter, objectMapper);
+        CompletableFuture.runAsync(() -> {
+            try {
+                chatService.chatStream(userMessage, history, contextEntries, writer);
+            } catch (Exception e) {
+                writer.sendError(e.getMessage());
+            }
+        });
+        return emitter;
     }
 
     @PostMapping("/message")

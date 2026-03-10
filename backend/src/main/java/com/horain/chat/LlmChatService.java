@@ -163,6 +163,111 @@ public class LlmChatService {
                 data.isEmpty() ? null : data);
     }
 
+    /**
+     * Same as chat() but streams the final assistant text via the writer.
+     * Only the last LLM turn (no tool_calls) is streamed; intermediate tool rounds use non-streaming chat().
+     */
+    public void chatStream(String userMessage, List<ChatHistoryEntry> history,
+                          List<Map<String, Object>> contextEntries,
+                          StreamEventWriter writer) {
+        List<ChatMessage> messages = new ArrayList<>();
+        String systemPrompt = SYSTEM_PROMPT;
+        if (contextEntries != null && !contextEntries.isEmpty()) {
+            try {
+                String contextJson = objectMapper.writeValueAsString(contextEntries);
+                systemPrompt += "\n\n[Context] The user has selected these time log entries. Use their ids for update_time_log or delete_time_log when asked: "
+                        + contextJson;
+            } catch (Exception e) {
+                log.debug("Failed to serialize context entries: {}", e.getMessage());
+            }
+        }
+        messages.add(ChatMessage.system(systemPrompt));
+        if (history != null && !history.isEmpty()) {
+            for (ChatHistoryEntry e : history) {
+                if (e != null && e.role() != null && e.content() != null) {
+                    String role = e.role().toLowerCase();
+                    if ("user".equals(role)) {
+                        messages.add(ChatMessage.user(e.content()));
+                    } else if ("assistant".equals(role)) {
+                        messages.add(ChatMessage.assistant(e.content()));
+                    }
+                }
+            }
+        }
+        messages.add(ChatMessage.user(userMessage));
+
+        List<ToolDefinition> tools = toolRegistry.getAllTools();
+        List<ToolCallRecord> toolCallsExecuted = new ArrayList<>();
+        boolean streamingClient = llmClient instanceof StreamingLlmClient;
+
+        try {
+            for (int iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
+                LlmResponse response;
+                if (streamingClient) {
+                    response = ((StreamingLlmClient) llmClient).chatStream(messages, tools, writer::sendChunk);
+                } else {
+                    response = llmClient.chat(messages, tools);
+                }
+
+                if (iterations > 0) {
+                    log.debug("Tool iteration {} for message: {}", iterations, userMessage);
+                }
+
+                if (!response.hasToolCalls()) {
+                    Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
+                    Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
+                    Map<String, Object> data = new HashMap<>();
+                    if (chartData != null) data.put("chart", chartData);
+                    if (timeLogsData != null) data.put("timeLogs", timeLogsData);
+                    String assistantMessage = response.content() != null && !response.content().isBlank()
+                            ? response.content()
+                            : "I'm sorry, I couldn't generate a response.";
+                    writer.sendDone(assistantMessage, toolCallsExecuted, data.isEmpty() ? null : data);
+                    return;
+                }
+
+                messages.add(ChatMessage.assistantWithToolCalls(
+                        response.content() != null ? response.content() : "",
+                        response.toolCalls()));
+
+                for (ToolCallRequest tc : response.toolCalls()) {
+                    ToolCallResult result;
+                    if (ToolRegistry.DELETE_TIME_LOG.equals(tc.name())) {
+                        long deleteCount = toolCallsExecuted.stream()
+                                .filter(r -> ToolRegistry.DELETE_TIME_LOG.equals(r.name()))
+                                .count();
+                        if (deleteCount >= massDeleteLimit) {
+                            result = new ToolCallResult(tc.id(),
+                                    "{\"error\":\"Mass deletion guard: max " + massDeleteLimit
+                                            + " entries per turn. Ask the user to confirm before deleting more, then proceed in a follow-up message.\"}");
+                        } else {
+                            result = toolExecutor.execute(tc);
+                        }
+                    } else {
+                        result = toolExecutor.execute(tc);
+                    }
+                    toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
+                    messages.add(ChatMessage.tool(result.content(), result.toolCallId()));
+                }
+            }
+
+            log.warn("Max tool iterations reached ({}): {} - tool calls so far: {}",
+                    MAX_TOOL_ITERATIONS, userMessage, toolCallsExecuted.stream().map(ToolCallRecord::name).toList());
+            Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
+            Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
+            Map<String, Object> data = new HashMap<>();
+            if (chartData != null) data.put("chart", chartData);
+            if (timeLogsData != null) data.put("timeLogs", timeLogsData);
+            writer.sendDone(
+                    "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
+                    toolCallsExecuted,
+                    data.isEmpty() ? null : data);
+        } catch (Exception e) {
+            log.error("chatStream error: {}", e.getMessage(), e);
+            writer.sendError(e.getMessage());
+        }
+    }
+
     private Object extractChartDataFromToolCalls(List<ToolCallRecord> toolCallsExecuted) {
         ToolCallRecord lastProposeChart = null;
         for (int i = toolCallsExecuted.size() - 1; i >= 0; i--) {

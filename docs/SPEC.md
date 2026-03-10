@@ -77,7 +77,7 @@ When the user opens Horain with an empty conversation, the app displays the 5 mo
 ## Boundaries
 
 - **Inputs:** Voice (click mic → record → confirm → insert) or direct text input.
-- **Outputs:** Assistant text responses, confirmations, conversation updates.
+- **Outputs:** Assistant text responses, confirmations, conversation updates. Responses may be delivered progressively (streaming) when the backend supports it.
 - **External dependencies:** STT service, LLM (agent), MCP Server (tools), Supabase.
 
 ## Assumptions and Uncertainties
