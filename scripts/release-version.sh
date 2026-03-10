@@ -51,7 +51,19 @@ echo "Running backend tests..."
 cd "$ROOT_DIR/backend"
 mvn test -q
 
-# E2E require backend on 8080 (same as CI). Start it, then run Playwright.
+# E2E require backend on 8080 (same as CI). Ensure port is free, then start and run Playwright.
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+  echo "Error: Port 8080 is already in use (e.g. backend from start-dev.sh). Stop it and retry."
+  exit 1
+fi
+# Optional: detect any listener on 8080 (health might not be up yet)
+if command -v lsof &>/dev/null; then
+  if lsof -i :8080 -sTCP:LISTEN -t &>/dev/null; then
+    echo "Error: Port 8080 is in use. Stop the process (e.g. ./scripts/start-dev.sh) and retry."
+    exit 1
+  fi
+fi
+
 echo "Starting backend for e2e..."
 mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
 BACKEND_PID=$!
@@ -66,7 +78,10 @@ for i in $(seq 1 60); do
   fi
   sleep 2
 done
-curl -s http://localhost:8080/health || true
+if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+  echo "Error: Backend did not become ready on 8080. Check backend logs above."
+  exit 1
+fi
 
 echo "Running frontend e2e tests..."
 cd "$ROOT_DIR/frontend"
