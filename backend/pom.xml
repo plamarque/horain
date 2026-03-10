@@ -13,7 +13,7 @@
 
     <groupId>com.horain</groupId>
     <artifactId>horain-backend</artifactId>
-    <version>0.2.3-SNAPSHOT</version>
+    <version>0.3.0</version>
     <name>horain-backend</name>
     <description>Horain sync API backend</description>
 
