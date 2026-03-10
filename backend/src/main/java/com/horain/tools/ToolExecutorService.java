@@ -406,6 +406,10 @@ public class ToolExecutorService {
         }
         List<ProjectDto> matches = projectService.searchByName(trimmed);
         if (matches.isEmpty()) {
+            List<ProjectDto> closeMatches = projectService.findCloseMatchesByName(trimmed, 1);
+            if (closeMatches.size() == 1) {
+                return closeMatches.get(0).getId();
+            }
             throw new IllegalArgumentException("No project found matching '" + projectIdOrName + "'");
         }
         if (matches.size() > 1) {
