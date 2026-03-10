@@ -101,6 +101,8 @@ public class ToolExecutorService {
         return toJson(Map.of("projects", list));
     }
 
+    private static final int CLOSE_MATCH_MAX = 3;
+
     private String executeSearchProject(JsonNode args) {
         String name = getText(args, "name");
         if (name == null || name.isBlank()) {
@@ -113,7 +115,20 @@ public class ToolExecutorService {
                         "name", p.getName(),
                         "description", p.getDescription() != null ? p.getDescription() : ""))
                 .toList();
-        return toJson(Map.of("matching_projects", list));
+        Map<String, Object> result = new java.util.HashMap<>(Map.of("matching_projects", list));
+        if (matches.isEmpty()) {
+            List<ProjectDto> closeMatches = projectService.findCloseMatchesByName(name, CLOSE_MATCH_MAX);
+            if (!closeMatches.isEmpty()) {
+                List<Map<String, String>> closeList = closeMatches.stream()
+                        .map(p -> Map.<String, String>of(
+                                "id", p.getId().toString(),
+                                "name", p.getName(),
+                                "description", p.getDescription() != null ? p.getDescription() : ""))
+                        .toList();
+                result.put("close_matches", closeList);
+            }
+        }
+        return toJson(result);
     }
 
     private String executeCreateProject(JsonNode args) {

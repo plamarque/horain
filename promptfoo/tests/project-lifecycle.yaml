@@ -87,6 +87,51 @@
         const tc = o.toolCalls || [];
         return !tc.some(t => t.name === 'create_project') && !tc.some(t => t.name === 'create_time_log');
 
+# Typo / close match: propose existing project (e.g. Horain) instead of creating (e.g. Horian)
+- description: Typo - close match proposal (Horian -> Horain)
+  vars:
+    message: "j'ai travaillé 2H sur Horian"
+  options:
+    storeOutputAs: typoCloseMatchProposal
+    transform: "(typeof output === 'string' ? JSON.parse(output) : output).message || output"
+  metadata:
+    conversationId: typoCloseMatch
+  assert:
+    - type: icontains-all
+      value:
+        - "Horain"
+    - type: icontains-any
+      value:
+        - "mean"
+        - "voulais"
+        - "did you"
+        - "meant"
+        - "sous-entend"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return !tc.some(t => t.name === 'create_project');
+
+- description: Typo - after user confirms close match
+  vars:
+    message: "oui"
+    history:
+      - role: user
+        content: "j'ai travaillé 2H sur Horian"
+      - role: assistant
+        content: "{{typoCloseMatchProposal}}"
+  metadata:
+    conversationId: typoCloseMatch
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasCreateTimeLog = tc.some(t => t.name === 'create_time_log');
+        const noCreateProject = !tc.some(t => t.name === 'create_project');
+        return hasCreateTimeLog && noCreateProject;
+
 - description: Ambiguous - question
   vars:
     message: "25 minutes on HatCast"

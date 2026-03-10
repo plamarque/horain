@@ -56,6 +56,18 @@ The user captures voice via the mic (waveform during recording, Confirm/Cancel t
 
 ---
 
+### Typo / close match
+
+When the user mentions a project name that does not exist but is similar to an existing project (e.g. typo), the assistant proposes the closest match and asks for confirmation instead of offering to create a new project.
+
+**User:** "I worked 2 hours on Horian."
+
+**Assistant:** "I don't have a project named Horian. Did you mean Horain? Should I log 120 minutes on Horain?"
+
+After the user confirms (e.g. "yes" or "I meant Horain"), the assistant logs the time on the matched project. Only if there is no close match or the user declines does the assistant offer to create a new project.
+
+---
+
 ### Missing duration
 
 **User:** "I worked on Meeds all morning."

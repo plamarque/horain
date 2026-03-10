@@ -43,7 +43,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         SEARCH_PROJECT,
-                        "Search for projects by name (fuzzy match). Returns projects whose name contains the query. Use when the user mentions a project name to find matching projects.",
+                        "Search for projects by name. Returns matching_projects (name contains query, case-insensitive). When no match is found, may also return close_matches: similar project names (typo-tolerant). If you get close_matches, propose the first one and ask the user to confirm (e.g. 'Did you mean Horain? Should I log 120 minutes on Horain?') before logging; only offer to create a new project if there are no close_matches or the user declines.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(

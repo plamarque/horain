@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -116,6 +117,64 @@ public class ProjectService {
         return projectRepository.findByNameContainingIgnoreCase(name.trim()).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * When no exact/contains match exists, returns projects with similar names (typo-tolerant).
+     * Uses normalized Levenshtein similarity; only returns projects above the similarity threshold.
+     *
+     * @param name       query (e.g. "Horian")
+     * @param maxResults max number of close matches to return (e.g. 3)
+     * @return list of projects sorted by similarity descending, best match first
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectDto> findCloseMatchesByName(String name, int maxResults) {
+        if (name == null || name.isBlank() || maxResults <= 0) {
+            return List.of();
+        }
+        String query = name.trim().toLowerCase();
+        List<Project> all = projectRepository.findAll();
+        double threshold = 0.5;
+        return all.stream()
+                .map(p -> new Object[]{p, similarity(query, p.getName().toLowerCase())})
+                .filter(pair -> (Double) pair[1] >= threshold)
+                .sorted(Comparator.<Object[], Double>comparing(pair -> (Double) pair[1]).reversed())
+                .limit(maxResults)
+                .map(pair -> toDto((Project) pair[0]))
+                .toList();
+    }
+
+    /**
+     * Normalized similarity between two strings (0 = unrelated, 1 = identical).
+     * Based on Levenshtein distance: 1 - (distance / maxLength).
+     */
+    static double similarity(String a, String b) {
+        if (a.isEmpty() && b.isEmpty()) return 1.0;
+        if (a.isEmpty() || b.isEmpty()) return 0.0;
+        int maxLen = Math.max(a.length(), b.length());
+        int distance = levenshteinDistance(a, b);
+        return 1.0 - (double) distance / maxLen;
+    }
+
+    private static int levenshteinDistance(CharSequence a, CharSequence b) {
+        int n = a.length();
+        int m = b.length();
+        if (n == 0) return m;
+        if (m == 0) return n;
+        int[] prev = new int[m + 1];
+        int[] curr = new int[m + 1];
+        for (int j = 0; j <= m; j++) prev[j] = j;
+        for (int i = 1; i <= n; i++) {
+            curr[0] = i;
+            for (int j = 1; j <= m; j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            int[] swap = prev;
+            prev = curr;
+            curr = swap;
+        }
+        return prev[m];
     }
 
     private ProjectDto toDto(Project p) {

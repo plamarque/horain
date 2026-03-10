@@ -9,7 +9,7 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | Tool | Input | Output | Description |
 |------|-------|--------|-------------|
 | `list_projects` | — | `projects[]` | Returns all existing projects. |
-| `search_project` | `name` (string) | `matching_projects[]` | Fuzzy search by project name. Returns projects whose name matches (exact or similar). |
+| `search_project` | `name` (string) | `matching_projects[]`, optionally `close_matches[]` | Search by project name (contains, case-insensitive). When no match is found, returns `close_matches`: typo-tolerant similar project names. The agent should propose the first close match and ask for confirmation before logging. |
 | `create_project` | `name` (string), `description` (string, optional) | `project` | Creates a new project. Returns the created project. |
 | `update_project` | `id` (UUID or name), `name` (string, optional), `description` (string, optional) | `project` | Updates an existing project. Only provided fields are changed. Returns the updated project. |
 | `delete_project` | `id` (UUID or name) | `status` | Deletes a project. Fails if the project has time log entries; inform the user and ask what to do. |
@@ -37,6 +37,6 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 ## Implementation Notes
 
 - `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.
-- `search_project` should support fuzzy matching (e.g. "HatCast" matches "HatCast V1", "HatCast V2").
+- `search_project`: name contains (case-insensitive) returns `matching_projects`; when empty, backend may return `close_matches` (typo-tolerant similarity). The agent proposes the close match and asks for confirmation before logging.
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.
 - `create_time_log` `loggedAt`: Activity date (when the work was done). Defaults to "now" if not provided. Displayed in the table. `created_at` (when the user entered the record) is set server-side.
