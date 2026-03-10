@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,17 @@ public class DevSeedService {
     private static final UUID PROJECT_FESTIBASK = UUID.fromString("44444444-4444-4444-4444-444444444404");
     private static final UUID PROJECT_MEEDS = UUID.fromString("55555555-5555-5555-5555-555555555505");
     private static final UUID PROJECT_WEATHER = UUID.fromString("66666666-6666-6666-6666-666666666606");
+
+    /** Which projects are billable by default (client/work vs internal/personal). */
+    private static final Map<UUID, Boolean> PROJECT_BILLABLE = Map.of(
+            PROJECT_HORAIN, true,
+            PROJECT_HATCAST_V1, true,
+            PROJECT_HATCAST_V2, true,
+            PROJECT_CHRONO, true,
+            PROJECT_FESTIBASK, false,
+            PROJECT_MEEDS, false,
+            PROJECT_WEATHER, false
+    );
 
     private static final int[] DURATIONS = {15, 30, 45, 60, 90, 120};
 
@@ -72,13 +84,13 @@ public class DevSeedService {
     @Transactional
     public DevSeedResult loadSeed(LocalDate fixedToday) {
         List<ProjectDto> projects = List.of(
-                createProject(PROJECT_HORAIN, "Horain", "Personal time journal PWA"),
-                createProject(PROJECT_HATCAST_V1, "HatCast V1", "Podcast production app"),
-                createProject(PROJECT_HATCAST_V2, "HatCast V2", "Podcast production app"),
-                createProject(PROJECT_CHRONO, "Chrono EPS", "School timetable manager"),
-                createProject(PROJECT_FESTIBASK, "Festibask", "Event basket platform"),
-                createProject(PROJECT_MEEDS, "Meeds", "Community engagement"),
-                createProject(PROJECT_WEATHER, "Weather Station", "IoT weather dashboard")
+                createProject(PROJECT_HORAIN, "Horain", "Personal time journal PWA", true),
+                createProject(PROJECT_HATCAST_V1, "HatCast V1", "Podcast production app", true),
+                createProject(PROJECT_HATCAST_V2, "HatCast V2", "Podcast production app", true),
+                createProject(PROJECT_CHRONO, "Chrono EPS", "School timetable manager", true),
+                createProject(PROJECT_FESTIBASK, "Festibask", "Event basket platform", false),
+                createProject(PROJECT_MEEDS, "Meeds", "Community engagement", false),
+                createProject(PROJECT_WEATHER, "Weather Station", "IoT weather dashboard", false)
         );
 
         for (ProjectDto p : projects) {
@@ -105,6 +117,10 @@ public class DevSeedService {
                 int hour = weekend ? 10 + rand.nextInt(6) : 8 + rand.nextInt(10);
                 int minute = rand.nextInt(4) * 15;
 
+                boolean projectBillable = PROJECT_BILLABLE.getOrDefault(projectId, true);
+                // ~10% of entries override: billable entry on non-billable project or vice versa
+                Boolean entryBillableOverride = rand.nextInt(10) == 0 ? !projectBillable : null;
+
                 ZonedDateTime loggedAt = d.atTime(hour, minute).atZone(ZONE);
                 Instant instant = loggedAt.toInstant();
 
@@ -112,6 +128,7 @@ public class DevSeedService {
                         .projectId(projectId)
                         .durationMinutes(duration)
                         .note(note)
+                        .billable(entryBillableOverride)
                         .loggedAt(instant)
                         .build();
 
@@ -126,11 +143,12 @@ public class DevSeedService {
         return new DevSeedResult(projects.size(), logsCreated);
     }
 
-    private ProjectDto createProject(UUID id, String name, String description) {
+    private ProjectDto createProject(UUID id, String name, String description, boolean billable) {
         return ProjectDto.builder()
                 .id(id)
                 .name(name)
                 .description(description)
+                .billable(billable)
                 .build();
     }
 
