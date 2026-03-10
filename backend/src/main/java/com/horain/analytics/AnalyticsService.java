@@ -78,6 +78,35 @@ public class AnalyticsService {
                     "series", List.of(Map.of("name", "Heures", "data", data)));
         }
 
+        if ("day_and_billable".equals(groupBy)) {
+            Map<LocalDate, int[]> dayToBillableNonBillable = new TreeMap<>();
+            for (TimeLogDto log : logs) {
+                LocalDate day = log.getLoggedAt().atZone(zone).toLocalDate();
+                int[] pair = dayToBillableNonBillable.computeIfAbsent(day, k -> new int[2]);
+                if (Boolean.TRUE.equals(log.getBillable())) {
+                    pair[0] += log.getDurationMinutes();
+                } else {
+                    pair[1] += log.getDurationMinutes();
+                }
+            }
+            List<LocalDate> days = new ArrayList<>(dayToBillableNonBillable.keySet());
+            DateTimeFormatter dayFormat = DateTimeFormatter.ofPattern("EEE d", java.util.Locale.FRENCH);
+            List<String> categories = days.stream()
+                    .map(d -> d.format(dayFormat))
+                    .toList();
+            List<Double> billableHours = new ArrayList<>();
+            List<Double> nonBillableHours = new ArrayList<>();
+            for (LocalDate d : days) {
+                int[] pair = dayToBillableNonBillable.get(d);
+                billableHours.add(Math.round(pair[0] / 6.0) / 10.0);
+                nonBillableHours.add(Math.round(pair[1] / 6.0) / 10.0);
+            }
+            List<Map<String, Object>> series = List.of(
+                    Map.<String, Object>of("name", "Facturables", "data", billableHours),
+                    Map.<String, Object>of("name", "Non Facturables", "data", nonBillableHours));
+            return Map.of("categories", categories, "series", series);
+        }
+
         if ("project_only".equals(groupBy)) {
             Map<UUID, Integer> projectToMinutes = new LinkedHashMap<>();
             for (TimeLogDto log : logs) {

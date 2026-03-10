@@ -23,7 +23,7 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | `sum_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums total logged time in the period. |
 | `sum_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums billable (invoicable) time in the period. Use for "how much billable time?" or "temps facturé". |
 | `sum_non_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums non-billable time in the period. |
-| `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project`, `project_only`, or `billable_vs_non_billable` (Facturé vs Non facturé for pie/bar). |
+| `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project` (stacked bar by project per day), `day_and_billable` (stacked bar billable vs non-billable per day), `project_only` (pie), `billable_vs_non_billable` (pie for whole period). |
 | `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
 
 ## Constraints
@@ -43,4 +43,4 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 - `search_project`: name contains (case-insensitive) returns `matching_projects`; when empty, backend may return `close_matches` (typo-tolerant similarity). The agent proposes the close match and asks for confirmation before logging.
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.
 - `create_time_log` `loggedAt`: Activity date (when the work was done). Defaults to "now" if not provided. Displayed in the table. `created_at` (when the user entered the record) is set server-side.
-- **Billable:** Projects have a `billable` flag (default true). New time entries inherit the project's billable value; the agent or user can override per entry via `create_time_log` or `update_time_log`. Use `sum_billable_time_for_period` and `sum_non_billable_time_for_period` for reports, or `get_time_aggregated_for_chart` with `groupBy: "billable_vs_non_billable"` for a chart (Facturé / Non facturé).
+- **Billable:** Projects have a `billable` flag (default true). New time entries inherit the project's billable value; the agent or user can override per entry via `create_time_log` or `update_time_log`. Use `sum_billable_time_for_period` and `sum_non_billable_time_for_period` for reports. For charts: `groupBy: "day_and_billable"` gives a stacked bar (billable vs non-billable per day); `groupBy: "billable_vs_non_billable"` gives a single pie for the whole period.

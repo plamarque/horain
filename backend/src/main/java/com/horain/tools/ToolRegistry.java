@@ -261,7 +261,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_AGGREGATED_FOR_CHART,
-                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'project_only' for pie (distribution by project), 'billable_vs_non_billable' for pie (Facturé vs Non facturé).",
+                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable per day?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'day_and_billable' for stacked bar (billable vs non-billable hours per day; use this for 'heures facturables vs non facturables par jour'), 'project_only' for pie (distribution by project), 'billable_vs_non_billable' for pie (Facturé vs Non facturé for whole period).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -275,7 +275,7 @@ public class ToolRegistry {
                                         ),
                                         "groupBy", Map.of(
                                                 "type", "string",
-                                                "description", "day_and_project for stacked bar, project_only for pie, billable_vs_non_billable for billable vs non-billable"
+                                                "description", "day_and_project or day_and_billable for stacked bar, project_only for pie, billable_vs_non_billable for whole-period billable split"
                                         )
                                 ),
                                 "required", List.of("start", "end", "groupBy")

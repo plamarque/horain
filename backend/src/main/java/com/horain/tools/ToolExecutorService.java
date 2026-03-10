@@ -363,7 +363,7 @@ public class ToolExecutorService {
             return toJson(Map.of("error", "start and end (ISO-8601) are required"));
         }
         if (groupBy == null || groupBy.isBlank()) {
-            return toJson(Map.of("error", "groupBy is required (day_and_project, project_only, or billable_vs_non_billable)"));
+            return toJson(Map.of("error", "groupBy is required (day_and_project, day_and_billable, project_only, or billable_vs_non_billable)"));
         }
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
