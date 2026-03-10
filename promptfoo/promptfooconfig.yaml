@@ -46,6 +46,7 @@ tests:
   - file://tests/log-time.yaml
   - file://tests/clarification.yaml
   - file://tests/analytics.yaml
+  - file://tests/analytics-taux.yaml
   - file://tests/json-ui.yaml
   - file://tests/state-transitions.yaml
   - file://tests/robustness.yaml
@@ -57,3 +58,4 @@ tests:
   - file://tests/scored/open-question.yaml
   - file://tests/scored/robustness-scored.yaml
   - file://tests/scored/conversational.yaml
+  - file://tests/scored/rate-calculation.yaml

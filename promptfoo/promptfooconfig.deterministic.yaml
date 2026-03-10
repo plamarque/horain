@@ -40,6 +40,7 @@ tests:
   - file://tests/log-time.yaml
   - file://tests/clarification.yaml
   - file://tests/analytics.yaml
+  - file://tests/analytics-taux.yaml
   - file://tests/json-ui.yaml
   - file://tests/state-transitions.yaml
   - file://tests/robustness.yaml

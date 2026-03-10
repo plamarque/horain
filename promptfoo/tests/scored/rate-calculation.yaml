@@ -1,0 +1,30 @@
+# Rate calculation quality - scored (LLM-as-judge)
+# Occupancy rate: correct calculation and explanation (formula or steps).
+# Requires PROMPTFOO_JUDGE_MISTRAL_API_KEY and PROMPTFOO_JUDGE_MODEL in promptfoo/.env
+
+- &rate-defaults
+  description: Rate calculation - taux 8h/jour, 3 semaines (FR)
+  options:
+    provider:
+      id: mistral:{{ env.PROMPTFOO_JUDGE_MODEL | default("mistral-small-latest") }}
+      config:
+        apiKeyEnvar: PROMPTFOO_JUDGE_MISTRAL_API_KEY
+        temperature: 0
+    rubricPrompt: |
+      [{"role":"system","content":"Evaluate the assistant's answer. The output is JSON with 'message' (text) and optionally 'data'. The message must use the time log data correctly, compute the occupancy rate as (total hours) / (number of days × base hours per day) × 100 or equivalent, and explain the calculation (formula or steps). No invented figures. Return JSON: {\"reason\":\"string\",\"score\":number,\"pass\":boolean}."},{"role":"user","content":"User asked: {{message}}\nOutput: {{output}}\nRubric: {{rubric}}"}]
+  assert:
+    - type: llm-rubric
+      value: The assistant's answer uses the time log data (total hours and number of days) correctly, computes the occupancy rate correctly (total hours / (days × base hours per day) × 100 or equivalent), and explains the calculation (formula or step-by-step). No invented figures.
+      threshold: 0.75
+  vars:
+    message: "Quelle est le taux d'occupation de mes journées (base 8h par jour) en moyenne sur les 3 dernières semaines ?"
+
+- description: Rate calculation - occupancy rate (EN), 2 weeks
+  vars:
+    message: "What's my occupancy rate on an 8h/day basis over the last 2 weeks?"
+  <<: *rate-defaults
+
+- description: Rate calculation - base 7h (edge)
+  vars:
+    message: "Taux d'occupation sur 2 semaines avec une base de 7h par jour"
+  <<: *rate-defaults

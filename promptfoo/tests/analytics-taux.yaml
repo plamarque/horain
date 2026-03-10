@@ -1,0 +1,60 @@
+# Analytics - taux d'occupation (calculs justes et expliqués)
+# Deterministic: tool use + message structure (rate/explanation). Seed provides data.
+
+- description: Analytics taux - happy path (taux 8h/jour, 3 semaines)
+  vars:
+    message: "Quel est le taux d'occupation de mes journées (base 8h/jour) sur les 3 dernières semaines ?"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const relevant = ['get_current_datetime', 'propose_entries', 'sum_time_for_period', 'get_time_logs_for_period'];
+        return tc.some(t => relevant.includes(t.name));
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const hasPercent = /\d+[,.]?\d*%/.test(msg);
+        const hasTauxAndNumber = (/taux|occupation/.test(msg) && /\d+[,.]?\d*/.test(msg));
+        const hasTauxAndChart = /taux|occupation/.test(msg) && (o.data?.chart && /graphique|répartition|chart|ci-dessus|voir/.test(msg));
+        return hasPercent || hasTauxAndNumber || hasTauxAndChart;
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const explanation = /heures?|hours?|jours?|days?|base|total|semaine|week/.test(msg);
+        return explanation;
+
+- description: Analytics taux - edge case (base 7h, cette semaine)
+  vars:
+    message: "Taux d'occupation cette semaine sur une base de 7h par jour"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const relevant = ['get_current_datetime', 'propose_entries', 'sum_time_for_period', 'get_time_logs_for_period'];
+        return tc.some(t => relevant.includes(t.name));
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const hasRate = /\d+[,.]?\d*%/.test(msg) || (/taux|occupation/.test(msg) && /\d+[,.]?\d*/.test(msg));
+        const noData = /pas de données|aucun|no (data|entries|logs)|rien (enregistré|logué)/i.test(msg);
+        return hasRate || noData;
+
+- description: Analytics taux - clarification (question ambiguë)
+  vars:
+    message: "Quel est mon taux ?"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').trim().toLowerCase();
+        if (msg.length < 10) return false;
+        const asksClarification = /quelle (période|base)|quelle période|sur quelle|which period|précisez|préciser|clarif/i.test(msg);
+        const hasPeriod = /semaine|week|période|period|mois|month|mars|janvier|février|fevrier|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre/.test(msg);
+        const hasRateOrTotal = /\d+[,.]?\d*%/.test(msg) || /taux|occupation/.test(msg) || /total.*\d+[,.]?\d*\s*(heures?|hours?|minutes?)/.test(msg);
+        const givesDefault = hasRateOrTotal && hasPeriod;
+        return asksClarification || givesDefault;
