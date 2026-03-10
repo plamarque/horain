@@ -34,7 +34,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Scroll behavior:** When a new assistant message arrives, if the user was at the bottom of the thread, auto-scroll to the new message. If the user had scrolled up (e.g. reading earlier content while the agent was responding), do not auto-scroll; show a floating "New message" indicator that lets them jump to the latest response.
 - **Gap:** Padding at the bottom of the timeline so content does not appear hidden below the input area.
 - **User message:** Transcription of what the user said.
-- **Assistant response:** Text reply, confirmations, clarification questions. Responses can **stream** (text appears progressively as the agent generates it); a blinking cursor indicates streaming. If the backend does not support streaming, the full message appears at once.
+- **Assistant response:** Text reply, confirmations, clarification questions. Assistant messages show the Horain icon (triskelion) next to a violet-toned bubble so it is clear who is speaking. Responses can **stream** (text appears progressively as the agent generates it); a blinking cursor indicates streaming. If the backend does not support streaming, the full message appears at once.
 - **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm." When the user creates or updates a time entry, the message is followed by the structured entry table (same format as when listing entries), so the user can verify that the action was correctly captured and can select, edit or delete it if needed. Double-click on a row opens the edit modal (Save, Cancel, Delete with confirmation).
 - **Activity table layout:** The entry table (Date, Project, Duration, Note) is displayed full-width below the message bubble, not inside it, so notes wrap on multiple lines without truncation or horizontal scroll.
 - **Chart layout:** Charts (pie, bar, etc.) are displayed full-width below the message bubble, not inside it, for a larger and clearer visualization.
@@ -60,7 +60,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Idle:** Input bar ready; user can type or click mic. Send button appears when text is entered.
 - **Recording:** User clicked mic; input area replaced by waveform and Cancel/Confirm buttons. No real-time transcript.
 - **Transcribing:** User confirmed recording; brief “Transcribing…” indicator and Cancel button while STT finalizes. Cancel aborts transcription and returns to Idle.
-- **Processing:** Transcript sent; waiting for assistant reply. Send becomes Stop; user can cancel the request. When streaming is supported, the assistant bubble appears and fills progressively instead of showing only "Processing...".
+- **Processing:** Transcript sent; waiting for assistant reply. Send becomes Stop; user can cancel the request. A "thinking" indicator (three animated dots, violet) is shown while the assistant is working. When streaming is supported, the assistant bubble appears and fills progressively, replacing the thinking indicator.
 - **Response:** Assistant message displayed (possibly after streaming).
 
 ## Accessibility

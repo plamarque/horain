@@ -82,8 +82,16 @@ defineExpose({
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
     />
-    <div v-if="isProcessing && !hasStreamingBubble" class="processing-indicator">
-      Processing...
+    <div
+      v-if="isProcessing && !hasStreamingBubble"
+      class="processing-indicator"
+      aria-live="polite"
+      role="status"
+    >
+      <span class="sr-only">Horain réfléchit</span>
+      <span class="thinking-dot" aria-hidden="true" />
+      <span class="thinking-dot" aria-hidden="true" />
+      <span class="thinking-dot" aria-hidden="true" />
     </div>
   </div>
   <!-- Floating indicator: fixed at bottom of timeline (above input), not in flex flow -->
@@ -133,12 +141,60 @@ defineExpose({
 }
 
 .processing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: #2a2a3e;
-  color: #8888a0;
+  background: #2d2640;
+  border: 1px solid rgba(139, 92, 246, 0.35);
   border-radius: 16px;
-  font-size: 0.9rem;
   align-self: flex-start;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.thinking-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  opacity: 0.4;
+  animation: thinking-pulse 1.2s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+@keyframes thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 /* Sibling of timeline: sits between scroll area and input, always at bottom */

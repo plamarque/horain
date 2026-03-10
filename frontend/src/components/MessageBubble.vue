@@ -28,10 +28,18 @@ const useHtml = computed(() => props.role === 'assistant')
 
 <template>
   <div class="message-block">
-    <div class="bubble" :class="role">
-      <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
-      <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
-      <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+    <div class="message-row" :class="role">
+      <img
+        v-if="role === 'assistant'"
+        src="/favicon.svg"
+        alt="Horain"
+        class="avatar"
+      >
+      <div class="bubble" :class="role">
+        <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
+        <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
+        <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+      </div>
     </div>
     <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
@@ -52,22 +60,58 @@ const useHtml = computed(() => props.role === 'assistant')
   gap: 0.5rem;
 }
 
-.bubble {
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
   max-width: 85%;
+}
+
+.message-row.user {
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.message-row.assistant {
+  align-self: flex-start;
+  max-width: 85%;
+}
+
+.message-row.assistant .bubble {
+  max-width: calc(100% - 36px);
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: #2d2640;
+}
+
+.bubble {
   padding: 0.75rem 1rem;
   border-radius: 16px;
-  align-self: flex-start;
+}
+
+.message-row.user {
+  max-width: 85%;
+}
+
+.message-row.user .bubble {
+  max-width: 100%;
 }
 
 .bubble.user {
-  align-self: flex-end;
   background: #4a6edb;
   color: white;
 }
 
 .bubble.assistant {
-  background: #2a2a3e;
+  background: #2d2640;
   color: #e8e8f0;
+  border: 1px solid rgba(139, 92, 246, 0.35);
 }
 
 .content {
