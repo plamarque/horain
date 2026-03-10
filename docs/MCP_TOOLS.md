@@ -17,7 +17,7 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | `get_recent_logs` | `limit` (int, optional) | `time_logs[]` | Returns the most recent time logs (default 20, max 50). |
 | `get_time_logs_for_period` | `start`, `end` (ISO-8601), `projectId` (optional) | `time_logs[]` | Returns logs in the date range. |
 | `propose_entries` | `entries` (array of {id, projectId, projectName, durationMinutes, note, loggedAt}) | `status` | Proposes time log entries for structured table display in the UI. Call after get_time_logs_for_period or get_recent_logs. |
-| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. Returns the updated time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
+| `update_time_log` | `id` (UUID), `durationMinutes`, `note`, `loggedAt`, `projectId` (all optional except id) | `time_log` | Updates an existing time log. Only provided fields are changed. `loggedAt` is the activity date (when the work was done); record's updated_at is set to now server-side. Returns the updated time_log with id, projectId, projectName, durationMinutes, note, loggedAt. |
 | `delete_time_log` | `id` (UUID) | `status` | Deletes a time log entry. |
 | `sum_time_by_project` | `projectId`, `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums logged time for a project in the period. |
 | `sum_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums total logged time in the period. |

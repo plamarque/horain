@@ -129,7 +129,7 @@ public class ToolRegistry {
                                         ),
                                         "loggedAt", Map.of(
                                                 "type", "string",
-                                                "description", "ISO-8601 datetime when the work was done. Omit for now."
+                                                "description", "Activity date (when the work was done). ISO-8601. Omit for now."
                                         )
                                 ),
                                 "required", List.of("projectId", "durationMinutes")
@@ -325,7 +325,7 @@ public class ToolRegistry {
                                         ),
                                         "loggedAt", Map.of(
                                                 "type", "string",
-                                                "description", "New logged-at timestamp (ISO-8601)"
+                                                "description", "Activity date (when the work was done). ISO-8601. This updates the entry's activity date only; the record's updated_at is set to now server-side."
                                         ),
                                         "projectId", Map.of(
                                                 "type", "string",
