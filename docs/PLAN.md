@@ -60,7 +60,7 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 - [x] End-to-end flow: voice → transcript → agent → tools → confirmation
 - [x] Playwright e2e tests
 - [ ] CI: run backend tests + e2e before deploy (deploy.yml)
-- [x] GitHub Actions deploy (frontend → Pages, backend → Render)
+- [x] GitHub Actions deploy (frontend → Pages, backend → Cloud Run)
 
 ## Tasks (Slice 6)
 

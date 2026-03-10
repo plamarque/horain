@@ -82,7 +82,7 @@ Frontend runs at `http://localhost:5173`.
 
 ### Environment
 
-Copy `frontend/.env.example` to `frontend/.env` for local dev. See [docs/ENV_SETUP.md](docs/ENV_SETUP.md) for the full configuration guide (Supabase, Render, GitHub Actions, OpenAI).
+Copy `frontend/.env.example` to `frontend/.env` for local dev. See [docs/ENV_SETUP.md](docs/ENV_SETUP.md) for the full configuration guide (Supabase, Cloud Run, GitHub Actions, OpenAI).
 
 **LLM integration** (required — the assistant requires an LLM):
 
@@ -141,7 +141,7 @@ horain/
 
 | Document | Purpose |
 |----------|---------|
-| [docs/ENV_SETUP.md](docs/ENV_SETUP.md) | Environment setup (Supabase, Render, GitHub, OpenAI) |
+| [docs/ENV_SETUP.md](docs/ENV_SETUP.md) | Environment setup (Supabase, Cloud Run, GitHub, OpenAI) |
 | [docs/SPEC.md](docs/SPEC.md) | Functional specification |
 | [docs/ARCH.md](docs/ARCH.md) | Architecture |
 | [docs/DOMAIN.md](docs/DOMAIN.md) | Domain model |

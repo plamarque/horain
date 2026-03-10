@@ -1,27 +1,27 @@
 # Environment setup guide
 
-This document explains how to configure Horain for local development and production (Supabase, Render, GitHub Actions, OpenAI).
+This document explains how to configure Horain for local development and production (Supabase, Cloud Run, GitHub Actions, OpenAI).
 
 ---
 
 ## Summary of configuration locations
 
-| Variable | Local dev | Render | GitHub Actions |
-|----------|-----------|--------|----------------|
-| `VITE_API_URL` | frontend/.env → vide (proxy /api) | — | Repository Secret → `https://horain.onrender.com` |
+| Variable | Local dev | Cloud Run | GitHub Actions |
+|----------|-----------|-----------|----------------|
+| `VITE_API_URL` | frontend/.env → vide (proxy /api) | — | Repository Secret → URL du service Cloud Run |
 | `VITE_API_KEY` | frontend/.env | — | Repository Secret |
-| `SPRING_DATASOURCE_URL` | — | Environment | — |
-| `SPRING_DATASOURCE_USERNAME` | — | Environment | — |
-| `SPRING_DATASOURCE_PASSWORD` | — | Environment | — |
-| `SPRING_PROFILES_ACTIVE` | — | Environment | — |
-| `HORAIN_API_KEY` | — | Environment | — |
-| `LLM_API_KEY` / `OPENAI_API_KEY` | backend/.env | Environment | Clé API du fournisseur LLM |
-| `LLM_BASE_URL` | backend/.env | Environment | URL de base (optionnel, défaut: OpenAI v1) |
-| `LLM_MODEL` | backend/.env | Environment | Modèle (optionnel, défaut: gpt-4o-mini) |
+| `SPRING_DATASOURCE_URL` | — | Service env / Secret Manager | — |
+| `SPRING_DATASOURCE_USERNAME` | — | Service env | — |
+| `SPRING_DATASOURCE_PASSWORD` | — | Service env / Secret Manager | — |
+| `SPRING_PROFILES_ACTIVE` | — | Service env | — |
+| `HORAIN_API_KEY` | — | Service env | — |
+| `LLM_API_KEY` / `OPENAI_API_KEY` | backend/.env | Service env / Secret Manager | Clé API du fournisseur LLM |
+| `LLM_BASE_URL` | backend/.env | Service env | URL de base (optionnel, défaut: OpenAI v1) |
+| `LLM_MODEL` | backend/.env | Service env | Modèle (optionnel, défaut: gpt-4o-mini) |
 
 **Important:** En dev local, laisser `VITE_API_URL` vide pour utiliser le proxy Vite (`/api`). Cela fonctionne à la fois sur localhost et sur smartphone (réseau local).
 
-En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets (ex. `https://horain.onrender.com`). Le frontend déployé sur GitHub Pages pointe vers le backend Render.
+En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets (URL du service Cloud Run). Le frontend déployé sur GitHub Pages pointe vers le backend sur Cloud Run.
 
 ---
 
@@ -39,9 +39,9 @@ En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets
 2. Under **Connection string**, set **Method** to **Session** (or **Transaction** for serverless)
 3. Copy the URI shown
 
-**Important:** Render, GitHub Actions and other major platforms are **IPv4-only**. The direct connection (port 5432 to `db.xxx.supabase.co`) is **not IPv4 compatible**. You must use the **Session Pooler** instead.
+**Important:** Cloud Run, GitHub Actions and other major platforms are **IPv4-only**. The direct connection (port 5432 to `db.xxx.supabase.co`) is **not IPv4 compatible**. You must use the **Session Pooler** instead.
 
-### 3. Build the JDBC URL for Render (Session Pooler)
+### 3. Build the JDBC URL for the backend (Session Pooler)
 
 1. In Supabase: **Project Settings** → **Database** → **Method** = **Session pooler**
 2. Type = **JDBC**. Copy the host and port from the connection string (e.g. `aws-1-eu-west-1.pooler.supabase.com:5432`)
@@ -53,50 +53,47 @@ En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets
 | `SPRING_DATASOURCE_USERNAME` | `postgres.zganzlhymnrdrmryungy` (from Supabase) |
 | `SPRING_DATASOURCE_PASSWORD` | **Your real database password** (replace `[YOUR-PASSWORD]`) |
 
-**Important:** Put your actual Supabase database password in `SPRING_DATASOURCE_PASSWORD`. Do not use a placeholder — Spring Boot needs the real password to connect. On Render, add it as a secret environment variable (it will not be visible in logs).
+**Important:** Put your actual Supabase database password in `SPRING_DATASOURCE_PASSWORD`. Do not use a placeholder — Spring Boot needs the real password to connect. On Cloud Run, use Secret Manager or environment variables (see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md)).
 
 ---
 
-## B. Render (backend)
+## B. Google Cloud Run (backend)
 
-### 1. Create a Web Service
+### 1. Create the service and trigger
 
-See [docs/RENDER_SETUP.md](RENDER_SETUP.md) for a copy-paste checklist.
+See [docs/CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for the full checklist: enable APIs, create Artifact Registry repository, connect the GitHub repo, create a Cloud Build trigger on `main`, and configure the first deployment.
 
-1. Go to [render.com](https://render.com) and sign in
-2. **New** → **Web Service**
-3. Connect your GitHub repository (horain)
-4. Voir [RENDER_SETUP.md](RENDER_SETUP.md) pour les champs (Docker, Root Directory, etc.)
+### 2. Environment variables (Cloud Run service)
 
-### 2. Environment variables (Render dashboard)
-
-In your Web Service → **Environment** tab, add:
+In Cloud Run → your service → **Edit & deploy new revision** → **Variables and secrets**, add:
 
 | Key | Value |
 |-----|-------|
 | `SPRING_PROFILES_ACTIVE` | `postgres` |
 | `SPRING_DATASOURCE_URL` | From Supabase (JDBC URL above) |
-| `SPRING_DATASOURCE_USERNAME` | `postgres` |
-| `SPRING_DATASOURCE_PASSWORD` | Your Supabase database password |
+| `SPRING_DATASOURCE_USERNAME` | From Supabase (e.g. `postgres.PROJECT_REF`) |
+| `SPRING_DATASOURCE_PASSWORD` | Your Supabase database password (prefer Secret Manager) |
 | `HORAIN_API_KEY` | A secure random string (e.g. `openssl rand -hex 32`). The frontend will use this same value. |
-| `LLM_API_KEY` ou `OPENAI_API_KEY` | Your API key (OpenAI sk-..., OpenRouter sk-or-...) |
-| `LLM_BASE_URL` | (optionnel) `https://api.openai.com/v1` ou `https://openrouter.ai/api/v1` |
-| `LLM_MODEL` | (optionnel) `gpt-4o-mini` (OpenAI) ou modèle OpenRouter |
+| `LLM_API_KEY` or `OPENAI_API_KEY` | Your API key (OpenAI sk-..., OpenRouter sk-or-...) |
+| `LLM_BASE_URL` | (optional) `https://api.openai.com/v1` or `https://openrouter.ai/api/v1` |
+| `LLM_MODEL` | (optional) `gpt-4o-mini` (OpenAI) or OpenRouter model |
+
+Prefer **Secret Manager** for `SPRING_DATASOURCE_PASSWORD` and API keys; see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md).
 
 ### 3. Get the backend URL
 
-After deployment, Render provides a URL (ex. `https://horain.onrender.com`).  
-Cette URL sert pour `VITE_API_URL` du build frontend en production (voir section C).
+After the first deployment, Cloud Run shows the service URL (e.g. `https://horain-api-xxxxx-ew.a.run.app`).  
+Use this URL as `VITE_API_URL` in GitHub Actions secrets (section C).
 
 ---
 
 ## C. GitHub (Repository Secrets + Pages)
 
-Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`. Le backend sur Render se redéploie automatiquement si le repo est connecté (voir [RENDER_SETUP.md](RENDER_SETUP.md)).
+Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`. Le backend sur Cloud Run se redéploie automatiquement via le trigger Cloud Build à chaque push sur `main` (voir [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md)).
 
 **En dev local** (`npm run dev`), le frontend lit `frontend/.env`. Laisser `VITE_API_URL` vide pour le proxy (localhost + smartphone).
 
-**En production**, le workflow GitHub Actions utilise les secrets. Le frontend déployé pointe vers le backend Render.
+**En production**, le workflow GitHub Actions utilise les secrets. Le frontend déployé pointe vers le backend Cloud Run.
 
 ### 1. Activer GitHub Pages
 
@@ -110,8 +107,8 @@ Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et d
 
 | Secret name | Value |
 |-------------|-------|
-| `VITE_API_URL` | URL du backend Render, ex. `https://horain.onrender.com` |
-| `VITE_API_KEY` | Même valeur que `HORAIN_API_KEY` sur Render |
+| `VITE_API_URL` | URL du backend Cloud Run, ex. `https://horain-api-xxxxx-ew.a.run.app` |
+| `VITE_API_KEY` | Même valeur que `HORAIN_API_KEY` sur Cloud Run |
 | `VITE_STT_LANG` | (optionnel) Langue STT, ex. `fr-FR` pour forcer le français |
 | `OPENAI_API_KEY` | Clé API LLM pour les tests e2e en CI (voir [DEVELOPMENT.md](DEVELOPMENT.md) CI) |
 
@@ -137,18 +134,18 @@ L'assistant nécessite un fournisseur LLM pour répondre aux questions ("combien
 - **OpenRouter** – Clé sur [openrouter.ai](https://openrouter.ai/keys). Définir `LLM_BASE_URL=https://openrouter.ai/api/v1`.
 - **LiteLLM / proxy custom** – Base URL de votre endpoint, se terminant par `/v1`.
 
-### 3. Configurer sur Render
+### 3. Configurer sur Cloud Run
 
-Ajouter les variables dans l’onglet **Environment** du Web Service (section B.2). Ne pas exposer la clé API.
+Ajouter les variables (ou secrets) dans le service Cloud Run (section B.2). Ne pas exposer la clé API.
 
 ---
 
 ## E. Recommended setup order
 
 1. **Supabase** – Create project, get connection details
-2. **Render** – Create Web Service, add Supabase + `HORAIN_API_KEY`, deploy
+2. **Cloud Run** – Create service and Cloud Build trigger, add Supabase + `HORAIN_API_KEY` env vars (see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md))
 3. **GitHub** – Add `VITE_API_URL` and `VITE_API_KEY` secrets for the frontend workflow
-4. **OpenAI** – Create key, add `OPENAI_API_KEY` to Render (when ready for LLM)
+4. **OpenAI** – Create key, add `OPENAI_API_KEY` to Cloud Run (when ready for LLM)
 
 ---
 
@@ -186,4 +183,4 @@ Or use `scripts/start-dev.sh` for frontend + backend with H2.
 ## Reference files
 
 - [frontend/.env.example](../frontend/.env.example) – Frontend variables template
-- [backend/.env.example](../backend/.env.example) – Backend variables template for Render
+- [backend/.env.example](../backend/.env.example) – Backend variables template (Cloud Run / local)

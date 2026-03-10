@@ -1,6 +1,6 @@
 # Deploy Horain to production on push to main
 # - Frontend → GitHub Pages (this workflow)
-# - Backend → Render (auto-deploys when repo is connected; see RENDER_SETUP.md)
+# - Backend → Cloud Run (Cloud Build trigger on push to main; see docs/CLOUD_RUN_SETUP.md)
 #
 # CI: Backend unit tests + e2e tests run before deploy. E2E requires OPENAI_API_KEY secret.
 name: Deploy to Production

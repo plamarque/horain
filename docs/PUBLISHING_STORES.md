@@ -27,7 +27,7 @@ Avant de générer les paquets :
 1. Exécuter l'audit Lighthouse (onglet PWA) sur l'URL de production
 2. Corriger les éventuels avertissements
 3. S'assurer que l'app fonctionne en mode standalone
-4. [Horain] L'app appelle un backend (Render) et Supabase ; vérifier que les appels API fonctionnent correctement en production
+4. [Horain] L'app appelle un backend (Cloud Run) et Supabase ; vérifier que les appels API fonctionnent correctement en production
 
 ## 3. Packaging avec PWABuilder
 
@@ -229,7 +229,7 @@ Apple peut refuser les apps qui ressemblent à de simples « sites web dans une 
 | Image de présentation (1024×500) | Générer via `public/store-feature-graphic.html` : ouvrir dans un navigateur, télécharger l'image PNG |
 | Description courte | À rédiger selon le produit |
 | Description longue | Détail des fonctionnalités |
-| Politique de confidentialité | URL obligatoire. Horain utilise un backend (Render) et Supabase ; la politique doit couvrir les données collectées, stockées et les appels API. |
+| Politique de confidentialité | URL obligatoire. Horain utilise un backend (Cloud Run) et Supabase ; la politique doit couvrir les données collectées, stockées et les appels API. |
 | Catégorie | À choisir selon le produit (ex. Productivité) |
 
 ## 7. Limitations et points d'attention (Horain)
@@ -238,7 +238,7 @@ Apple peut refuser les apps qui ressemblent à de simples « sites web dans une 
 |-------|--------|
 | **GitHub Pages + Digital Asset Links** | `/.well-known/assetlinks.json` doit être servi à la racine du domaine. Si le site est sur `owner.github.io/horain/`, créer un dépôt `owner.github.io` pour héberger `/.well-known/`. |
 | **base path** | `base: '/horain/'` dans Vite — vérifier que `start_url` et les chemins sont corrects dans le manifeste pour le packaging. |
-| **Backend et données** | Horain a un backend (Spring AI sur Render) et Supabase. La politique de confidentialité doit documenter les flux de données (API, base, fournisseurs IA). |
+| **Backend et données** | Horain a un backend (Spring AI sur Cloud Run) et Supabase. La politique de confidentialité doit documenter les flux de données (API, base, fournisseurs IA). |
 | **Precache index.html** | Exclure `index.html` du precache Workbox pour que les apps TWA/iOS affichent la bonne version après mise à jour store sans refresh manuel. |
 
 ## 8. Pipeline CI/CD

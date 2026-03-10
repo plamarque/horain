@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 # API key for frontend auth. Reads HORAIN_API_KEY from .env or env; falls back to HORAIN_DEV_KEY.
 horain:
@@ -16,7 +16,7 @@ llm:
   # client: openai-compatible (default, RestTemplate) | spring-ai (Spring AI ChatModel - known 404 issues)
   client: ${LLM_CLIENT:openai-compatible}
 
-# Load .env from backend/ directory when running locally (optional; Render injects env vars directly).
+# Load .env from backend/ directory when running locally (optional; Cloud Run injects env vars at runtime).
 spring:
   threads:
     virtual:
@@ -47,7 +47,7 @@ spring:
           model: ${LLM_MODEL:gpt-4o-mini}
 
 ---
-# PostgreSQL profile for deployment (e.g. Render + Supabase)
+# PostgreSQL profile for deployment (e.g. Cloud Run + Supabase)
 spring:
   config:
     activate:

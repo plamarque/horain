@@ -1,4 +1,8 @@
-# Render — Guide de création du Web Service
+# Render — Guide de création du Web Service (legacy)
+
+**Current backend deployment uses Google Cloud Run.** See [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for the active setup. This document is kept for reference or rollback.
+
+---
 
 Copie-colle ces valeurs dans le formulaire Render.
 
