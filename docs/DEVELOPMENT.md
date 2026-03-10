@@ -104,9 +104,24 @@ cd promptfoo && npx promptfoo eval
 npm run eval:deterministic   # déterministe seulement
 ```
 
+**Cibler un test (ou un sous-ensemble) :** le script transmet tous les arguments à `promptfoo eval`. Utiliser `--filter-pattern` (regex sur le champ `description` des tests) pour ne lancer que certains tests :
+
+```bash
+# Un seul test (ex. description "Log time direct - 20 minutes on Horain")
+./scripts/run-promptfoo-eval.sh --filter-pattern "Log time direct"
+
+# Plusieurs tests dont la description matche (ex. tous les analytics)
+./scripts/run-promptfoo-eval.sh --filter-pattern "analytics|taux"
+
+# Combiné avec déterministe ou scoré
+./scripts/run-promptfoo-eval.sh --deterministic-only --filter-pattern "Smoke"
+```
+
+Les descriptions sont dans `promptfooconfig.yaml` et dans les YAML sous `promptfoo/tests/`.
+
 ### Evals scorés (LLM-as-judge)
 
-Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter la qualité des réponses (résumés hebdomadaires, questions ouvertes, robustesse au langage vague, pertinence conversationnelle). Les variables sont chargées depuis `promptfoo/.env` par le script ; on peut aussi les exporter avant d'appeler le script.
+Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter la qualité des réponses (résumés hebdomadaires, questions ouvertes, robustesse au langage vague, pertinence conversationnelle, calculs de taux d'occupation). Les questions de type « taux » sont couvertes en déterministe par `analytics-taux.yaml` et en scoré par `rate-calculation.yaml`. Les variables sont chargées depuis `promptfoo/.env` par le script ; on peut aussi les exporter avant d'appeler le script.
 
 | Variable | Rôle |
 |----------|------|

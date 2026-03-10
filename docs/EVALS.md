@@ -14,7 +14,7 @@ Chaque fois que tu ajoutes une capability à l'agent, ajoute **au moins 3 tests*
 | **edge case** | Vérifier la robustesse |
 | **clarification** | Vérifier le comportement en ambiguïté |
 
-Exemples pour Horain : correction d'entrée, suppression, tags, stats mensuelles.
+Exemples pour Horain : correction d'entrée, suppression, tags, stats mensuelles, **taux d'occupation (calculs justes et expliqués)**.
 
 ### Quand tu corriges un bug IA
 
@@ -86,7 +86,7 @@ Fichiers sous `promptfoo/tests/scored/` : `weekly-summary`, `open-question`, `ro
 
 | Moment | Action |
 |--------|--------|
-| **À chaque PR / push main** | Exécuter la suite **déterministe** (`npm run eval:deterministic` ou `run-promptfoo-eval.sh --deterministic-only`) pour détecter une régression |
+| **À chaque PR / push main** | Exécuter la suite **déterministe** (`npm run eval:deterministic` ou `run-promptfoo-eval.sh --deterministic-only`) pour détecter une régression. Pour ne lancer qu’un test : `--filter-pattern "description"` (voir [DEVELOPMENT.md](DEVELOPMENT.md) Evals Promptfoo). |
 | **À chaque release** | Workflow `evals-scored.yml` exécute la suite complète (déterministe + scorée) avec le juge Mistral |
 | **À chaque changement de modèle** | Exécuter la suite complète des evals (déterministe + scorée) |
 | **Une fois par mois** | Revue rapide : tests inutiles, tests fragiles, cas utilisateurs réels non couverts |
