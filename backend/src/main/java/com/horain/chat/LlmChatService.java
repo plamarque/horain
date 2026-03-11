@@ -367,6 +367,8 @@ public class LlmChatService {
     }
 
     private Object extractTimeLogsFromToolCalls(List<ToolCallRecord> toolCallsExecuted) {
+        Map<String, Map<String, Object>> patchesById = buildTimeLogPatchesFromToolResults(toolCallsExecuted);
+
         // Prefer propose_entries (structured display like propose_chart); fall back to raw tool result
         ToolCallRecord lastProposeEntries = null;
         for (int i = toolCallsExecuted.size() - 1; i >= 0; i--) {
@@ -394,7 +396,10 @@ public class LlmChatService {
                         if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
                         entries.add(map);
                     }
-                    if (!entries.isEmpty()) return entries;
+                    if (!entries.isEmpty()) {
+                        applyTimeLogPatches(entries, patchesById);
+                        return entries;
+                    }
                 }
             } catch (Exception e) {
                 log.debug("Failed to parse propose_entries arguments: {}", e.getMessage());
@@ -427,7 +432,10 @@ public class LlmChatService {
                             if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
                             entries.add(map);
                         }
-                        if (!entries.isEmpty()) return entries;
+                        if (!entries.isEmpty()) {
+                            applyTimeLogPatches(entries, patchesById);
+                            return entries;
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -464,5 +472,55 @@ public class LlmChatService {
             return createdOrUpdatedEntries;
         }
         return null;
+    }
+
+    /**
+     * Builds a map of time_log id -> updated fields from create_time_log and update_time_log tool results.
+     * Used to overlay actual post-update state onto entries from propose_entries or get_time_logs,
+     * so the table reflects the truth after mass updates (e.g. "set all to billable").
+     */
+    private Map<String, Map<String, Object>> buildTimeLogPatchesFromToolResults(List<ToolCallRecord> toolCallsExecuted) {
+        Map<String, Map<String, Object>> byId = new HashMap<>();
+        for (ToolCallRecord tc : toolCallsExecuted) {
+            if (!ToolRegistry.CREATE_TIME_LOG.equals(tc.name()) && !ToolRegistry.UPDATE_TIME_LOG.equals(tc.name())) {
+                continue;
+            }
+            if (tc.result() == null) continue;
+            try {
+                JsonNode root = objectMapper.readTree(tc.result());
+                if (root.has("error")) continue;
+                JsonNode timeLog = root.get("time_log");
+                if (timeLog == null || !timeLog.isObject() || !timeLog.has("id")) continue;
+                String id = timeLog.get("id").asText();
+                Map<String, Object> map = new HashMap<>();
+                if (timeLog.has("durationMinutes")) map.put("durationMinutes", timeLog.get("durationMinutes").asInt());
+                if (timeLog.has("loggedAt")) map.put("loggedAt", timeLog.get("loggedAt").asText());
+                if (timeLog.has("projectId")) map.put("projectId", timeLog.get("projectId").asText());
+                if (timeLog.has("projectName")) map.put("projectName", timeLog.get("projectName").asText());
+                if (timeLog.has("note")) map.put("note", timeLog.has("note") && !timeLog.get("note").isNull() ? timeLog.get("note").asText() : "");
+                if (timeLog.has("billable")) map.put("billable", timeLog.get("billable").asBoolean());
+                byId.put(id, map);
+            } catch (Exception e) {
+                log.debug("Failed to parse time_log from {} result: {}", tc.name(), e.getMessage());
+            }
+        }
+        return byId;
+    }
+
+    /**
+     * Overwrites entry fields with values from update_time_log/create_time_log results when the entry id matches.
+     * Ensures the table shows the post-update state (e.g. billable=true) after mass updates.
+     */
+    private void applyTimeLogPatches(List<Map<String, Object>> entries, Map<String, Map<String, Object>> patchesById) {
+        if (patchesById.isEmpty()) return;
+        for (Map<String, Object> entry : entries) {
+            Object idObj = entry.get("id");
+            if (idObj == null) continue;
+            Map<String, Object> patch = patchesById.get(idObj.toString());
+            if (patch == null) continue;
+            for (Map.Entry<String, Object> e : patch.entrySet()) {
+                entry.put(e.getKey(), e.getValue());
+            }
+        }
     }
 }
