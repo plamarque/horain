@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY } from './e2eEnv'
+import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Delete a time log entry via the edit modal.
@@ -7,13 +7,14 @@ import { API_BASE, API_KEY } from './e2eEnv'
  * clicks Delete, confirms, and the entry is removed.
  */
 test('delete log entry via edit modal', async ({ page, request }) => {
+  const projectName = uniqueProjectName('DeleteLogEntryTest')
   // Create project and time log via API (no LLM) — reliable
   const projectRes = await request.post(`${API_BASE}/projects`, {
     headers: {
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { name: 'DeleteLogEntryTest', description: 'e2e delete test' },
+    data: { name: projectName, description: 'e2e delete test' },
   })
   if (!projectRes.ok()) {
     const hint =
@@ -45,18 +46,17 @@ test('delete log entry via edit modal', async ({ page, request }) => {
   await expect(page.getByText('Dernières activités')).toBeVisible({
     timeout: 5000,
   })
-  const projectCell = page
-    .locator('.log-table')
-    .getByRole('cell', { name: 'DeleteLogEntryTest' })
-    .first()
-  await expect(projectCell).toBeVisible({ timeout: 5000 })
-  await projectCell.dblclick()
+  // Double-click on row's date cell to open entry modal (double-click on project cell would open project modal)
+  const row = page.locator('.log-table tbody tr').filter({ has: page.getByRole('cell', { name: projectName }) })
+  await expect(row).toBeVisible({ timeout: 5000 })
+  await row.locator('.log-date').first().dblclick()
 
-  // Edit modal should open
-  await expect(page.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
+  // Edit entry modal opens — scope to this modal so the project modal overlay does not intercept
+  const entryModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit entry' }) })
+  await expect(entryModal).toBeVisible()
 
   // Click Delete to show confirmation
-  await page.getByRole('button', { name: 'Delete' }).first().click()
+  await entryModal.getByRole('button', { name: 'Delete' }).click()
 
   // Confirm deletion
   await expect(page.getByText('Delete this entry permanently?')).toBeVisible()
@@ -64,5 +64,5 @@ test('delete log entry via edit modal', async ({ page, request }) => {
 
   // Modal closes, entry removed from table
   await expect(page.getByRole('heading', { name: 'Edit entry' })).not.toBeVisible()
-  await expect(page.getByRole('cell', { name: 'DeleteLogEntryTest' })).not.toBeVisible()
+  await expect(page.getByRole('cell', { name: projectName })).not.toBeVisible()
 })

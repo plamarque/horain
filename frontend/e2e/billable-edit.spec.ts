@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY } from './e2eEnv'
+import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Toggle billable on a time log entry via the edit modal.
@@ -7,12 +7,13 @@ import { API_BASE, API_KEY } from './e2eEnv'
  * saves, and verifies the table shows "Non" for that entry.
  */
 test('edit entry - toggle billable via modal', async ({ page, request }) => {
+  const projectName = uniqueProjectName('BillableEditE2E')
   const projectRes = await request.post(`${API_BASE}/projects`, {
     headers: {
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { name: 'BillableEditE2E', description: 'e2e billable toggle', billable: true },
+    data: { name: projectName, description: 'e2e billable toggle', billable: true },
   })
   if (!projectRes.ok()) {
     const hint =
@@ -41,24 +42,28 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
-  const projectCell = page
-    .locator('.log-table')
-    .getByRole('cell', { name: 'BillableEditE2E' })
-    .first()
-  await expect(projectCell).toBeVisible({ timeout: 5000 })
-  await projectCell.dblclick()
+  // Double-click on row's date cell to open entry modal (double-click on project cell would open project modal)
+  const row = page.locator('.log-table tbody tr').filter({ has: page.getByRole('cell', { name: projectName }) })
+  await expect(row).toBeVisible({ timeout: 5000 })
+  await row.locator('.log-date').first().dblclick()
 
-  await expect(page.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
+  // Entry edit modal — scope to this modal so the project modal overlay does not intercept
+  const entryModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit entry' }) })
+  await expect(entryModal).toBeVisible()
 
-  const billableCheckbox = page.getByRole('checkbox', { name: 'Facturable' })
+  const billableCheckbox = entryModal.locator('#edit-billable')
   await expect(billableCheckbox).toBeVisible()
   await expect(billableCheckbox).toBeChecked()
 
-  await billableCheckbox.uncheck()
-  await page.getByRole('button', { name: 'Save' }).click()
+  await billableCheckbox.uncheck({ force: true })
+  await entryModal.getByRole('button', { name: 'Save' }).click()
 
   await expect(page.getByRole('heading', { name: 'Edit entry' })).not.toBeVisible()
 
-  const row = page.locator('.log-table tbody tr').filter({ has: page.getByRole('cell', { name: 'BillableEditE2E' }) })
-  await expect(row.getByRole('cell', { name: 'Non' })).toBeVisible()
+  // After save, list is updated in place (optimistic); row stays visible with "Non"
+  const rowAfterSave = page
+    .locator('.log-table tbody tr')
+    .filter({ has: page.getByRole('cell', { name: projectName }) })
+  await expect(rowAfterSave).toBeVisible({ timeout: 10000 })
+  await expect(rowAfterSave).toContainText('Non', { timeout: 5000 })
 })

@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  saved: []
+  saved: [patch: Partial<TimeLogEntry> & { id: string }]
   deleted: [entry: TimeLogEntry]
 }>()
 
@@ -70,7 +70,7 @@ async function save() {
     }
     if (projectId.value) patch.projectId = projectId.value
     await updateTimeLog(props.entry.id, patch)
-    emit('saved')
+    emit('saved', { id: props.entry.id, ...patch })
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Update failed'
   } finally {

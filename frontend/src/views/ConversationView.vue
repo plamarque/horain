@@ -126,10 +126,26 @@ function handleEditModalClose() {
   editingEntry.value = null
 }
 
-async function handleEditSaved() {
+async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
+  if (patch?.id) {
+    const idx = recentLogs.value.findIndex((e) => e.id === patch.id)
+    if (idx >= 0) {
+      const next = [...recentLogs.value]
+      next[idx] = { ...next[idx], ...patch } as TimeLogEntry
+      recentLogs.value = next
+    }
+  }
   editingEntry.value = null
   await processQueue()
   lastSyncedAt.value = new Date()
+  if (!patch?.id) {
+    try {
+      const logs = await getRecentTimeLogs(5)
+      recentLogs.value = logs
+    } catch {
+      // keep current recentLogs
+    }
+  }
 }
 
 async function handleEntryDeleted(deletedEntry: TimeLogEntry) {

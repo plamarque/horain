@@ -23,3 +23,9 @@ function loadApiKey(): string {
 
 export const API_BASE = process.env.PLAYWRIGHT_API_URL || 'http://localhost:8080'
 export const API_KEY = loadApiKey()
+
+/** Unique project name for e2e to avoid 500 on duplicate name (backend enforces unique). */
+export function uniqueProjectName(prefix: string): string {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return `${prefix}-${id}`
+}

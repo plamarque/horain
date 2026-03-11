@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY } from './e2eEnv'
+import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Edit a project via double-click on project name in the entry table.
@@ -7,12 +7,13 @@ import { API_BASE, API_KEY } from './e2eEnv'
  * to open the project edit modal, changes the name, saves, and verifies the modal closes.
  */
 test('edit project via double-click on project name in table', async ({ page, request }) => {
+  const projectName = uniqueProjectName('EditProjectModalE2E')
   const projectRes = await request.post(`${API_BASE}/projects`, {
     headers: {
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { name: 'EditProjectModalE2E', description: 'e2e project edit', billable: true },
+    data: { name: projectName, description: 'e2e project edit', billable: true },
   })
   if (!projectRes.ok()) {
     const hint =
@@ -45,23 +46,25 @@ test('edit project via double-click on project name in table', async ({ page, re
   // Double-click on the project name cell (not the whole row) to open project edit modal
   const projectNameCell = page
     .locator('.log-table .log-project')
-    .filter({ hasText: 'EditProjectModalE2E' })
+    .filter({ hasText: projectName })
     .first()
   await expect(projectNameCell).toBeVisible({ timeout: 5000 })
   await projectNameCell.dblclick()
 
-  // Project edit modal opens (not entry edit modal)
-  await expect(page.getByRole('heading', { name: 'Edit project' })).toBeVisible()
+  // Project edit modal opens (not entry edit modal) — scope to this modal to avoid matching entry modal
+  const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
+  await expect(projectModal).toBeVisible()
 
-  const nameInput = page.getByLabel('Name')
-  await expect(nameInput).toHaveValue('EditProjectModalE2E')
-  await nameInput.fill('EditProjectModalE2EUpdated')
-  await page.getByRole('button', { name: 'Save' }).click()
+  const nameInput = projectModal.getByLabel('Name')
+  await expect(nameInput).toHaveValue(projectName)
+  const updatedName = `${projectName}-Updated`
+  await nameInput.fill(updatedName)
+  await projectModal.getByRole('button', { name: 'Save' }).click()
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).not.toBeVisible()
 
   // Table should show the updated project name (recent logs are refreshed on save)
   await expect(
-    page.locator('.log-table .log-project').filter({ hasText: 'EditProjectModalE2EUpdated' })
+    page.locator('.log-table .log-project').filter({ hasText: updatedName })
   ).toBeVisible({ timeout: 5000 })
 })
