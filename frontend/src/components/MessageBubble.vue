@@ -95,9 +95,10 @@ const useHtml = computed(() => props.role === 'assistant')
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <!-- Thumb up: one clear thumb (rounded shape) pointing up -->
-          <path d="M9 22 L9 7 Q9 4 12 4 Q15 4 15 7 L15 22 Q15 24 12 24 Q9 24 9 22 Z" />
-          <path d="M8 22 L16 22" />
+          <path d="M7 10v12" />
+          <path
+            d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"
+          />
         </svg>
       </button>
       <button
@@ -120,9 +121,10 @@ const useHtml = computed(() => props.role === 'assistant')
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <!-- Thumb down: one clear thumb (rounded shape) pointing down -->
-          <path d="M9 2 L9 17 Q9 20 12 20 Q15 20 15 17 L15 2 Q15 0 12 0 Q9 0 9 2 Z" />
-          <path d="M8 2 L16 2" />
+          <path d="M17 14V2" />
+          <path
+            d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"
+          />
         </svg>
       </button>
     </div>

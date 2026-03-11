@@ -63,6 +63,7 @@ public class LlmChatService {
             - When tools return empty data (no entries, no logs for a period): say "no entries", "0 hours", "aucun" or equivalent. Never invent or fabricate totals (e.g. do not say "55 hours" when there are no logs).
             - Be concise and friendly. Confirm actions clearly.
             - When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
+            - Formatting: For calculations and numbers in your reply, use plain text only. Do NOT use LaTeX or math markup (no \\frac, \\times, \\text, etc.). Use Unicode symbols if needed (×, ÷, =) and write formulas like "22,5 / 8 = 2,8125 jours" or "2,75 × 600 = 1650 euros" so the message displays correctly in the chat.
             """;
 
     private final LlmClient llmClient;

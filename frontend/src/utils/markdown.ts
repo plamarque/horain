@@ -18,6 +18,19 @@ function looksLikeLatex(s: string): boolean {
 }
 
 /**
+ * Extract inline math \( ... \), replace with placeholders.
+ * Returns modified text and list of LaTeX strings to render (inline mode).
+ */
+function extractInlineMath(text: string): { text: string; blocks: string[] } {
+  const blocks: string[] = []
+  const out = text.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
+    blocks.push(math.trim())
+    return `___INLMATH${blocks.length - 1}___`
+  })
+  return { text: out, blocks }
+}
+
+/**
  * Extract display-math blocks in [ ... ] or \[ ... \], replace with placeholders.
  * Returns modified text and list of LaTeX strings to render.
  */
@@ -53,6 +66,18 @@ function renderLatexBlock(latex: string): string {
   }
 }
 
+function renderLatexInline(latex: string): string {
+  try {
+    return katex.renderToString(latex, {
+      displayMode: false,
+      throwOnError: false,
+      output: 'html',
+    })
+  } catch {
+    return escapeHtml(latex)
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -73,7 +98,9 @@ const ALLOWED_ATTR = ['class', 'aria-hidden']
  */
 export function renderMarkdown(text: string): string {
   const stripped = stripImageLines(text)
-  const { text: withPlaceholders, blocks } = extractMathBlocks(stripped)
+  // Inline math first so \( ... \) is not altered by display-math or marked
+  const { text: afterInline, blocks: inlineBlocks } = extractInlineMath(stripped)
+  const { text: withPlaceholders, blocks } = extractMathBlocks(afterInline)
   const rawHtml = marked(withPlaceholders, {
     gfm: true,
     breaks: true,
@@ -82,8 +109,11 @@ export function renderMarkdown(text: string): string {
   let html = rawHtml
   blocks.forEach((latex, i) => {
     const placeholder = `___MATH${i}___`
-    const rendered = renderLatexBlock(latex)
-    html = html.replace(placeholder, rendered)
+    html = html.replace(placeholder, renderLatexBlock(latex))
+  })
+  inlineBlocks.forEach((latex, i) => {
+    const placeholder = `___INLMATH${i}___`
+    html = html.replace(placeholder, renderLatexInline(latex))
   })
 
   return DOMPurify.sanitize(html, {
