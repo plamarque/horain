@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { getProjects, updateProject } from '../services/apiClient'
-import type { ProjectDto } from '../services/apiClient'
 
 const props = defineProps<{
   projectId: string
