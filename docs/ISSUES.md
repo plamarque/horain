@@ -6,6 +6,8 @@
 
 - **Tableau entrées obsolètes après « basculer tout en facturable »** — Corrigé. L’agent appelait `update_time_log` pour chaque entrée puis `propose_entries` avec l’ancienne liste ; le backend affichait les arguments de `propose_entries` tels quels. Désormais `LlmChatService` fusionne les résultats des appels `update_time_log`/`create_time_log` dans les entrées affichées (par id), donc le tableau reflète l’état réel après mise à jour.
 
+- **Confirmation « set 4 to billable and 4 to non-billable » pour « bascule tout en facturable »** — Corrigé. L’agent décrivait l’état actuel au lieu de l’action : l’utilisateur demandait de tout passer en facturable, la confirmation devait être « set all N entries to billable ». Règle MASS UPDATE GUARD précisée dans le prompt ; eval ajouté dans `promptfoo/tests/billable.yaml`.
+
 ## Limitations
 
 - **STT sur mobile** — Sur mobile (Chrome Android notamment), la Web Speech API interrompt l'enregistrement après ~0,5 s de silence. Le transcript capturé jusque-là est inséré dans l'input ; l'utilisateur peut recliquer sur le micro pour continuer et ajouter du texte à la suite. Parlant par étapes, les segments s'ajoutent bout à bout.

@@ -79,3 +79,21 @@
         const text = (o.message || o.output || o.text || '').toLowerCase();
         // Must not mention October when user did not specify any month
         return !text.includes('octobre');
+
+# Regression: when user asks to set ALL to billable, confirmation must describe the action (set all N to billable), not current state (X to billable and Y to non-billable)
+- description: Billable mass toggle - confirmation must say set all to billable, not "X to billable and Y to non-billable"
+  vars:
+    message: "bascule toutes les activités associées à eXo en facturable"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const hasPeriod = tc.some(t => t.name === 'get_time_logs_for_period');
+        if (!hasPeriod) return false;
+        const text = (o.message || o.output || o.text || '').toLowerCase();
+        // Must NOT describe current state as the action (bug: "set 4 to billable and 4 to non-billable")
+        const wrongPattern = /set \d+ (entries? )?to billable and \d+ (entries? )?to non-billable/;
+        if (wrongPattern.test(text)) return false;
+        // Should indicate setting entries TO billable (action requested)
+        return text.includes('billable') && (text.includes('set') || text.includes('confirm') || text.includes('entries'));
