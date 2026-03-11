@@ -1,6 +1,6 @@
 {
   "name": "horain",
-  "version": "0.3.1-SNAPSHOT",
+  "version": "0.4.0",
   "description": "**Voice-first time logging assistant** — a Progressive Web App that lets you log time by speaking naturally.",
   "main": "index.js",
   "directories": {
