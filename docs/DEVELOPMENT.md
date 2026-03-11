@@ -142,7 +142,7 @@ Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter
 | `PROMPTFOO_JUDGE_MISTRAL_API_KEY` | Clé API Mistral pour le juge |
 | `PROMPTFOO_JUDGE_MODEL` | Modèle Mistral (défaut : `mistral-small-latest`) |
 
-Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. En CI (release), le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml`.
+Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. En CI (release), le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml`. En cas d'échec, le workflow affiche un résumé des tests en échec dans les logs et publie l'artifact **promptfoo-eval-report** (JSON + HTML complets) ; télécharger l'artifact depuis la page de la run GitHub Actions pour analyser le rapport en détail.
 
 Voir [promptfoo/README.md](../promptfoo/README.md) pour la configuration et la structure des tests.
 

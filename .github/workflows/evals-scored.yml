@@ -42,7 +42,32 @@ jobs:
         run: npm ci
 
       - name: Run full Promptfoo evals (with scored)
-        run: ./scripts/run-promptfoo-eval.sh --scored --no-cache
+        run: ./scripts/run-promptfoo-eval.sh --scored --no-cache --no-table --output output/eval-results.json --output output/eval-results.html
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           HORAIN_API_KEY: ${{ secrets.HORAIN_API_KEY || 'HORAIN_DEV_KEY' }}
+
+      - name: Print failed tests (if any)
+        if: failure()
+        run: |
+          if [ -f promptfoo/output/eval-results.json ]; then
+            echo "=== Eval stats ==="
+            jq -r '.results.stats // .stats | "\(.successes // 0) passed, \(.failures // 0) failed, \(.errors // 0) errors"' promptfoo/output/eval-results.json 2>/dev/null || true
+            echo ""
+            echo "=== Failed or error test(s) ==="
+            jq -r '
+              .results.results[]?
+              | select(.success == false or .error != null)
+              | "--- Test #\(.testIdx // "?") (prompt \(.promptIdx // "?")) ---\n  Success: \(.success)\n  Error: \(.error // "n/a" | split("\n")[0])\n  Response: \(.response?.text // .response // "n/a" | tostring | .[0:300])..."
+            ' promptfoo/output/eval-results.json 2>/dev/null || echo "Could not parse. Download the 'promptfoo-eval-report' artifact for the full report."
+          else
+            echo "No eval-results.json found; report was not generated."
+          fi
+
+      - name: Upload Promptfoo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptfoo-eval-report
+          path: promptfoo/output/
+          if-no-files-found: ignore
