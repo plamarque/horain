@@ -341,6 +341,7 @@ public class LlmChatService {
                         if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
                         if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
                         if (entry.has("note")) map.put("note", entry.get("note").asText());
+                        if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
                         entries.add(map);
                     }
                     if (!entries.isEmpty()) return entries;
@@ -373,6 +374,7 @@ public class LlmChatService {
                             if (entry.has("durationMinutes")) map.put("durationMinutes", entry.get("durationMinutes").asInt());
                             if (entry.has("note")) map.put("note", entry.get("note").asText());
                             if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
+                            if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
                             entries.add(map);
                         }
                         if (!entries.isEmpty()) return entries;
@@ -402,6 +404,7 @@ public class LlmChatService {
                 if (timeLog.has("projectId")) map.put("projectId", timeLog.get("projectId").asText());
                 if (timeLog.has("projectName")) map.put("projectName", timeLog.get("projectName").asText());
                 if (timeLog.has("note")) map.put("note", timeLog.get("note").asText());
+                if (timeLog.has("billable")) map.put("billable", timeLog.get("billable").asBoolean());
                 createdOrUpdatedEntries.add(map);
             } catch (Exception e) {
                 log.debug("Failed to parse time_log from {} result: {}", tc.name(), e.getMessage());
