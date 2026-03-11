@@ -65,9 +65,9 @@ Playwright construit le frontend et le sert sur 4173. Les tests appellent le bac
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :
 
 1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe)
-2. **Backend + seed :** Démarrage du backend (port 8080), seed via POST /dev/seed
-3. **Evals Promptfoo :** `npm run eval:deterministic` (suite déterministe uniquement ; pas de juge Mistral)
-4. **Tests e2e :** Build et serve du frontend (4173), puis `npm run test:e2e`
+2. **Build frontend pour e2e :** `npm run build` avec `VITE_API_URL=http://localhost:8080` (erreurs de build visibles dans le job)
+3. **Backend + seed :** Démarrage du backend (port 8080), seed via POST /dev/seed
+4. **Tests e2e :** Démarrage de `serve` sur 4173 (dist déjà buildé), puis `npm run test:e2e` (Playwright réutilise le serveur via `reuseExistingServer`)
 
 Les evals **scorés** (LLM-as-judge) sont exécutés uniquement lors d'une **release** (workflow `.github/workflows/evals-scored.yml` sur événement release ou tag `v*`). Secret requis : `PROMPTFOO_JUDGE_MISTRAL_API_KEY`.
 

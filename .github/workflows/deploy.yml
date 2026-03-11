@@ -52,6 +52,13 @@ jobs:
         working-directory: frontend
         run: npx playwright install chromium --with-deps
 
+      - name: Build frontend for e2e
+        working-directory: frontend
+        env:
+          VITE_API_URL: 'http://localhost:8080'
+          VITE_API_KEY: ${{ secrets.HORAIN_API_KEY || 'HORAIN_DEV_KEY' }}
+        run: npm run build
+
       - name: Run e2e tests
         working-directory: frontend
         env:
@@ -79,8 +86,22 @@ jobs:
             -H "Content-Type: application/json" -d '{"fixedToday":"2025-03-10"}' || true
 
           cd ../frontend
+          echo "Starting frontend server for e2e..."
+          npx serve -s dist -l 4173 &
+          SERVE_PID=$!
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 2>/dev/null | grep -q 200; then
+              echo "Frontend server ready."
+              break
+            fi
+            sleep 1
+          done
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 || true
+
           echo "Running e2e tests..."
           npm run test:e2e
+
+          kill $SERVE_PID 2>/dev/null || true
 
   build-and-deploy-frontend:
     name: Build and deploy frontend

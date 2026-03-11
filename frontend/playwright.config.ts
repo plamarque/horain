@@ -17,7 +17,7 @@ export default defineConfig({
   webServer: {
     command: 'npm run build && npx serve -s dist -l 4173',
     url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120000,
     env: {
       VITE_API_URL: API_BASE,
