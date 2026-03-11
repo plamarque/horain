@@ -37,6 +37,11 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 - **Project deletion:** `delete_project` fails if the project has any time log entries. The agent must inform the user and ask explicitly before deleting entries then the project.
 - **Mass time log deletion:** The agent must ask for explicit user confirmation before deleting more than 3 entries in one turn. Never suggest or perform mass deletions without confirmation.
 
+## Mass update and “all activities” without date
+
+- **No date specified:** When the user asks to change “all” or “toutes” activities for a project (e.g. “bascule toutes les activités associées à X en facturable”) without specifying a period, the agent must use an all-time range: `get_time_logs_for_period` with `start` = `2000-01-01T00:00:00Z` and `end` = `endOfMonth` from `get_current_datetime`. It must not assume an arbitrary month (e.g. October).
+- **Confirmation:** Before applying a mass update (e.g. setting many entries to billable), the agent must state how many entries are concerned and ask for explicit confirmation; it must not call `update_time_log` in a loop until the user has confirmed.
+
 ## Implementation Notes
 
 - `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.

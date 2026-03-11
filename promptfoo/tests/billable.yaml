@@ -54,3 +54,28 @@
           && (t.arguments || '').includes('billable_vs_non_billable'));
         const hasDatetime = tc.some(t => t.name === 'get_current_datetime');
         return (hasBillableSum || hasChart) && hasDatetime;
+
+# Regression: "toutes les activités" without date must use all-time range, not an arbitrary month (e.g. October)
+- description: Billable mass toggle - all activities for project without date uses all-time range and asks confirmation
+  vars:
+    message: "bascule toutes les activités associées à eXo en facturable"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const periodCall = tc.find(t => t.name === 'get_time_logs_for_period');
+        if (!periodCall) return false;
+        const args = typeof periodCall.arguments === 'string'
+          ? JSON.parse(periodCall.arguments || '{}') : (periodCall.arguments || {});
+        const start = (args.start || '').toString();
+        // Must use all-time start (2000-01-01), not an arbitrary month like October (e.g. 2025-10, 2024-10)
+        const usesAllTime = start.startsWith('2000-01-01');
+        const usesOctober = /-10-|-10T/.test(start);
+        return usesAllTime && !usesOctober;
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const text = (o.message || o.output || o.text || '').toLowerCase();
+        // Must not mention October when user did not specify any month
+        return !text.includes('octobre');
