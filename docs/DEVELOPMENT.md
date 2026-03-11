@@ -118,12 +118,12 @@ Pour alimenter la boucle d’amélioration et les evals (voir [EVALS.md](EVALS.m
 
 Le script appelle `GET /admin/export-eval-candidates` sur l’instance **prod**. Il ne touche pas à la base locale ni au `.env` du backend.
 
-**Prérequis :** `HORAIN_PROD_URL` (URL de base de l’API prod) et `HORAIN_PROD_API_KEY` (clé API Bearer).
+**Prérequis :** `EVAL_CANDIDATES_ENDPOINT` (URL complète de l’endpoint, ex. `https://votre-prod.run.app/admin/export-eval-candidates`) et `HORAIN_API_KEY` (clé API Bearer).
 
 **Commande :**
 
 ```bash
-HORAIN_PROD_URL=https://votre-prod.run.app HORAIN_PROD_API_KEY=votre-cle ./scripts/export-eval-candidates.sh
+EVAL_CANDIDATES_ENDPOINT=https://votre-prod.run.app/admin/export-eval-candidates HORAIN_API_KEY=votre-cle ./scripts/export-eval-candidates.sh
 ```
 
 Par défaut le fichier est écrit dans `scripts/out/eval-candidates.jsonl`. Autre sortie : `OUT_FILE=/chemin/vers/sortie.jsonl ./scripts/export-eval-candidates.sh`.
