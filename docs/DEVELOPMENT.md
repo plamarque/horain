@@ -116,21 +116,17 @@ npm run eval:deterministic   # déterministe seulement
 
 Pour alimenter la boucle d’amélioration et les evals (voir [EVALS.md](EVALS.md) section 9), un script exporte les **candidats à l’éval** : turns avec feedback 👎 ou avec statut d’erreur (tool_error, empty_result, max_iterations). La sortie est un fichier **JSONL** (une ligne = un objet par tour) avec notamment : `source_turn_id`, `conversation_id`, `user_message`, `assistant_message`, `tool_calls`, `feedback`, `feedback_reason`, `system_prompt_version`, `expected_behavior` (vide à remplir au triage), `eval_family`, `assertion_strategy`.
 
-**Prérequis :** Le backend doit être configuré avec une base contenant les tables `agent_turn` et `agent_feedback` (ex. Supabase en prod ou une base locale avec des données de trace).
+Le script appelle `GET /admin/export-eval-candidates` sur l’instance **prod**. Il ne touche pas à la base locale ni au `.env` du backend.
+
+**Prérequis :** `HORAIN_PROD_URL` (URL de base de l’API prod) et `HORAIN_PROD_API_KEY` (clé API Bearer).
 
 **Commande :**
 
 ```bash
-./scripts/export-eval-candidates.sh
+HORAIN_PROD_URL=https://votre-prod.run.app HORAIN_PROD_API_KEY=votre-cle ./scripts/export-eval-candidates.sh
 ```
 
-Le script lance le backend avec le profil Spring `export` ; le runner `ExportEvalCandidatesRunner` écrit le JSONL puis quitte. Par défaut le fichier est écrit dans `scripts/out/eval-candidates.jsonl`. Pour une autre sortie, adapter le script ou lancer manuellement :
-
-```bash
-cd backend
-mvn spring-boot:run -Dspring-boot.run.profiles=export \
-  -Dspring-boot.run.arguments="--export.output=/chemin/vers/sortie.jsonl"
-```
+Par défaut le fichier est écrit dans `scripts/out/eval-candidates.jsonl`. Autre sortie : `OUT_FILE=/chemin/vers/sortie.jsonl ./scripts/export-eval-candidates.sh`.
 
 **Triage :** Ouvrir le JSONL, remplir `expected_behavior`, `eval_family`, etc. pour les cas à promouvoir, puis ajouter manuellement les cas retenus dans `promptfoo/tests/` (ou utiliser un script de promotion si vous en créez un).
 
