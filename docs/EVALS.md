@@ -108,3 +108,18 @@ Si tu te surprends à dire :
 Chaque prompt système important doit avoir **au moins un test**. Idéalement plusieurs.
 
 Les formulations MUST, ALWAYS, NEVER, do NOT, wait for explicit confirmation dans le prompt méritent presque toujours un test dédié.
+
+---
+
+## 9. Boucle prod → feedback → extraction → triage → Promptfoo
+
+Les réponses de l’agent sont **traçées** en base (`agent_turn`) et le feedback utilisateur (pouce bas / pouce haut) est stocké dans `agent_feedback`. Cette base est une **source de vérité d’incidents et de signaux utilisateur**, pas le dataset d’eval final.
+
+**Workflow recommandé :**
+
+1. **Prod** : chaque tour est persisté ; l’utilisateur peut noter (thumb up/down) sur chaque réponse.
+2. **Extraction** : un script (voir [DEVELOPMENT.md](DEVELOPMENT.md) section Export eval candidates) exporte périodiquement les turns avec 👎 ou avec statut d’erreur (tool_error, empty_result, max_iterations) vers un fichier JSONL.
+3. **Triage humain** : tous les 👎 ne doivent pas devenir des tests. Filtrer selon : reproductibilité, importance du comportement, récurrence, possibilité de test automatique. Décider pour chaque cas : ignorer, corriger le prompt, créer un test déterministe, créer un test scoré, ou améliorer l’UI.
+4. **Promotion** : les cas retenus sont ajoutés au repo sous forme de fichiers Promptfoo (manuel ou script secondaire).
+
+Le script d’extraction ne décide pas quels cas deviennent des tests ; il prépare les candidats pour le triage.

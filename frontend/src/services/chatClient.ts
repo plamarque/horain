@@ -17,6 +17,8 @@ export interface ChatMessageResponse {
   assistantMessage: string
   toolCalls?: Array<{ name: string; arguments: string; result: string }>
   data?: unknown
+  /** Turn id for feedback API (thumb up/down). */
+  turnId?: string | null
 }
 
 /** Maximum number of history messages to send (keeps context window manageable). */
@@ -71,6 +73,21 @@ export async function sendChatMessage(
     }
   }
   return apiPost<ChatMessageResponse>('/chat/message', body, init)
+}
+
+/**
+ * Submit user feedback (thumb up/down) for a turn.
+ */
+export async function sendFeedback(
+  turnId: string,
+  rating: 'up' | 'down',
+  reasonCode?: string,
+  comment?: string
+): Promise<void> {
+  const body: Record<string, unknown> = { turnId, rating }
+  if (reasonCode != null) body.reasonCode = reasonCode
+  if (comment != null) body.comment = comment
+  await apiPost<{ ok?: boolean }>('/chat/feedback', body)
 }
 
 export interface StreamCallbacks {

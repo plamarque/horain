@@ -1,6 +1,7 @@
 package com.horain.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.horain.agent.AgentFeedbackService;
 import com.horain.llm.LlmClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -25,11 +27,14 @@ public class ChatController {
     private final LlmChatService chatService;
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final AgentFeedbackService agentFeedbackService;
 
-    public ChatController(LlmChatService chatService, LlmClient llmClient, ObjectMapper objectMapper) {
+    public ChatController(LlmChatService chatService, LlmClient llmClient, ObjectMapper objectMapper,
+                          AgentFeedbackService agentFeedbackService) {
         this.chatService = chatService;
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
+        this.agentFeedbackService = agentFeedbackService;
     }
 
     @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -63,7 +68,7 @@ public class ChatController {
         String userMessage = request != null && request.message() != null ? request.message().trim() : "";
         if (userMessage.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(new ChatMessageResponse("Please provide a message.", null, null));
+                    .body(new ChatMessageResponse("Please provide a message.", null, null, null));
         }
 
         List<ChatHistoryEntry> history = request != null && request.history() != null
@@ -78,7 +83,8 @@ public class ChatController {
                 response.toolCalls().stream()
                         .map(tc -> new ToolCallDto(tc.name(), tc.arguments(), tc.result()))
                         .toList(),
-                response.data()));
+                response.data(),
+                response.turnId()));
     }
 
     public record ChatMessageRequest(
@@ -87,10 +93,27 @@ public class ChatController {
             List<Map<String, Object>> contextEntries) {
     }
 
-    public record ChatMessageResponse(String assistantMessage, java.util.List<ToolCallDto> toolCalls, Object data) {
+    public record ChatMessageResponse(String assistantMessage, java.util.List<ToolCallDto> toolCalls, Object data, UUID turnId) {
     }
 
     public record ToolCallDto(String name, String arguments, String result) {
+    }
+
+    @PostMapping("/feedback")
+    public ResponseEntity<Map<String, Object>> feedback(@RequestBody FeedbackRequest request) {
+        if (request == null || request.turnId() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "turnId is required"));
+        }
+        try {
+            UUID turnId = UUID.fromString(request.turnId());
+            agentFeedbackService.saveFeedback(turnId, request.rating(), request.reasonCode(), request.comment());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    public record FeedbackRequest(String turnId, String rating, String reasonCode, String comment) {
     }
 
     @GetMapping("/status")

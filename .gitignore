@@ -7,6 +7,7 @@ backend/.env
 promptfoo/.env
 promptfoo/output/
 promptfoo/evaluations/
+scripts/out/
 
 # .env.example is committed (template, no secrets)
 

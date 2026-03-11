@@ -188,7 +188,8 @@ function formatEntryChipLabel(entry: TimeLogEntry): string {
 function addAssistantMessage(
   text: string,
   chart?: ChartSpec,
-  timeLogs?: TimeLogEntry[]
+  timeLogs?: TimeLogEntry[],
+  turnId?: string | null
 ) {
   const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
   messages.value.push({
@@ -198,6 +199,7 @@ function addAssistantMessage(
     timestamp: new Date(),
     ...(chart && { chart }),
     ...(timeLogs?.length && { timeLogs }),
+    ...(turnId != null && { turnId }),
   })
   nextTick(() => {
     const timeline = timelineRef.value
@@ -285,9 +287,10 @@ async function handleSubmit(text: string) {
               msg.isStreaming = false
               if (chart) msg.chart = chart
               if (timeLogs?.length) msg.timeLogs = timeLogs
+              if (payload.turnId != null) msg.turnId = payload.turnId
             }
           } else {
-            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs)
+            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId)
           }
           streamingMessageId.value = null
           processQueue().then(() => {
@@ -321,7 +324,7 @@ async function handleSubmit(text: string) {
           ? (response.data as { timeLogs: unknown }).timeLogs
           : undefined
         const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
-        addAssistantMessage(response.assistantMessage, chart, timeLogs)
+        addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId)
         await processQueue()
         lastSyncedAt.value = new Date()
       } catch (fallbackErr) {

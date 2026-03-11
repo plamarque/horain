@@ -34,4 +34,6 @@ export interface Message {
   timeLogs?: TimeLogEntry[]
   /** True while assistant text is streaming into this message. */
   isStreaming?: boolean
+  /** Backend turn id for feedback (thumb up/down). Only on assistant messages. */
+  turnId?: string | null
 }

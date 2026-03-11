@@ -81,6 +81,7 @@ defineExpose({
       :chart="msg.chart"
       :time-logs="msg.timeLogs"
       :is-streaming="msg.isStreaming"
+      :turn-id="msg.turnId"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
       @edit-project="emit('editProject', $event)"

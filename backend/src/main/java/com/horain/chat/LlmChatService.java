@@ -2,7 +2,9 @@ package com.horain.chat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.horain.agent.AgentTurnService;
 import com.horain.llm.*;
+import com.horain.model.AgentTurn;
 import com.horain.tools.ToolExecutorService;
 import com.horain.tools.ToolRegistry;
 import org.slf4j.Logger;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Orchestrates the chat flow: receives user message, calls LLM with tools,
@@ -67,19 +70,26 @@ public class LlmChatService {
     private final ToolExecutorService toolExecutor;
     private final ObjectMapper objectMapper;
     private final int massDeleteLimit;
+    private final AgentTurnService agentTurnService;
+    private final LlmProperties llmProperties;
 
     public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor,
                           ObjectMapper objectMapper,
-                          @Value("${horain.mass-delete-limit:5}") int massDeleteLimit) {
+                          @Value("${horain.mass-delete-limit:5}") int massDeleteLimit,
+                          AgentTurnService agentTurnService,
+                          LlmProperties llmProperties) {
         this.llmClient = llmClient;
         this.toolRegistry = toolRegistry;
         this.toolExecutor = toolExecutor;
         this.objectMapper = objectMapper;
         this.massDeleteLimit = massDeleteLimit;
+        this.agentTurnService = agentTurnService;
+        this.llmProperties = llmProperties;
     }
 
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history,
                              List<Map<String, Object>> contextEntries) {
+        long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
         String systemPrompt = SYSTEM_PROMPT;
         if (contextEntries != null && !contextEntries.isEmpty()) {
@@ -122,12 +132,11 @@ public class LlmChatService {
                 Map<String, Object> data = new HashMap<>();
                 if (chartData != null) data.put("chart", chartData);
                 if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-                return new ChatResponse(
-                        response.content() != null && !response.content().isBlank()
-                                ? response.content()
-                                : "I'm sorry, I couldn't generate a response.",
-                        toolCallsExecuted,
-                        data.isEmpty() ? null : data);
+                String assistantMessage = response.content() != null && !response.content().isBlank()
+                        ? response.content()
+                        : "I'm sorry, I couldn't generate a response.";
+                return persistTurnAndBuildResponse(userMessage, assistantMessage, toolCallsExecuted,
+                        data.isEmpty() ? null : data, history, contextEntries, startTime, false);
             }
 
             // Append assistant message with tool_calls
@@ -164,10 +173,45 @@ public class LlmChatService {
         Map<String, Object> data = new HashMap<>();
         if (chartData != null) data.put("chart", chartData);
         if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-        return new ChatResponse(
+        return persistTurnAndBuildResponse(userMessage,
                 "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
-                toolCallsExecuted,
-                data.isEmpty() ? null : data);
+                toolCallsExecuted, data.isEmpty() ? null : data, history, contextEntries, startTime, true);
+    }
+
+    private static String deriveStatus(String assistantMessage, List<ToolCallRecord> toolCalls, boolean maxIterations) {
+        if (maxIterations) return "max_iterations";
+        if (toolCalls != null) {
+            for (ToolCallRecord tc : toolCalls) {
+                String r = tc.result();
+                if (r != null && r.contains("\"error\":")) {
+                    return "tool_error";
+                }
+            }
+        }
+        if (assistantMessage == null || assistantMessage.isBlank()) return "empty_result";
+        if (assistantMessage.contains("I couldn't generate a response") || assistantMessage.contains("I'm sorry, I couldn't")) {
+            return "empty_result";
+        }
+        return "success";
+    }
+
+    private UUID persistTurn(String userMessage, String assistantMessage, List<ToolCallRecord> toolCallsExecuted,
+                              Object data, List<ChatHistoryEntry> history, List<Map<String, Object>> contextEntries,
+                              long startTime, boolean maxIterations) {
+        UUID conversationId = UUID.randomUUID();
+        String status = deriveStatus(assistantMessage, toolCallsExecuted, maxIterations);
+        long latencyMs = System.currentTimeMillis() - startTime;
+        AgentTurn turn = agentTurnService.saveTurn(conversationId, 0, userMessage, assistantMessage,
+                toolCallsExecuted, data, llmProperties.model(), status, history, contextEntries, latencyMs);
+        return turn.getId();
+    }
+
+    private ChatResponse persistTurnAndBuildResponse(String userMessage, String assistantMessage,
+                                                     List<ToolCallRecord> toolCallsExecuted, Object data,
+                                                     List<ChatHistoryEntry> history, List<Map<String, Object>> contextEntries,
+                                                     long startTime, boolean maxIterations) {
+        UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted, data, history, contextEntries, startTime, maxIterations);
+        return new ChatResponse(assistantMessage, toolCallsExecuted, data, turnId);
     }
 
     /**
@@ -177,6 +221,7 @@ public class LlmChatService {
     public void chatStream(String userMessage, List<ChatHistoryEntry> history,
                           List<Map<String, Object>> contextEntries,
                           StreamEventWriter writer) {
+        long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
         String systemPrompt = SYSTEM_PROMPT;
         if (contextEntries != null && !contextEntries.isEmpty()) {
@@ -229,7 +274,9 @@ public class LlmChatService {
                     String assistantMessage = response.content() != null && !response.content().isBlank()
                             ? response.content()
                             : "I'm sorry, I couldn't generate a response.";
-                    writer.sendDone(assistantMessage, toolCallsExecuted, data.isEmpty() ? null : data);
+                    UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted,
+                            data.isEmpty() ? null : data, history, contextEntries, startTime, false);
+                    writer.sendDone(assistantMessage, toolCallsExecuted, data.isEmpty() ? null : data, turnId);
                     return;
                 }
 
@@ -265,10 +312,10 @@ public class LlmChatService {
             Map<String, Object> data = new HashMap<>();
             if (chartData != null) data.put("chart", chartData);
             if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-            writer.sendDone(
-                    "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
-                    toolCallsExecuted,
-                    data.isEmpty() ? null : data);
+            String maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request.";
+            UUID turnId = persistTurn(userMessage, maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data,
+                    history, contextEntries, startTime, true);
+            writer.sendDone(maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data, turnId);
         } catch (Exception e) {
             log.error("chatStream error: {}", e.getMessage(), e);
             writer.sendError(e.getMessage());

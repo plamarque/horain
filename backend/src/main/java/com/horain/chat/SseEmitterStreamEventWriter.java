@@ -10,6 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -51,7 +52,7 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
     }
 
     @Override
-    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, Object data) {
+    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, Object data, UUID turnId) {
         if (completed) return;
         try {
             List<Map<String, String>> toolCallsDto = toolCalls != null
@@ -62,10 +63,13 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
                             "result", tc.result() != null ? tc.result() : ""))
                     .collect(Collectors.toList())
                     : List.of();
-            Map<String, Object> payload = Map.of(
+            Map<String, Object> payload = new java.util.HashMap<>(Map.of(
                     "assistantMessage", assistantMessage != null ? assistantMessage : "",
                     "toolCalls", toolCallsDto,
-                    "data", data != null ? data : Map.of());
+                    "data", data != null ? data : Map.of()));
+            if (turnId != null) {
+                payload.put("turnId", turnId.toString());
+            }
             String json = objectMapper.writeValueAsString(payload);
             emitter.send(SseEmitter.event().name("done").data(json, MediaType.APPLICATION_JSON));
             emitter.complete();

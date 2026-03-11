@@ -78,6 +78,8 @@ Implémentation : `backend/.../tools/ToolRegistry.java`, `ToolExecutorService.ja
 6. **Agent** returns conversational response to client
 7. **Client** displays response in conversation thread
 
+Each assistant response is **traced** in `agent_turn` (user message, assistant message, tool calls, status, model, system prompt version). The client can submit **feedback** (thumb up/down) via POST /chat/feedback, stored in `agent_feedback`. The **eval pipeline** (see [EVALS.md](EVALS.md)) uses these tables as a source of incidents and user signals: extraction script → triage → promotion of selected cases into Promptfoo tests.
+
 ## Key Directories
 
 | Path | Role |

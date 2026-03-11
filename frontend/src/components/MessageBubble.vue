@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import ChartBubble from './ChartBubble.vue'
 import LogEntriesBlock from './LogEntriesBlock.vue'
 import { renderMarkdown } from '../utils/markdown'
+import { sendFeedback } from '../services/chatClient'
 import type { ChartSpec, TimeLogEntry } from '../types'
 
 const props = defineProps<{
@@ -11,6 +12,8 @@ const props = defineProps<{
   chart?: ChartSpec
   timeLogs?: TimeLogEntry[]
   isStreaming?: boolean
+  /** Backend turn id for feedback (assistant only). */
+  turnId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +21,22 @@ const emit = defineEmits<{
   editEntry: [entry: TimeLogEntry]
   editProject: [entry: TimeLogEntry]
 }>()
+
+const feedbackSent = ref<'up' | 'down' | null>(null)
+const feedbackSending = ref(false)
+
+async function handleFeedback(rating: 'up' | 'down') {
+  if (!props.turnId || feedbackSending.value || feedbackSent.value) return
+  feedbackSending.value = true
+  try {
+    await sendFeedback(props.turnId, rating)
+    feedbackSent.value = rating
+  } catch {
+    // Silent; optional UX could show a toast
+  } finally {
+    feedbackSending.value = false
+  }
+}
 
 const formattedContent = computed(() => {
   if (!props.text) return ''
@@ -50,6 +69,63 @@ const useHtml = computed(() => props.role === 'assistant')
       @edit-entry="emit('editEntry', $event)"
       @edit-project="emit('editProject', $event)"
     />
+    <div
+      v-if="role === 'assistant' && turnId && !isStreaming"
+      class="feedback-row"
+      role="group"
+      aria-label="Feedback on this response"
+    >
+      <button
+        type="button"
+        class="feedback-btn"
+        :class="{ active: feedbackSent === 'up', disabled: feedbackSending || feedbackSent !== null }"
+        :disabled="feedbackSending || feedbackSent !== null"
+        aria-label="Good response"
+        @click="handleFeedback('up')"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <!-- Thumb up: one clear thumb (rounded shape) pointing up -->
+          <path d="M9 22 L9 7 Q9 4 12 4 Q15 4 15 7 L15 22 Q15 24 12 24 Q9 24 9 22 Z" />
+          <path d="M8 22 L16 22" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="feedback-btn"
+        :class="{ active: feedbackSent === 'down', disabled: feedbackSending || feedbackSent !== null }"
+        :disabled="feedbackSending || feedbackSent !== null"
+        aria-label="Bad response"
+        @click="handleFeedback('down')"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <!-- Thumb down: one clear thumb (rounded shape) pointing down -->
+          <path d="M9 2 L9 17 Q9 20 12 20 Q15 20 15 17 L15 2 Q15 0 12 0 Q9 0 9 2 Z" />
+          <path d="M8 2 L16 2" />
+        </svg>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -166,5 +242,41 @@ const useHtml = computed(() => props.role === 'assistant')
 .chart-standalone {
   align-self: stretch;
   width: 100%;
+}
+
+.feedback-row {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  min-width: 32px;
+  min-height: 32px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.feedback-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.feedback-btn.active {
+  opacity: 1;
+  border-color: rgba(139, 92, 246, 0.6);
+}
+
+.feedback-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 </style>
