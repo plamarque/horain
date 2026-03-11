@@ -6,8 +6,8 @@
 #   - Java 21+, Maven (backend)
 #   - Node 20+ (for npx promptfoo)
 #   - OPENAI_API_KEY or LLM_API_KEY in backend/.env for real LLM responses
-#   - For scored evals: PROMPTFOO_JUDGE_MISTRAL_KEY (or PROMPTFOO_JUDGE_MISTRAL_API_KEY)
-#     and PROMPTFOO_JUDGE_MODEL in promptfoo/.env (loaded automatically)
+#   - For scored evals: PROMPTFOO_JUDGE_MISTRAL_API_KEY and PROMPTFOO_JUDGE_MODEL
+#     in promptfoo/.env (loaded automatically)
 
 set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -75,14 +75,12 @@ else
 fi
 
 # Load judge vars from promptfoo/.env (for scored evals with Mistral)
-# Supports PROMPTFOO_JUDGE_MISTRAL_API_KEY or PROMPTFOO_JUDGE_MISTRAL_KEY
 PROMPTFOO_ENV="$ROOT/promptfoo/.env"
 if [ -f "$PROMPTFOO_ENV" ]; then
   _extract() {
     grep -E "^${1}\s*=" "$PROMPTFOO_ENV" 2>/dev/null | head -1 | cut -d= -f2- | sed -e 's/[#].*$//' -e 's/[[:space:]]*$//' -e 's/^["'\'']*//' -e 's/["'\'']*$//'
   }
   JUDGE_KEY="$(_extract PROMPTFOO_JUDGE_MISTRAL_API_KEY)"
-  [ -z "$JUDGE_KEY" ] && JUDGE_KEY="$(_extract PROMPTFOO_JUDGE_MISTRAL_KEY)"
   [ -n "$JUDGE_KEY" ] && export PROMPTFOO_JUDGE_MISTRAL_API_KEY="$JUDGE_KEY"
   JUDGE_MODEL="$(_extract PROMPTFOO_JUDGE_MODEL)"
   [ -n "$JUDGE_MODEL" ] && export PROMPTFOO_JUDGE_MODEL="$JUDGE_MODEL"

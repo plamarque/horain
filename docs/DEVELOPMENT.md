@@ -139,7 +139,7 @@ Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter
 
 | Variable | Rôle |
 |----------|------|
-| `PROMPTFOO_JUDGE_MISTRAL_API_KEY` ou `PROMPTFOO_JUDGE_MISTRAL_KEY` | Clé API Mistral pour le juge |
+| `PROMPTFOO_JUDGE_MISTRAL_API_KEY` | Clé API Mistral pour le juge |
 | `PROMPTFOO_JUDGE_MODEL` | Modèle Mistral (défaut : `mistral-small-latest`) |
 
 Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. En CI (release), le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml`.
