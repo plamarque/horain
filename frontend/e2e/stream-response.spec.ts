@@ -11,7 +11,7 @@ test('stream response shows assistant message', async ({ page }) => {
 
   const input = page.getByPlaceholder('Ask anything')
   await input.fill("What's the time?")
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   // With streaming, the assistant bubble appears as chunks arrive (or at once if fallback).
   const assistantBubble = page.locator('.bubble.assistant').last()

@@ -15,26 +15,26 @@ test.describe('SPEC scenarios', () => {
 
     // Create two similar projects (agent may ask to create if not seeded; confirm then)
     await input.fill('15 minutes on HatCast V1')
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
     const bubble1 = page.locator('.bubble.assistant').last()
     await expect(bubble1).toBeVisible({ timeout: 10000 })
     const text1 = await bubble1.textContent()
     if (/should i|create|don't know|couldn't find|not found/i.test(text1 ?? '')) {
       await input.fill('yes')
-      await input.press('Enter')
+      await page.getByRole('button', { name: 'Send' }).click()
     }
     await expect(
       page.locator('.bubble.assistant').last()
     ).toContainText(/logged|created|HatCast V1/i, { timeout: 10000 })
 
     await input.fill('15 minutes on HatCast V2')
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
     const bubble2 = page.locator('.bubble.assistant').last()
     await expect(bubble2).toBeVisible({ timeout: 10000 })
     const text2 = await bubble2.textContent()
     if (/should i|create|don't know|couldn't find|not found/i.test(text2 ?? '')) {
       await input.fill('yes')
-      await input.press('Enter')
+      await page.getByRole('button', { name: 'Send' }).click()
     }
     await expect(
       page.locator('.bubble.assistant').last()
@@ -42,7 +42,7 @@ test.describe('SPEC scenarios', () => {
 
     // Ambiguous: "HatCast" matches both
     await input.fill('30 minutes on HatCast')
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
 
     // Assistant should mention both projects and ask which one
     const assistantBubble = page.locator('.bubble.assistant').last()
@@ -60,7 +60,7 @@ test.describe('SPEC scenarios', () => {
     // Use a unique name that won't exist
     const uniqueName = `ZzzUnknown${Date.now()}`
     await input.fill(`40 minutes on ${uniqueName}`)
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
 
     const assistantBubble = page.locator('.bubble.assistant').last()
     await expect(assistantBubble).toBeVisible({ timeout: 10000 })
@@ -79,7 +79,7 @@ test.describe('SPEC scenarios', () => {
     // Unique prefix to avoid fuzzy match with other tests' projects
     const projectName = `ZzzDurEst${Date.now()}`
     await input.fill(`15 minutes on ${projectName}`)
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
     await expect(
       page.locator('.bubble.assistant').last()
     ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), {
@@ -88,7 +88,7 @@ test.describe('SPEC scenarios', () => {
 
     // Missing duration: no minutes specified (use exact project name)
     await input.fill(`I worked on ${projectName} all morning`)
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
 
     const assistantBubble = page.locator('.bubble.assistant').last()
     await expect(assistantBubble).toBeVisible({ timeout: 10000 })

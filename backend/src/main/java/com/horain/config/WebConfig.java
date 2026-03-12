@@ -22,7 +22,13 @@ public class WebConfig {
                         .allowedOriginPatterns(
                                 "https://*.github.io",
                                 "http://localhost:*",
-                                "https://localhost:*"
+                                "https://localhost:*",
+                                "http://127.0.0.1:*",
+                                "https://127.0.0.1:*",
+                                "http://192.168.*:*",
+                                "https://192.168.*:*",
+                                "http://10.*:*",
+                                "https://10.*:*"
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")

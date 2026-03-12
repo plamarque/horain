@@ -14,14 +14,14 @@ test('update project - rename via natural language', async ({ page }) => {
 
   // Create project first (agent may ask to create if unknown; confirm then)
   await input.fill('30 minutes on EditTestProject working on features')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   const createBubble1 = page.locator('.bubble.assistant').last()
   await expect(createBubble1).toBeVisible({ timeout: 10000 })
   const createText1 = await createBubble1.textContent()
   if (/should i|create|don't know|couldn't find|not found/i.test(createText1 ?? '')) {
     await input.fill('yes')
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
   }
   await expect(
     page.locator('.bubble.assistant').last()
@@ -29,7 +29,7 @@ test('update project - rename via natural language', async ({ page }) => {
 
   // Ask to rename the project
   await input.fill('rename EditTestProject to EditTestProjectV2')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   // Expect confirmation of rename in the latest assistant response (wording may vary by LLM)
   const renameBubble = page.locator('.bubble.assistant').last()
@@ -54,14 +54,14 @@ test('delete project via natural language', async ({ page }) => {
 
   // Create project first (agent may ask to create if unknown; confirm then)
   await input.fill('15 minutes on DeleteTestProject')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   const createBubble2 = page.locator('.bubble.assistant').last()
   await expect(createBubble2).toBeVisible({ timeout: 10000 })
   const createText2 = await createBubble2.textContent()
   if (/should i|create|don't know|couldn't find|not found/i.test(createText2 ?? '')) {
     await input.fill('yes')
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
   }
   await expect(
     page.locator('.bubble.assistant').last()
@@ -69,7 +69,7 @@ test('delete project via natural language', async ({ page }) => {
 
   // Turn 1: Ask to delete the project -> assistant cannot (has entries), asks for confirmation; or says project not found
   await input.fill('delete project DeleteTestProject')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   // Expect latest assistant message: either entries/cannot/confirm, or project not found (LLM variance)
   const turn1Bubble = page.locator('.bubble.assistant').last()
@@ -80,7 +80,7 @@ test('delete project via natural language', async ({ page }) => {
 
   // Turn 2: User confirms -> assistant deletes entry then project; or repeats not found (if turn 1 was "project not found")
   await input.fill('yes, delete the entry first')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   // Wait for the second response (deletion can take several tool calls); then expect success or not-found wording
   const turn2Bubble = page.locator('.bubble.assistant').last()

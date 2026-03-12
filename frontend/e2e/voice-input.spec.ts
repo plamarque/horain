@@ -80,7 +80,7 @@ test.describe('voice input', () => {
     await confirmBtn.click()
 
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
-    await input.press('Enter')
+    await page.getByRole('button', { name: 'Send' }).click()
 
     await expect(
       page.getByText(/logged|created|minutes|HatCast/i)

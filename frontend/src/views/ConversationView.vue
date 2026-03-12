@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
@@ -61,14 +61,6 @@ onMounted(async () => {
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
-  }
-})
-
-// Refocus input when assistant finishes responding so user can type immediately
-watch(isProcessing, async (now, was) => {
-  if (was === true && now === false) {
-    await nextTick()
-    inputRef.value?.focusInput()
   }
 })
 

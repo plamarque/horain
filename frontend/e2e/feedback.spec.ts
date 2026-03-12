@@ -11,7 +11,7 @@ test('feedback thumbs appear after assistant reply and thumb up can be clicked',
 
   const input = page.getByPlaceholder('Ask anything')
   await input.fill("What's the time?")
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   const assistantBubble = page.locator('.bubble.assistant').last()
   await expect(assistantBubble).toBeVisible({ timeout: 15000 })
@@ -39,7 +39,7 @@ test('feedback thumb down can be clicked', async ({ page }) => {
 
   const input = page.getByPlaceholder('Ask anything')
   await input.fill('Hello')
-  await input.press('Enter')
+  await page.getByRole('button', { name: 'Send' }).click()
 
   const assistantBubble = page.locator('.bubble.assistant').last()
   await expect(assistantBubble).toBeVisible({ timeout: 15000 })

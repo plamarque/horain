@@ -133,6 +133,7 @@ function submitText() {
   if (t) {
     emit('submit', t)
     inputText.value = ''
+    inputEl.value?.blur()
   }
 }
 
@@ -157,7 +158,6 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
           class="text-input"
           rows="1"
           :disabled="disabled"
-          @keydown.enter.exact.prevent="submitText"
           @input="resizeTextarea"
         />
         <button
