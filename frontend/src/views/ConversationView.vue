@@ -453,14 +453,14 @@ async function handleResetSeed() {
   background: #0f0f1a;
 }
 
-/* Mobile: keep input bar above gesture bar; extra bottom padding when safe-area is 0 (e.g. some Android PWA) */
+/* Mobile: minimal bottom padding to clear home indicator only */
 @media (max-width: 600px) {
   .input-area {
     position: sticky;
     bottom: 0;
     left: 0;
     right: 0;
-    padding-bottom: max(1.25rem, env(safe-area-inset-bottom), 40px);
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom), 16px);
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
   }
