@@ -117,6 +117,7 @@ EVAL_PROPOSAL_PROJECT="EvalProposal_${EVAL_RUN_ID}"
 echo ""
 echo "Running Promptfoo evals..."
 cd "$ROOT/promptfoo"
+mkdir -p output
 export HORAIN_API_KEY="$API_KEY"
 export PROMPTFOO_API_URL="$API_BASE"
 export PROMPTFOO_DISABLE_WAL_MODE="${PROMPTFOO_DISABLE_WAL_MODE:-true}"

@@ -50,7 +50,10 @@ jobs:
       - name: Print failed tests (if any)
         if: failure()
         run: |
+          echo "=== promptfoo/output/ contents ==="
+          ls -la promptfoo/output/ 2>/dev/null || echo "Directory missing or empty."
           if [ -f promptfoo/output/eval-results.json ]; then
+            echo ""
             echo "=== Eval stats ==="
             jq -r '.results.stats // .stats | "\(.successes // 0) passed, \(.failures // 0) failed, \(.errors // 0) errors"' promptfoo/output/eval-results.json 2>/dev/null || true
             echo ""
