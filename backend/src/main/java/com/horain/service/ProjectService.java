@@ -68,13 +68,6 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<ProjectDto> findUpdatedAfter(Instant after) {
-        return projectRepository.findByUpdatedAtAfter(after).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
     /**
      * Updates an existing project. Only non-null fields in the patch are applied.
      */

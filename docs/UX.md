@@ -25,7 +25,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Send button** (outline arrow up icon) — appears when text is entered; click to send. Same style and dimensions as the mic button. Positioned to the right of the mic (rightmost) for easy one-handed tap.
 - **Stop button** — replaces Send during processing; click to cancel the in-flight request. Restores focus to the input field. No data is modified on cancel.
 - **Microphone icon** — click to start recording. During recording, the input area is replaced by a waveform (no real-time transcript). Two buttons appear: **Cancel** (X) and **Confirm** (checkmark). Cancel aborts and returns to input. Confirm triggers transcription (with brief “Transcribing…” indicator if needed); the transcript is inserted at the caret position in the input (appending, not replacing existing text). User edits if desired and sends via the Send button.
-- Sync icon (discrete) for manual sync; sync also runs automatically after each message.
+- Displayed data (e.g. recent activities) is refetched from the server after each message and after editing or deleting an entry.
 
 ### Conversation timeline
 

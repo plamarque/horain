@@ -2,8 +2,7 @@
  * API client for Horain backend.
  * All requests include the API key header (Authorization: Bearer <API_KEY>).
  *
- * Endpoints: POST /sync/push, GET /sync/pull, GET /projects, POST /projects,
- * POST /time-logs
+ * Endpoints: GET /projects, POST /projects, GET /time-logs, POST /time-logs, etc.
  *
  * VITE_API_URL:
  *   - Empty or unset: use /api (Vite proxy, works from smartphone on same network)
@@ -190,16 +189,4 @@ export async function loadDevSeed(): Promise<{ projectsCreated: number; timeLogs
 /** POST /dev/seed/reset - clear DB and reload seed (dev only) */
 export async function resetDevSeed(): Promise<{ projectsCreated: number; timeLogsCreated: number }> {
   return apiPost<{ projectsCreated: number; timeLogsCreated: number }>('/dev/seed/reset', {})
-}
-
-/** POST /sync/push - push queued operations (used by sync engine) */
-export async function syncPush(body: {
-  operations: Array<{
-    entityType: string
-    entityId: string
-    operation: string
-    payload: Record<string, unknown>
-  }>
-}): Promise<{ success: boolean; processedCount: number }> {
-  return apiPost('/sync/push', body)
 }

@@ -4,30 +4,31 @@
 
 Example: *"I just spent 30 minutes on HatCast working on the selection algorithm."*
 
-The system uses an **LLM-driven tool-calling assistant** for intent detection and structured actions. Architecture follows a **local-first pattern** with asynchronous sync to the server.
+The system uses an **LLM-driven tool-calling assistant** for intent detection and structured actions. Data lives on the server (Supabase via the backend); the frontend has no local storage and uses REST APIs for all data.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Frontend (Vue 3 + Vite PWA)                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐ │
-│  │ Conversation│  │ Chat Client  │  │ Dexie       │  │ Sync Engine  │ │
-│  │ UI          │──│ POST/chat    │  │ IndexedDB   │◄─│ (push/pull)  │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────┼───────────────────────┘
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                   │
+│  │ Conversation│  │ Chat Client  │  │ API Client  │                   │
+│  │ UI          │──│ POST/chat    │  │ GET/POST    │                   │
+│  └─────────────┘  └─────────────┘  │ /projects,  │                   │
+│                     └───────────────│ /time-logs  │                   │
+└─────────────────────────────────────────────┼─────────────────────────┘
                                               │ HTTP
                                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Backend (Spring Boot)                                               │
+│  Backend (Spring Boot)                                                │
 │  ┌────────────┐  ┌─────────────┐  ┌──────────────┐                   │
-│  │ Chat       │  │ LLM         │  │ Tool         │   PostgreSQL      │
+│  │ Chat       │  │ LLM         │  │ Tool         │   PostgreSQL       │
 │  │ Controller │──│ Orchestration│──│ Executor    │── (Supabase)      │
 │  └────────────┘  └─────────────┘  └──────────────┘                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                           │
-│  │ /sync/   │  │ /projects│  │ /time-   │                           │
-│  │ push,pull│  │          │  │ logs     │                           │
-│  └──────────┘  └──────────┘  └──────────┘                           │
+│  ┌──────────┐  ┌──────────┐                                            │
+│  │ /projects│  │ /time-   │                                            │
+│  │          │  │ logs     │                                            │
+│  └──────────┘  └──────────┘                                            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -39,10 +40,7 @@ The system uses an **LLM-driven tool-calling assistant** for intent detection an
 - Loop continues until the LLM produces a final assistant response.
 - Supports both **action requests** (log time, create project) and **analytics questions** (how many hours this week?, what did I do today?).
 
-### Sync flow
-
-- Backend tools write to server; frontend pulls via `GET /sync/pull` to refresh local state.
-- Sync runs on: app startup, after each chat response, network online, manual trigger.
+Data is always read from the server via REST (e.g. GET /projects, GET /time-logs/recent). After each chat response or after editing/deleting an entry, the client refetches recent activities to keep the UI in sync.
 
 ## Quick start
 
@@ -110,17 +108,13 @@ horain/
 │       ├── repository/
 │       ├── model/
 │       ├── dto/
-│       ├── sync/
 │       └── auth/
 ├── frontend/          # Vue 3 + Vite PWA
 │   └── src/
 │       ├── components/
 │       ├── views/
 │       ├── services/   # apiClient, chatClient, speechRecognition
-│       ├── db/        # Dexie IndexedDB
-│       ├── sync/     # Sync engine
-│       ├── tools/    # listProjects, createProject, logTime (local)
-│       └── pwa/     # Network listener
+│       └── pwa/
 └── docs/             # Specification, architecture
 ```
 
@@ -130,8 +124,6 @@ horain/
 |--------|------|-------------|
 | GET | /health | Health check (no auth) |
 | POST | /chat/message | Send message, get assistant response (LLM + tool calling) |
-| POST | /sync/push | Push batch of operations |
-| GET | /sync/pull?since=<ms> | Pull updates since timestamp |
 | POST | /projects | Create project |
 | GET | /projects | List projects |
 | POST | /time-logs | Create time log |

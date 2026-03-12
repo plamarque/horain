@@ -1,14 +1,7 @@
 /**
  * Chat client for Horain backend.
  * Sends user messages to POST /chat/message and receives assistant responses.
- *
  * The backend orchestrates an LLM with tool calling; tools perform all reads and writes.
- * After a response, the frontend should trigger sync to pull any server-side changes.
- *
- * TODO: Full local-first write orchestration — when the backend requests a write action
- * (e.g. create_time_log), the frontend could also execute the local write path (IndexedDB + sync queue)
- * to preserve true local-first semantics. Currently backend writes go server-first; sync pull
- * refreshes local state. Unify write orchestration so that both paths remain consistent.
  */
 
 import { apiPost, getStreamRequestConfig } from './apiClient'

@@ -5,7 +5,6 @@ import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
 import ProjectEditModal from '../components/ProjectEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
-import { processQueue } from '../sync/syncEngine'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
 
@@ -45,7 +44,6 @@ const abortControllerRef = ref<AbortController | null>(null)
 
 /** True when the last assistant message is streaming; used so timeline hides "Processing..." as soon as the streaming bubble exists. */
 const hasStreamingBubble = computed(() => messages.value.some((m) => m.isStreaming === true))
-const lastSyncedAt = ref<Date | null>(null)
 const inputRef = ref<InstanceType<typeof PushToTalkButton> | null>(null)
 const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
 const hasNewMessageBelow = ref(false)
@@ -63,16 +61,6 @@ onMounted(async () => {
     recentLogs.value = []
   }
 })
-
-function formatLastSynced(d: Date): string {
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 
 function handlePermissionError(message: string) {
   addAssistantMessage(message)
@@ -100,8 +88,6 @@ function handleProjectModalClose() {
 
 async function handleProjectSaved() {
   editingProjectId.value = null
-  await processQueue()
-  lastSyncedAt.value = new Date()
   try {
     const logs = await getRecentTimeLogs(5)
     recentLogs.value = logs
@@ -128,8 +114,6 @@ async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
     }
   }
   editingEntry.value = null
-  await processQueue()
-  lastSyncedAt.value = new Date()
   if (!patch?.id) {
     try {
       const logs = await getRecentTimeLogs(5)
@@ -157,8 +141,6 @@ async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
   } catch {
     recentLogs.value = []
   }
-  await processQueue()
-  lastSyncedAt.value = new Date()
 }
 
 function formatEntryChipLabel(entry: TimeLogEntry): string {
@@ -285,9 +267,7 @@ async function handleSubmit(text: string) {
             addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId)
           }
           streamingMessageId.value = null
-          processQueue().then(() => {
-            lastSyncedAt.value = new Date()
-          })
+          getRecentTimeLogs(5).then((logs) => { recentLogs.value = logs }).catch(() => {})
         },
         onError(err) {
           if ((err as Error).name === 'AbortError') return
@@ -317,8 +297,7 @@ async function handleSubmit(text: string) {
           : undefined
         const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
         addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId)
-        await processQueue()
-        lastSyncedAt.value = new Date()
+        getRecentTimeLogs(5).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {
         if ((fallbackErr as Error).name === 'AbortError') return
         const msg = (fallbackErr as Error).message
@@ -341,17 +320,6 @@ function handleStop() {
   abortControllerRef.value?.abort()
 }
 
-async function handleSync() {
-  isProcessing.value = true
-  try {
-    await processQueue()
-    lastSyncedAt.value = new Date()
-    addAssistantMessage('Sync completed.')
-  } finally {
-    isProcessing.value = false
-  }
-}
-
 const isDev = import.meta.env.DEV
 const isSeeding = ref(false)
 
@@ -360,8 +328,6 @@ async function handleResetSeed() {
   isSeeding.value = true
   try {
     await resetDevSeed()
-    await processQueue()
-    lastSyncedAt.value = new Date()
     const logs = await getRecentTimeLogs(5)
     recentLogs.value = logs
     // Clear conversation so the default view shows "Dernières activités" like on app launch
@@ -415,25 +381,8 @@ async function handleResetSeed() {
           @stop="handleStop"
           @permission-error="handlePermissionError"
         />
-        <p class="last-synced">
-          <span v-if="lastSyncedAt">Last synced {{ formatLastSynced(lastSyncedAt) }}</span>
-          <span v-else>Not synced yet</span>
+        <p v-if="isDev" class="input-footer">
           <button
-            class="sync-icon-btn"
-            :disabled="isProcessing"
-            title="Sync now"
-            aria-label="Sync now"
-            @click="handleSync"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 2v6h-6" />
-              <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-              <path d="M3 22v-6h6" />
-              <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-            </svg>
-          </button>
-          <button
-            v-if="isDev"
             class="seed-icon-btn"
             :disabled="isProcessing || isSeeding"
             title="Reset seed (dev): clear DB and reload seed"
@@ -540,7 +489,7 @@ async function handleResetSeed() {
   opacity: 1;
 }
 
-.last-synced {
+.input-footer {
   margin: 0;
   font-size: 0.7rem;
   color: #666680;
@@ -548,27 +497,6 @@ async function handleResetSeed() {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-}
-
-.sync-icon-btn {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  color: #666680;
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
-  display: inline-flex;
-  transition: color 0.15s;
-}
-
-.sync-icon-btn:hover:not(:disabled) {
-  color: #e8e8f0;
-}
-
-.sync-icon-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .seed-icon-btn {

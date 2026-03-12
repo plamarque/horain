@@ -14,8 +14,6 @@ import java.util.UUID;
  */
 public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
 
-    List<TimeLog> findByUpdatedAtAfter(Instant after);
-
     List<TimeLog> findTop50ByOrderByLoggedAtDesc();
 
     @Query("SELECT t FROM TimeLog t WHERE t.loggedAt >= :start AND t.loggedAt < :end ORDER BY t.loggedAt DESC")

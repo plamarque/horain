@@ -65,13 +65,6 @@ public class TimeLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<TimeLogDto> findUpdatedAfter(Instant after) {
-        return timeLogRepository.findByUpdatedAtAfter(after).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public List<TimeLogDto> findRecentLogs(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 50);
         List<TimeLog> logs = timeLogRepository.findTop50ByOrderByLoggedAtDesc();
