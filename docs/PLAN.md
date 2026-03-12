@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Slice 5 — CI avec tests avant déploiement. Alignement documentation.
+Slice 5 clôturée. Prochaine phase au choix (slice 6 optionnelle, ou différé ISSUES.md).
 
 ## État actuel (codebase)
 
@@ -21,7 +21,7 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 | 2 | Tools + Supabase (integrated in backend) | Done |
 | 3 | Backend agent + tool calling | Done |
 | 4 | Voice (push-to-talk, STT) | Done |
-| 5 | Full flow + e2e tests + CI/CD | In progress |
+| 5 | Full flow + e2e tests + CI/CD | Done |
 | 6 | PWA + stores (optional) | PWA Done, stores optional |
 
 ## Tasks (Slice 1)
@@ -59,7 +59,7 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 
 - [x] End-to-end flow: voice → transcript → agent → tools → confirmation
 - [x] Playwright e2e tests
-- [ ] CI: run backend tests + e2e before deploy (deploy.yml)
+- [x] CI: run backend tests + e2e before deploy (deploy.yml); releases (tag v*) run same tests before creating GitHub release (release.yml)
 - [x] GitHub Actions deploy (frontend → Pages, backend → Cloud Run)
 
 ## Tasks (Slice 6)
