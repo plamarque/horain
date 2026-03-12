@@ -21,7 +21,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ### Input bar
 
-- **Text input** with placeholder "Ask anything" — user types directly. Enter inserts a new line (multi-line input); sending is only via the Send button (avoids accidental send on mobile when the keyboard Enter is pressed).
+- **Text input** with placeholder "Ask anything" — behaviour depends on device (detected via `(hover: hover)`). **Desktop:** Enter sends, Shift+Enter inserts new line; after send, focus returns to the input. **Mobile:** Enter inserts new line only; sending is via the Send button; after send, input is blurred so the on-screen keyboard closes.
 - **Send button** (outline arrow up icon) — appears when text is entered; click to send. Same style and dimensions as the mic button. Positioned to the right of the mic (rightmost) for easy one-handed tap.
 - **Stop button** — replaces Send during processing; click to cancel the in-flight request. Restores focus to the input field. No data is modified on cancel.
 - **Microphone icon** — click to start recording. During recording, the input area is replaced by a waveform (no real-time transcript). Two buttons appear: **Cancel** (X) and **Confirm** (checkmark). Cancel aborts and returns to input. Confirm triggers transcription (with brief “Transcribing…” indicator if needed); the transcript is inserted at the caret position in the input (appending, not replacing existing text). User edits if desired and sends via the Send button.
@@ -41,7 +41,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 
 ### Typical flow
 
-1. User types in the field and sends via the Send button (Enter adds a new line); or clicks the mic, speaks, confirms (checkmark), waits for transcription, edits the inserted text if desired, then sends via the Send button.
+1. User types in the field and sends via Enter (desktop) or the Send button (both); on mobile, Enter adds a new line only. Or clicks the mic, speaks, confirms (checkmark), waits for transcription, edits the inserted text if desired, then sends via the Send button.
 2. Voice is transcribed; the transcript is inserted into the input at the caret position.
 3. Transcript (possibly edited) appears in the conversation when the user sends.
 4. Agent analyzes, optionally calls MCP tools.

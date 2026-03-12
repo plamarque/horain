@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import AudioWaveform from './AudioWaveform.vue'
 import {
   startListening,
@@ -17,6 +17,22 @@ const emit = defineEmits<{
   stop: []
   permissionError: [message: string]
 }>()
+
+/** Desktop: Enter sends, Shift+Enter newline, refocus after send. Mobile: Enter newline, send via button only, blur after send. */
+const isDesktop = ref(false)
+const DESKTOP_MEDIA = '(hover: hover)'
+let mediaQuery: MediaQueryList | null = null
+let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
+
+onMounted(() => {
+  mediaQuery = window.matchMedia(DESKTOP_MEDIA)
+  isDesktop.value = mediaQuery.matches
+  mediaListener = (e: MediaQueryListEvent) => { isDesktop.value = e.matches }
+  mediaQuery.addEventListener('change', mediaListener)
+})
+onUnmounted(() => {
+  if (mediaQuery && mediaListener) mediaQuery.removeEventListener('change', mediaListener)
+})
 
 type VoiceState = 'idle' | 'recording' | 'transcribing'
 const voiceState = ref<VoiceState>('idle')
@@ -133,7 +149,15 @@ function submitText() {
   if (t) {
     emit('submit', t)
     inputText.value = ''
-    inputEl.value?.blur()
+    if (!isDesktop.value) inputEl.value?.blur()
+  }
+}
+
+function onEnterKey(e: KeyboardEvent) {
+  if (e.key !== 'Enter' || e.shiftKey) return
+  if (isDesktop.value) {
+    e.preventDefault()
+    submitText()
   }
 }
 
@@ -158,6 +182,7 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
           class="text-input"
           rows="1"
           :disabled="disabled"
+          @keydown="onEnterKey"
           @input="resizeTextarea"
         />
         <button

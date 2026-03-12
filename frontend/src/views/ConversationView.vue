@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
@@ -52,13 +52,34 @@ const editingEntry = ref<TimeLogEntry | null>(null)
 const editingProjectId = ref<string | null>(null)
 const recentLogs = ref<TimeLogEntry[]>([])
 
+/** Desktop: refocus input when assistant finishes so user can type without clicking. Mobile: no refocus (keyboard would reopen). */
+const isDesktop = ref(false)
+const DESKTOP_MEDIA = '(hover: hover)'
+let mediaQuery: MediaQueryList | null = null
+let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
+
 onMounted(async () => {
+  mediaQuery = window.matchMedia(DESKTOP_MEDIA)
+  isDesktop.value = mediaQuery.matches
+  mediaListener = (e: MediaQueryListEvent) => { isDesktop.value = e.matches }
+  mediaQuery.addEventListener('change', mediaListener)
+
   if (messages.value.length > 0) return
   try {
     const logs = await getRecentTimeLogs(5)
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
+  }
+})
+onUnmounted(() => {
+  if (mediaQuery && mediaListener) mediaQuery.removeEventListener('change', mediaListener)
+})
+
+watch(isProcessing, async (now, was) => {
+  if (was === true && now === false && isDesktop.value) {
+    await nextTick()
+    inputRef.value?.focusInput()
   }
 })
 
