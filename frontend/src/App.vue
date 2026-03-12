@@ -85,6 +85,17 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* PWA standalone: keep content above home indicator / gesture bar */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+@media (max-width: 600px) {
+  .app {
+    /* Fallback when env(safe-area-inset-bottom) is 0 (e.g. some Android) */
+    padding-bottom: max(34px, env(safe-area-inset-bottom));
+  }
 }
 
 .header {

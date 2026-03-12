@@ -445,10 +445,7 @@ async function handleResetSeed() {
 
 .input-area {
   flex-shrink: 0;
-  padding: 1rem
-    max(0.75rem, env(safe-area-inset-right))
-    max(1rem, env(safe-area-inset-bottom))
-    max(0.75rem, env(safe-area-inset-left));
+  padding: 1rem max(0.75rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   display: flex;
   gap: 0.75rem;
   align-items: flex-end;
@@ -456,15 +453,14 @@ async function handleResetSeed() {
   background: #0f0f1a;
 }
 
-/* Mobile: keep input bar always visible, extra bottom padding for gesture bar and rounded corners */
+/* Mobile: keep input bar above gesture bar; extra bottom padding when safe-area is 0 (e.g. some Android PWA) */
 @media (max-width: 600px) {
   .input-area {
     position: sticky;
     bottom: 0;
     left: 0;
     right: 0;
-    /* Fallback 34px when env() is 0 (some Android report no safe-area) */
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom), 34px);
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom), 40px);
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
   }
