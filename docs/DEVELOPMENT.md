@@ -149,6 +149,8 @@ Les descriptions sont dans `promptfooconfig.yaml` et dans les YAML sous `promptf
 
 **Erreur « No configuration file found at promptfoo/promptfooconfig.deterministic.yaml » :** le chemin est résolu par rapport au répertoire courant. Depuis le dépôt, lancer `npm run eval:deterministic` (CWD = racine) ou `./scripts/run-promptfoo-eval.sh --deterministic-only`. Si vous êtes dans `promptfoo/`, utiliser `-c promptfooconfig.deterministic.yaml` (sans préfixe `promptfoo/`).
 
+**Erreur 429 (rate limit OpenAI) en CI :** le backend retente automatiquement les appels OpenAI en cas de 429 (jusqu'à 5 fois, avec délai indiqué par l'API ou 2 s par défaut). Le script utilise `--max-concurrency 2` pour les evals déterministes afin de limiter le pic de requêtes. En cas de limite TPM stricte : `./scripts/run-promptfoo-eval.sh --deterministic-only --max-concurrency 1`.
+
 **Rapport et relance des échecs :**
 - Générer un rapport HTML : `./scripts/run-promptfoo-eval.sh --deterministic-only --output report.html` (fichier créé dans `promptfoo/`).
 - Relancer uniquement les tests qui ont échoué lors d’un run précédent : il faut d’abord exporter en JSON (ex. `--output results.json`), puis `--filter-failing-only results.json` (ou `--filter-failing results.json`). Les options `--filter-failing` et `--filter-failing-only` exigent donc un chemin vers un fichier de résultats ou un eval ID.

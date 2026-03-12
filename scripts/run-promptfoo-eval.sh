@@ -87,12 +87,15 @@ if [ -f "$PROMPTFOO_ENV" ]; then
 fi
 
 # Parse mode: --deterministic-only (no scored) or --scored (full run with rate limit)
+# Use lower concurrency to avoid OpenAI 429 (TPM limit) when many evals run in parallel.
 PROMPTFOO_ARGS=()
 CONFIG_FILE="promptfooconfig.yaml"
 while [ $# -gt 0 ]; do
   case "$1" in
     --deterministic-only)
       CONFIG_FILE="promptfooconfig.deterministic.yaml"
+      # Reduce burst on backend/OpenAI (default promptfoo concurrency is 4)
+      PROMPTFOO_ARGS+=(--max-concurrency 2)
       shift
       ;;
     --scored)

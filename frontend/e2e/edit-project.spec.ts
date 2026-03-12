@@ -82,10 +82,10 @@ test('delete project via natural language', async ({ page }) => {
   await input.fill('yes, delete the entry first')
   await input.press('Enter')
 
-  // Expect latest assistant message: deletion done, or still "don't have" (if project wasn't found in turn 1)
+  // Wait for the second response (deletion can take several tool calls); then expect success or not-found wording
   const turn2Bubble = page.locator('.bubble.assistant').last()
-  await expect(turn2Bubble).toBeVisible({ timeout: 10000 })
   await expect(turn2Bubble).toContainText(
-    /deleted|removed|done|finished|completed|don't have|not found|nothing to delete/i
+    /deleted|removed|done|finished|completed|don't have|not found|nothing to delete/i,
+    { timeout: 20000 }
   )
 })

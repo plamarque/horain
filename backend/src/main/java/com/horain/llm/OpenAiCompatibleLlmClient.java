@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -21,6 +22,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * LLM client for OpenAI-compatible APIs (OpenAI, OpenRouter, LiteLLM, etc.).
@@ -29,6 +32,14 @@ import java.util.function.Consumer;
 public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
 
     private static final int STREAM_TIMEOUT_SECONDS = 120;
+    /** Max retries when OpenAI returns 429 (rate limit). */
+    private static final int MAX_RETRIES_429 = 5;
+    /** Default delay in ms when 429 body does not specify retry-after. */
+    private static final long DEFAULT_RETRY_DELAY_MS = 2000L;
+    /** Cap retry delay to avoid excessive wait. */
+    private static final long MAX_RETRY_DELAY_MS = 60_000L;
+    /** OpenAI error message pattern: "Please try again in 744ms". */
+    private static final Pattern RETRY_AFTER_MS = Pattern.compile("try again in (\\d+)ms", Pattern.CASE_INSENSITIVE);
 
     private final String baseUrl;
     private final String apiKey;
@@ -63,8 +74,27 @@ public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-        return parseResponse(response.getBody());
+
+        HttpClientErrorException last429 = null;
+        for (int attempt = 0; attempt <= MAX_RETRIES_429; attempt++) {
+            try {
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                return parseResponse(response.getBody());
+            } catch (HttpClientErrorException.TooManyRequests e) {
+                last429 = e;
+                if (attempt == MAX_RETRIES_429) {
+                    break;
+                }
+                long delayMs = parseRetryAfterMs(e.getResponseBodyAsString());
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for rate limit", ie);
+                }
+            }
+        }
+        throw last429 != null ? last429 : new RuntimeException("Unexpected error in chat");
     }
 
     @Override
@@ -221,6 +251,22 @@ public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
             body.set("tools", toolsArray);
         }
         return body;
+    }
+
+    /**
+     * Parse delay in ms from OpenAI 429 response body (e.g. "Please try again in 744ms").
+     * Returns DEFAULT_RETRY_DELAY_MS if not found, capped by MAX_RETRY_DELAY_MS.
+     */
+    private static long parseRetryAfterMs(String body) {
+        if (body == null || body.isBlank()) {
+            return DEFAULT_RETRY_DELAY_MS;
+        }
+        Matcher m = RETRY_AFTER_MS.matcher(body);
+        if (m.find()) {
+            long ms = Long.parseLong(m.group(1));
+            return Math.min(Math.max(ms, 100L), MAX_RETRY_DELAY_MS);
+        }
+        return DEFAULT_RETRY_DELAY_MS;
     }
 
     private LlmResponse parseResponse(String json) {
