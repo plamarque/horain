@@ -82,8 +82,9 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
+    // Assert confirmation in the last assistant message content (not project cards)
     await expect(
-      page.getByText(/logged|created|minutes|HatCast/i)
+      page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|minutes|HatCast/i)
     ).toBeVisible({ timeout: 5000 })
   })
 

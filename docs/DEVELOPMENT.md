@@ -60,6 +60,8 @@ npm run test:e2e
 
 Playwright construit le frontend et le sert sur 4173. Les tests appellent le backend sur 8080 (seed, API projects/time-logs).
 
+**Script tout-en-un :** `./scripts/run-tests.sh` démarre le backend si besoin, attend qu’il soit prêt, lance les e2e puis arrête le backend. Si tous les tests passent, le script quitte avec le code 0. Un message Maven « BUILD FAILURE » peut apparaître à la fin lors de l’arrêt du backend ; c’est attendu et peut être ignoré.
+
 ### CI (.github/workflows/deploy.yml)
 
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :

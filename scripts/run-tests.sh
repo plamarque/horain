@@ -15,6 +15,9 @@ BACKEND_PID=""
 cleanup_backend() {
   if [ -n "$BACKEND_PID" ]; then
     kill $BACKEND_PID 2>/dev/null || true
+    # Wait for backend to shut down so Maven does not print BUILD FAILURE after the script exits.
+    # Ignore backend exit code: we care only about e2e result.
+    wait $BACKEND_PID 2>/dev/null || true
   fi
 }
 
