@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { ref, provide } from 'vue'
 import ConversationView from './views/ConversationView.vue'
+import ProjectsView from './views/ProjectsView.vue'
+import ProjectEditModal from './components/ProjectEditModal.vue'
 
 // Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__
@@ -12,6 +15,28 @@ const versionDisplay =
 function refreshApp(): void {
   window.location.reload()
 }
+
+type View = 'conversation' | 'projects'
+const view = ref<View>('conversation')
+const editingProjectId = ref<string | null>(null)
+
+function openProjectEdit(projectId: string) {
+  editingProjectId.value = projectId
+}
+
+provide<((projectId: string) => void)>('openProjectEdit', openProjectEdit)
+
+function onProjectModalClose() {
+  editingProjectId.value = null
+}
+
+function onProjectSaved() {
+  editingProjectId.value = null
+  window.dispatchEvent(new CustomEvent('horain:projectSaved'))
+}
+
+provide<string>('versionDisplay', versionDisplay)
+provide<() => void>('refreshApp', refreshApp)
 </script>
 
 <template>
@@ -21,19 +46,35 @@ function refreshApp(): void {
         <h1>Horain</h1>
         <span class="tagline">Voice-first time logging</span>
       </div>
-      <button
-        type="button"
-        class="version"
-        title="Refresh app"
-        aria-label="Refresh app"
-        @click="refreshApp"
-      >
-        {{ versionDisplay }}
-      </button>
+      <div class="header-right">
+        <button
+          v-if="view === 'conversation'"
+          type="button"
+          class="header-link"
+          @click="view = 'projects'"
+        >
+          Projects
+        </button>
+        <button
+          v-else
+          type="button"
+          class="header-link"
+          @click="view = 'conversation'"
+        >
+          Back
+        </button>
+      </div>
     </header>
     <main class="main">
-      <ConversationView />
+      <ConversationView v-show="view === 'conversation'" />
+      <ProjectsView v-show="view === 'projects'" />
     </main>
+    <ProjectEditModal
+      v-if="editingProjectId"
+      :project-id="editingProjectId"
+      @close="onProjectModalClose"
+      @saved="onProjectSaved"
+    />
   </div>
 </template>
 
@@ -114,10 +155,16 @@ body {
   color: #8888a0;
 }
 
-.version {
-  font-size: 0.7rem;
-  color: #6a6a80;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex-shrink: 0;
+}
+
+.header-link {
+  font-size: 0.8rem;
+  color: #6a6a80;
   background: none;
   border: none;
   padding: 0;
@@ -125,7 +172,7 @@ body {
   cursor: pointer;
 }
 
-.version:hover {
+.header-link:hover {
   color: #8888a0;
 }
 
@@ -134,5 +181,6 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 </style>

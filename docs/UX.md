@@ -17,7 +17,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ### Header
 
 - App name "Horain" and tagline on the left.
-- **Version** (e.g. v0.2.1 or v0.2.1-SNAPSHOT (sha)) on the right. The version label is a clickable control: **Refresh app** — tap or click to reload the application and pick up the latest PWA update.
+- On the right: **Projects** link (opens the Projects view: project cards with a pen icon to edit each project; **Back** in the header returns to the conversation). The **version** (e.g. v0.2.1 or v0.2.1-SNAPSHOT (sha)) is shown in very small text on the **same line as the seed icon** (below the input bar), without a border; it is clickable (**Refresh app**) to reload the application and pick up the latest PWA update.
 
 ### Input bar
 
@@ -30,13 +30,13 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ### Conversation timeline
 
 - Chronological thread of messages.
-- **Initial state:** On first load, when the thread is empty, the app fetches the 5 most recent logged activities via API (no LLM call) and displays them in the same flip-card format as conversation entries. This gives the user immediate context of where they left off. If no entries exist or the API fails, a placeholder with example phrasing is shown instead.
+- **Initial state:** On first load, when the thread is empty, the app fetches the 8 most recent logged activities via API (no LLM call) and displays them in the same flip-card format as conversation entries. This gives the user immediate context of where they left off. If no entries exist or the API fails, a placeholder with example phrasing is shown instead.
 - **Scroll behavior:** When a new assistant message arrives, if the user was at the bottom of the thread, auto-scroll to the new message. If the user had scrolled up (e.g. reading earlier content while the agent was responding), do not auto-scroll; show a floating "New message" indicator that lets them jump to the latest response.
 - **Gap:** Padding at the bottom of the timeline so content does not appear hidden below the input area.
 - **User message:** Transcription of what the user said.
 - **Assistant response:** Text reply, confirmations, clarification questions. Assistant messages show the Horain icon (triskelion) next to a violet-toned bubble so it is clear who is speaking. Responses can **stream** (text appears progressively as the agent generates it); a blinking cursor indicates streaming. If the backend does not support streaming, the full message appears at once. **Feedback (thumb up / thumb down):** Below each assistant message, two buttons allow the user to rate the response. Feedback is collected to improve the assistant and to feed the eval pipeline (see EVALS.md); it is stored in the backend and can be exported for triage and promotion into Promptfoo tests.
 - **Action confirmations:** e.g. "I recorded 30 minutes on HatCast. Note: work on the player selection algorithm." When the user creates or updates a time entry, the message is followed by the same flip-card list as when listing entries, so the user can verify that the action was correctly captured and can select, edit or delete it if needed. Double-click on a card opens the entry edit modal (Save, Cancel, Delete with confirmation).
-- **Activity cards layout:** Log entries are shown as **flip cards** below the message bubble (mobile-friendly). **Recto:** date, duration, project name, with a background colour derived from the project. **Verso:** dollar icon ($) if the entry is billable, and the note. Tap/click flips the card and adds the entry to context when applicable. **Double-click on the project name** (on the recto) opens the **project** edit modal (name, description, Facturable). **Double-click on the card** opens the **entry** edit modal (duration, note, Facturable, date). A “+N more” button expands the list when there are many entries.
+- **Activity cards layout:** Log entries are shown as **flip cards** below the message bubble (mobile-friendly). **Recto:** date, duration, project name, with a background colour derived from the project. **Verso:** dollar icon ($) if the entry is billable, and the note. Tap/click flips the card and adds the entry to context when applicable. **Right-click** (desktop) or **long-press** (mobile) on a card opens a context menu with "Edit entry" and "Edit project". **Double-click on the project name** (on the recto) opens the **project** edit modal (name, description, Facturable). **Double-click on the card** opens the **entry** edit modal (duration, note, Facturable, date). A “+N more” button expands the list when there are many entries.
 - **Chart layout:** Charts (pie, bar, etc.) are displayed full-width below the message bubble, not inside it, for a larger and clearer visualization. Charts can show billable vs non-billable time (e.g. pie "Facturé / Non facturé") when the user asks for that breakdown.
 
 ### Typical flow

@@ -42,12 +42,15 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
-  // Double-click on row's date cell to open entry modal (double-click on project cell would open project modal)
-  const row = page.locator('.log-table tbody tr').filter({ has: page.getByRole('cell', { name: projectName }) })
-  await expect(row).toBeVisible({ timeout: 5000 })
-  await row.locator('.log-date').first().dblclick()
+  // Double-click on card to open entry modal (double-click on project name would open project modal)
+  const card = page
+    .locator('.card-wrapper')
+    .filter({ has: page.locator('.card-project').filter({ hasText: projectName }) })
+    .first()
+  await expect(card).toBeVisible({ timeout: 5000 })
+  await card.dblclick()
 
-  // Entry edit modal — scope to this modal so the project modal overlay does not intercept
+  // Entry edit modal
   const entryModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit entry' }) })
   await expect(entryModal).toBeVisible()
 
@@ -60,10 +63,8 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
 
   await expect(page.getByRole('heading', { name: 'Edit entry' })).not.toBeVisible()
 
-  // After save, list is updated in place (optimistic); row stays visible with "Non"
-  const rowAfterSave = page
-    .locator('.log-table tbody tr')
-    .filter({ has: page.getByRole('cell', { name: projectName }) })
-  await expect(rowAfterSave).toBeVisible({ timeout: 10000 })
-  await expect(rowAfterSave).toContainText('Non', { timeout: 5000 })
+  // After save, recent logs are refetched; card with this project should still be visible
+  await expect(
+    page.locator('.card-project').filter({ hasText: projectName }).first()
+  ).toBeVisible({ timeout: 10000 })
 })

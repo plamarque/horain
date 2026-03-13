@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test'
 import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
 
 /**
- * E2E: Edit a project via double-click on project name in the entry table.
- * Creates project and time log via API, then double-clicks on the project name cell
- * to open the project edit modal, changes the name, saves, and verifies the modal closes.
+ * E2E: Edit a project via context menu on a log card.
+ * Creates project and time log via API, then right-clicks on the card showing that project,
+ * chooses "Edit project", changes the name, saves, and verifies the modal closes and list updates.
  */
-test('edit project via double-click on project name in table', async ({ page, request }) => {
+test('edit project via context menu on card', async ({ page, request }) => {
   const projectName = uniqueProjectName('EditProjectModalE2E')
   const projectRes = await request.post(`${API_BASE}/projects`, {
     headers: {
@@ -43,15 +43,18 @@ test('edit project via double-click on project name in table', async ({ page, re
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
-  // Double-click on the project name cell (not the whole row) to open project edit modal
-  const projectNameCell = page
-    .locator('.log-table .log-project')
-    .filter({ hasText: projectName })
+  // Find the card that shows this project name (recto has .card-project)
+  const cardWithProject = page
+    .locator('.card-wrapper')
+    .filter({ has: page.locator('.card-project').filter({ hasText: projectName }) })
     .first()
-  await expect(projectNameCell).toBeVisible({ timeout: 5000 })
-  await projectNameCell.dblclick()
+  await expect(cardWithProject).toBeVisible({ timeout: 5000 })
 
-  // Project edit modal opens (not entry edit modal) — scope to this modal to avoid matching entry modal
+  // Right-click to open context menu, then click "Edit project"
+  await cardWithProject.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Edit project' }).click()
+
+  // Project edit modal opens
   const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
   await expect(projectModal).toBeVisible()
 
@@ -63,8 +66,82 @@ test('edit project via double-click on project name in table', async ({ page, re
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).not.toBeVisible()
 
-  // Table should show the updated project name (recent logs are refreshed on save)
+  // Cards should show the updated project name (recent logs are refreshed on save)
   await expect(
-    page.locator('.log-table .log-project').filter({ hasText: updatedName })
+    page.locator('.card-project').filter({ hasText: updatedName })
   ).toBeVisible({ timeout: 5000 })
+})
+
+/**
+ * E2E: Edit a project via double-click on project name on card (still supported).
+ */
+test('edit project via double-click on project name on card', async ({ page, request }) => {
+  const projectName = uniqueProjectName('EditProjectDblClickE2E')
+  const projectRes = await request.post(`${API_BASE}/projects`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: { name: projectName, description: 'e2e dblclick', billable: true },
+  })
+  if (!projectRes.ok()) {
+    throw new Error(`Project API failed (${projectRes.status()}). Ensure backend is running and API key matches.`)
+  }
+  const project = (await projectRes.json()) as { id: string }
+
+  await request.post(`${API_BASE}/time-logs`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: { projectId: project.id, durationMinutes: 10, note: 'e2e' },
+  })
+
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
+  await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
+
+  const projectNameOnCard = page.locator('.card-project').filter({ hasText: projectName }).first()
+  await expect(projectNameOnCard).toBeVisible({ timeout: 5000 })
+  await projectNameOnCard.dblclick()
+
+  const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
+  await expect(projectModal).toBeVisible()
+  await projectModal.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('heading', { name: 'Edit project' })).not.toBeVisible()
+})
+
+/**
+ * E2E: Open Projects view from header, open project edit via pen icon on card, save and close.
+ */
+test('edit project via Projects view (cards + pen icon)', async ({ page, request }) => {
+  const projectName = uniqueProjectName('EditViaListE2E')
+  const projectRes = await request.post(`${API_BASE}/projects`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: { name: projectName, description: 'e2e list edit', billable: true },
+  })
+  if (!projectRes.ok()) {
+    throw new Error(`Project API failed (${projectRes.status()}). Ensure backend is running and API key matches.`)
+  }
+
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Projects' }).click()
+
+  const projectCard = page.locator('.project-card').filter({ hasText: projectName }).first()
+  await expect(projectCard).toBeVisible({ timeout: 5000 })
+  await projectCard.getByRole('button', { name: 'Edit project' }).click()
+
+  const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
+  await expect(projectModal).toBeVisible()
+
+  const updatedName = `${projectName}-FromList`
+  await projectModal.getByLabel('Name').fill(updatedName)
+  await projectModal.getByRole('button', { name: 'Save' }).click()
+
+  await expect(projectModal).not.toBeVisible()
 })

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, inject } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
-import ProjectEditModal from '../components/ProjectEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
+
+const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
+const versionDisplay = inject<string>('versionDisplay', '')
+const refreshApp = inject<() => void>('refreshApp', () => {})
 
 const MAX_CONTEXT_ENTRIES = 5
 const MAX_AUTO_CONTEXT_ENTRIES = 10
@@ -49,7 +52,6 @@ const timelineRef = ref<InstanceType<typeof ConversationTimeline> | null>(null)
 const hasNewMessageBelow = ref(false)
 const selectedEntries = ref<TimeLogEntry[]>([])
 const editingEntry = ref<TimeLogEntry | null>(null)
-const editingProjectId = ref<string | null>(null)
 const recentLogs = ref<TimeLogEntry[]>([])
 
 /** Desktop: refocus input when assistant finishes so user can type without clicking. Mobile: no refocus (keyboard would reopen). */
@@ -58,15 +60,27 @@ const DESKTOP_MEDIA = '(hover: hover)'
 let mediaQuery: MediaQueryList | null = null
 let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
 
+function refetchRecentLogs() {
+  getRecentTimeLogs(8)
+    .then((logs) => { recentLogs.value = logs })
+    .catch(() => { /* keep current recentLogs */ })
+}
+
+function onProjectSaved() {
+  refetchRecentLogs()
+}
+
 onMounted(async () => {
   mediaQuery = window.matchMedia(DESKTOP_MEDIA)
   isDesktop.value = mediaQuery.matches
   mediaListener = (e: MediaQueryListEvent) => { isDesktop.value = e.matches }
   mediaQuery.addEventListener('change', mediaListener)
 
+  window.addEventListener('horain:projectSaved', onProjectSaved)
+
   if (messages.value.length > 0) return
   try {
-    const logs = await getRecentTimeLogs(5)
+    const logs = await getRecentTimeLogs(8)
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -74,6 +88,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   if (mediaQuery && mediaListener) mediaQuery.removeEventListener('change', mediaListener)
+  window.removeEventListener('horain:projectSaved', onProjectSaved)
 })
 
 watch(isProcessing, async (now, was) => {
@@ -100,21 +115,7 @@ function handleEditEntry(entry: TimeLogEntry) {
 }
 
 function handleEditProject(entry: TimeLogEntry) {
-  if (entry.projectId) editingProjectId.value = entry.projectId
-}
-
-function handleProjectModalClose() {
-  editingProjectId.value = null
-}
-
-async function handleProjectSaved() {
-  editingProjectId.value = null
-  try {
-    const logs = await getRecentTimeLogs(5)
-    recentLogs.value = logs
-  } catch {
-    // keep current recentLogs
-  }
+  if (entry.projectId && openProjectEdit) openProjectEdit(entry.projectId)
 }
 
 function handleRemoveFromContext(entry: TimeLogEntry) {
@@ -137,7 +138,7 @@ async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
   editingEntry.value = null
   if (!patch?.id) {
     try {
-      const logs = await getRecentTimeLogs(5)
+      const logs = await getRecentTimeLogs(8)
       recentLogs.value = logs
     } catch {
       // keep current recentLogs
@@ -157,7 +158,7 @@ async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
     })
   }
   try {
-    const logs = await getRecentTimeLogs(5)
+    const logs = await getRecentTimeLogs(8)
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -288,7 +289,7 @@ async function handleSubmit(text: string) {
             addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId)
           }
           streamingMessageId.value = null
-          getRecentTimeLogs(5).then((logs) => { recentLogs.value = logs }).catch(() => {})
+          getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
         },
         onError(err) {
           if ((err as Error).name === 'AbortError') return
@@ -318,7 +319,7 @@ async function handleSubmit(text: string) {
           : undefined
         const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
         addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId)
-        getRecentTimeLogs(5).then((logs) => { recentLogs.value = logs }).catch(() => {})
+        getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {
         if ((fallbackErr as Error).name === 'AbortError') return
         const msg = (fallbackErr as Error).message
@@ -349,7 +350,7 @@ async function handleResetSeed() {
   isSeeding.value = true
   try {
     await resetDevSeed()
-    const logs = await getRecentTimeLogs(5)
+    const logs = await getRecentTimeLogs(8)
     recentLogs.value = logs
     // Clear conversation so the default view shows "Dernières activités" like on app launch
     messages.value = []
@@ -402,18 +403,29 @@ async function handleResetSeed() {
           @stop="handleStop"
           @permission-error="handlePermissionError"
         />
-        <p v-if="isDev" class="input-footer">
+        <p class="input-footer">
+          <template v-if="isDev">
+            <button
+              class="seed-icon-btn"
+              :disabled="isProcessing || isSeeding"
+              title="Reset seed (dev): clear DB and reload seed"
+              aria-label="Reset seed"
+              @click="handleResetSeed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22v-4" />
+                <path d="M12 4a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z" />
+              </svg>
+            </button>
+          </template>
           <button
-            class="seed-icon-btn"
-            :disabled="isProcessing || isSeeding"
-            title="Reset seed (dev): clear DB and reload seed"
-            aria-label="Reset seed"
-            @click="handleResetSeed"
+            type="button"
+            class="version-inline"
+            title="Refresh app"
+            aria-label="Refresh app"
+            @click="refreshApp()"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22v-4" />
-              <path d="M12 4a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z" />
-            </svg>
+            {{ versionDisplay }}
           </button>
         </p>
       </div>
@@ -424,12 +436,6 @@ async function handleResetSeed() {
       @close="handleEditModalClose"
       @saved="handleEditSaved"
       @deleted="handleEntryDeleted"
-    />
-    <ProjectEditModal
-      v-if="editingProjectId"
-      :project-id="editingProjectId"
-      @close="handleProjectModalClose"
-      @saved="handleProjectSaved"
     />
   </div>
 </template>
@@ -514,6 +520,21 @@ async function handleResetSeed() {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
+}
+
+.version-inline {
+  padding: 0;
+  margin: 0;
+  font-size: 0.6rem;
+  color: #5a5a70;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.version-inline:hover {
+  color: #8888a0;
 }
 
 .seed-icon-btn {

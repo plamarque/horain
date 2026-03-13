@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import type { TimeLogEntry } from '../types'
 
-const INITIAL_SHOWN = 6
+const INITIAL_SHOWN = 8
+const LONG_PRESS_MS = 500
 
 // Stable palette for project-based card background (readable with white text)
 const PROJECT_COLORS = [
@@ -35,6 +36,117 @@ const emit = defineEmits<{
 
 const flippedIds = ref<Set<string>>(new Set())
 
+// Context menu (right-click or long-press)
+const contextMenuEntry = ref<TimeLogEntry | null>(null)
+const contextMenuPosition = ref<{ x: number; y: number }>({ x: 0, y: 0 })
+const contextMenuVisible = ref(false)
+const contextMenuRef = ref<HTMLElement | null>(null)
+let closeContextMenuOnDocClick: ((e: Event) => void) | null = null
+
+// Long-press: suppress the following click so we don't flip/select after opening menu
+const longPressSuppressClick = ref(false)
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let longPressTouchEntry: TimeLogEntry | null = null
+const lastTouchPosition = ref<{ x: number; y: number }>({ x: 0, y: 0 })
+
+function openContextMenu(entry: TimeLogEntry, x: number, y: number) {
+  contextMenuEntry.value = entry
+  contextMenuPosition.value = { x, y }
+  contextMenuVisible.value = true
+  // Close on document click only when the click is outside the context menu (so clicking a menuitem still works)
+  closeContextMenuOnDocClick = (e: Event) => {
+    const menuEl = contextMenuRef.value
+    const target = e.target as Node
+    if (menuEl && (e.target === menuEl || menuEl.contains(target))) {
+      return
+    }
+    closeContextMenu()
+    document.removeEventListener('click', closeContextMenuOnDocClick!, true)
+    closeContextMenuOnDocClick = null
+  }
+  document.addEventListener('click', closeContextMenuOnDocClick, true)
+}
+
+function closeContextMenu() {
+  contextMenuVisible.value = false
+  contextMenuEntry.value = null
+  if (closeContextMenuOnDocClick) {
+    document.removeEventListener('click', closeContextMenuOnDocClick, true)
+    closeContextMenuOnDocClick = null
+  }
+}
+
+function onContextMenu(entry: TimeLogEntry, e: MouseEvent) {
+  e.preventDefault()
+  openContextMenu(entry, e.clientX, e.clientY)
+}
+
+function onContextMenuKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+function onEditEntryFromMenu() {
+  const entry = contextMenuEntry.value
+  if (entry) {
+    closeContextMenu()
+    emit('editEntry', entry)
+  }
+}
+
+function onEditProjectFromMenu() {
+  const entry = contextMenuEntry.value
+  if (entry?.projectId) {
+    closeContextMenu()
+    emit('editProject', entry)
+  }
+}
+
+function onTouchStart(entry: TimeLogEntry, e: TouchEvent) {
+  longPressTouchEntry = entry
+  if (e.touches.length > 0) {
+    lastTouchPosition.value = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null
+    if (longPressTouchEntry) {
+      const { x, y } = lastTouchPosition.value
+      longPressSuppressClick.value = true
+      setTimeout(() => { longPressSuppressClick.value = false }, 100)
+      openContextMenu(longPressTouchEntry, x, y)
+      longPressTouchEntry = null
+    }
+  }, LONG_PRESS_MS)
+}
+
+function onTouchMove() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+  longPressTouchEntry = null
+}
+
+function onTouchEnd() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+  longPressTouchEntry = null
+}
+
+watch(contextMenuVisible, (visible) => {
+  if (visible) {
+    nextTick(() => contextMenuRef.value?.focus())
+  }
+})
+
+onUnmounted(() => {
+  if (longPressTimer) clearTimeout(longPressTimer)
+  if (closeContextMenuOnDocClick) {
+    document.removeEventListener('click', closeContextMenuOnDocClick, true)
+  }
+})
+
 function toggleFlip(entry: TimeLogEntry) {
   const id = entry.id ?? ''
   if (!id) return
@@ -50,6 +162,7 @@ function isFlipped(entry: TimeLogEntry): boolean {
 }
 
 function onCardClick(entry: TimeLogEntry, e: MouseEvent) {
+  if (longPressSuppressClick.value) return
   if (e.detail === 2) {
     emit('editEntry', entry)
     return
@@ -116,6 +229,11 @@ const moreCount = computed(
         :class="{ 'card-wrapper--flipped': isFlipped(entry) }"
         @click="onCardClick(entry, $event)"
         @dblclick="emit('editEntry', entry)"
+        @contextmenu.prevent="onContextMenu(entry, $event)"
+        @touchstart.passive="onTouchStart(entry, $event)"
+        @touchmove="onTouchMove"
+        @touchend="onTouchEnd"
+        @touchcancel="onTouchEnd"
       >
         <div class="card-inner">
           <div
@@ -148,6 +266,34 @@ const moreCount = computed(
     >
       +{{ moreCount }} more
     </button>
+    <!-- Context menu (right-click or long-press): Edit entry / Edit project -->
+    <div
+      v-if="contextMenuVisible && contextMenuEntry"
+      ref="contextMenuRef"
+      class="context-menu"
+      role="menu"
+      tabindex="-1"
+      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+      @keydown.esc="onContextMenuKeydown"
+    >
+      <button
+        type="button"
+        role="menuitem"
+        class="context-menu-item"
+        @click="onEditEntryFromMenu"
+      >
+        Edit entry
+      </button>
+      <button
+        v-if="contextMenuEntry?.projectId"
+        type="button"
+        role="menuitem"
+        class="context-menu-item"
+        @click="onEditProjectFromMenu"
+      >
+        Edit project
+      </button>
+    </div>
   </div>
 </template>
 
@@ -270,6 +416,34 @@ const moreCount = computed(
 
 .show-more:hover {
   color: #8bc34a;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 1001;
+  min-width: 140px;
+  padding: 0.25rem 0;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  outline: none;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #e8e8f0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: #2a2a3e;
 }
 
 @media (max-width: 520px) {

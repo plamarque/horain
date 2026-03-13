@@ -3,7 +3,7 @@ import { API_BASE, API_KEY } from './e2eEnv'
 
 /**
  * E2E: Recent activities displayed on launch.
- * When the conversation is empty, the app shows the 5 most recent logged activities
+ * When the conversation is empty, the app shows the 8 most recent logged activities
  * (fetched via API, no LLM call). If no data exists, a placeholder is shown.
  *
  * Uses dev seed API to populate data (no LLM) for reliability.
@@ -40,7 +40,7 @@ test('recent activities displayed on launch when data exists', async ({
   })
   await expect(
     page
-      .locator('.log-table')
+      .locator('.log-entries-bubble')
       .getByText(/Horain|HatCast|Chrono|Festibask|Meeds|Weather/i)
       .first()
   ).toBeVisible({ timeout: 10000 })

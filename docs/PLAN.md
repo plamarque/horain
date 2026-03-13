@@ -30,7 +30,7 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 - [x] Implement minimal conversation UI (thread, messages)
 - [x] Push-to-talk button (Web Speech API)
 - [x] Layout and styling (mobile-first)
-- [x] Display 5 recent activities on launch (API direct, no LLM)
+- [x] Display 8 recent activities on launch (API direct, no LLM)
 
 *Note: PrimeVue non utilisé ; UI custom conforme à UX.md.*
 
