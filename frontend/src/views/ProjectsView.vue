@@ -15,6 +15,12 @@ const PROJECT_COLORS = [
   '#c45c3a',
   '#7b5fa2',
   '#00838f',
+  '#b91c1c',
+  '#047857',
+  '#b45309',
+  '#6d28d9',
+  '#be185d',
+  '#0e7490',
 ]
 
 function projectColor(project: ProjectDto): string {
