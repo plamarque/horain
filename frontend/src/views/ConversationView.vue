@@ -53,6 +53,7 @@ const hasNewMessageBelow = ref(false)
 const selectedEntries = ref<TimeLogEntry[]>([])
 const editingEntry = ref<TimeLogEntry | null>(null)
 const recentLogs = ref<TimeLogEntry[]>([])
+const isRefreshing = ref(false)
 
 /** Desktop: refocus input when assistant finishes so user can type without clicking. Mobile: no refocus (keyboard would reopen). */
 const isDesktop = ref(false)
@@ -61,9 +62,19 @@ let mediaQuery: MediaQueryList | null = null
 let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
 
 function refetchRecentLogs() {
-  getRecentTimeLogs(8)
+  return getRecentTimeLogs(8)
     .then((logs) => { recentLogs.value = logs })
     .catch(() => { /* keep current recentLogs */ })
+}
+
+async function handlePullRefresh() {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  try {
+    await refetchRecentLogs()
+  } finally {
+    isRefreshing.value = false
+  }
 }
 
 function onProjectSaved() {
@@ -371,10 +382,12 @@ async function handleResetSeed() {
       :is-processing="isProcessing"
       :has-streaming-bubble="hasStreamingBubble"
       :has-new-message-below="hasNewMessageBelow"
+      :refreshing="isRefreshing"
       @select-entry="handleSelectEntry"
       @edit-entry="handleEditEntry"
       @edit-project="handleEditProject"
       @indicator-clicked="handleIndicatorClicked"
+      @refresh="handlePullRefresh"
     />
     <div class="input-area">
       <div class="input-col">

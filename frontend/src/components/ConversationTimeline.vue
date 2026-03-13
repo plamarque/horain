@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import MessageBubble from './MessageBubble.vue'
 import LogEntriesBlock from './LogEntriesBlock.vue'
 import type { Message, TimeLogEntry } from '../types'
 
-defineProps<{
+const props = defineProps<{
   messages: Message[]
   recentLogs?: TimeLogEntry[]
   isProcessing?: boolean
   /** When true, a message has isStreaming; hide "Processing..." and show the streaming bubble. */
   hasStreamingBubble?: boolean
   hasNewMessageBelow?: boolean
+  /** True while parent is refreshing (e.g. refetching recent logs). */
+  refreshing?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -18,12 +20,18 @@ const emit = defineEmits<{
   editEntry: [entry: TimeLogEntry]
   editProject: [entry: TimeLogEntry]
   indicatorClicked: []
+  refresh: []
 }>()
 
 const BOTTOM_THRESHOLD = 100
+const PULL_THRESHOLD = 72
+const PULL_MAX = 100
+const PULL_RESISTANCE = 0.5
 
 const timelineEl = ref<HTMLDivElement | null>(null)
 const userAtBottom = ref(true)
+const pullDistance = ref(0)
+const touchStartY = ref<number | null>(null)
 
 function updateUserAtBottom() {
   const el = timelineEl.value
@@ -45,6 +53,56 @@ function handleIndicatorClick() {
   emit('indicatorClicked')
 }
 
+function atTop() {
+  const el = timelineEl.value
+  return el ? el.scrollTop <= 0 : false
+}
+
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length !== 1 || props.refreshing) return
+  if (atTop()) touchStartY.value = e.touches[0].clientY
+  else touchStartY.value = null
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (touchStartY.value === null || e.touches.length !== 1) return
+  const el = timelineEl.value
+  if (!el || el.scrollTop > 0) {
+    touchStartY.value = null
+    pullDistance.value = 0
+    return
+  }
+  const delta = e.touches[0].clientY - touchStartY.value
+  if (delta > 0) {
+    e.preventDefault()
+    pullDistance.value = Math.min(delta * PULL_RESISTANCE, PULL_MAX)
+  }
+}
+
+function onTouchEnd() {
+  if (pullDistance.value >= PULL_THRESHOLD && !props.refreshing) {
+    emit('refresh')
+  }
+  touchStartY.value = null
+  pullDistance.value = 0
+}
+
+onMounted(() => {
+  const el = timelineEl.value
+  if (!el) return
+  el.addEventListener('touchstart', onTouchStart, { passive: true })
+  el.addEventListener('touchmove', onTouchMove, { passive: false })
+  el.addEventListener('touchend', onTouchEnd, { passive: true })
+})
+
+onUnmounted(() => {
+  const el = timelineEl.value
+  if (!el) return
+  el.removeEventListener('touchstart', onTouchStart)
+  el.removeEventListener('touchmove', onTouchMove)
+  el.removeEventListener('touchend', onTouchEnd)
+})
+
 defineExpose({
   scrollToBottom,
   isUserAtBottom: () => userAtBottom.value,
@@ -53,6 +111,21 @@ defineExpose({
 
 <template>
   <div ref="timelineEl" class="timeline" @scroll="updateUserAtBottom">
+    <div
+      class="pull-indicator"
+      :class="{ 'pull-indicator--active': pullDistance > 0 || refreshing }"
+      :style="{ minHeight: pullDistance > 0 || refreshing ? `${Math.max(pullDistance, 48)}px` : '0' }"
+      aria-live="polite"
+      role="status"
+    >
+      <span v-if="refreshing" class="pull-indicator-text">
+        <span class="pull-spinner" aria-hidden="true" />
+        Refreshing…
+      </span>
+      <span v-else-if="pullDistance > 0" class="pull-indicator-text">
+        {{ pullDistance >= PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh' }}
+      </span>
+    </div>
     <div
       v-if="messages.length === 0 && !isProcessing"
       class="empty-state"
@@ -229,5 +302,43 @@ defineExpose({
 .new-message-indicator-arrow {
   font-size: 1rem;
   line-height: 1;
+}
+
+.pull-indicator {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: min-height 0.15s ease-out;
+}
+
+.pull-indicator--active .pull-indicator-text {
+  opacity: 1;
+}
+
+.pull-indicator-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #8888a0;
+  opacity: 0.9;
+}
+
+.pull-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #3a3a4e;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: pull-spin 0.7s linear infinite;
+}
+
+@keyframes pull-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

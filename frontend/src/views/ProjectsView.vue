@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, inject } from 'vue'
+import { ref, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import { getProjects } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
+
+const PULL_THRESHOLD = 72
+const PULL_MAX = 100
+const PULL_RESISTANCE = 0.5
 
 // Same palette and hash as LogEntriesBubble so project cards match log entry card colors
 const PROJECT_COLORS = [
@@ -27,6 +31,9 @@ const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const projects = ref<ProjectDto[]>([])
 const loading = ref(true)
 const error = ref('')
+const scrollEl = ref<HTMLDivElement | null>(null)
+const pullDistance = ref(0)
+const touchStartY = ref<number | null>(null)
 
 async function loadProjects() {
   loading.value = true
@@ -39,6 +46,40 @@ async function loadProjects() {
   } finally {
     loading.value = false
   }
+}
+
+function atTop() {
+  const el = scrollEl.value
+  return el ? el.scrollTop <= 0 : false
+}
+
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length !== 1 || loading.value) return
+  if (atTop()) touchStartY.value = e.touches[0].clientY
+  else touchStartY.value = null
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (touchStartY.value === null || e.touches.length !== 1) return
+  const el = scrollEl.value
+  if (!el || el.scrollTop > 0) {
+    touchStartY.value = null
+    pullDistance.value = 0
+    return
+  }
+  const delta = e.touches[0].clientY - touchStartY.value
+  if (delta > 0) {
+    e.preventDefault()
+    pullDistance.value = Math.min(delta * PULL_RESISTANCE, PULL_MAX)
+  }
+}
+
+function onTouchEnd() {
+  if (pullDistance.value >= PULL_THRESHOLD && !loading.value) {
+    loadProjects()
+  }
+  touchStartY.value = null
+  pullDistance.value = 0
 }
 
 function onEdit(p: ProjectDto, e: Event) {
@@ -59,9 +100,23 @@ function onProjectSaved() {
 onMounted(() => {
   loadProjects()
   window.addEventListener('horain:projectSaved', onProjectSaved)
+  nextTick(() => {
+    const el = scrollEl.value
+    if (el) {
+      el.addEventListener('touchstart', onTouchStart, { passive: true })
+      el.addEventListener('touchmove', onTouchMove, { passive: false })
+      el.addEventListener('touchend', onTouchEnd, { passive: true })
+    }
+  })
 })
 onUnmounted(() => {
   window.removeEventListener('horain:projectSaved', onProjectSaved)
+  const el = scrollEl.value
+  if (el) {
+    el.removeEventListener('touchstart', onTouchStart)
+    el.removeEventListener('touchmove', onTouchMove)
+    el.removeEventListener('touchend', onTouchEnd)
+  }
 })
 </script>
 
@@ -70,9 +125,25 @@ onUnmounted(() => {
     <div class="projects-header">
       <h2 class="projects-title">Projects</h2>
     </div>
-    <p v-if="error" class="projects-error">{{ error }}</p>
-    <div v-else-if="loading" class="projects-loading">Loading…</div>
-    <div v-else class="project-cards">
+    <div ref="scrollEl" class="projects-scroll">
+      <div
+        class="pull-indicator"
+        :class="{ 'pull-indicator--active': pullDistance > 0 || (loading && projects.length > 0) }"
+        :style="{ minHeight: pullDistance > 0 || (loading && projects.length > 0) ? `${Math.max(pullDistance, 48)}px` : '0' }"
+        aria-live="polite"
+        role="status"
+      >
+        <span v-if="loading && projects.length > 0" class="pull-indicator-text">
+          <span class="pull-spinner" aria-hidden="true" />
+          Refreshing…
+        </span>
+        <span v-else-if="pullDistance > 0" class="pull-indicator-text">
+          {{ pullDistance >= PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh' }}
+        </span>
+      </div>
+      <p v-if="error" class="projects-error">{{ error }}</p>
+      <div v-else-if="loading && projects.length === 0" class="projects-loading">Loading…</div>
+      <div v-else class="project-cards">
       <div
         v-for="p in projects"
         :key="p.id"
@@ -98,8 +169,9 @@ onUnmounted(() => {
           </svg>
         </button>
       </div>
+      </div>
+      <p v-if="!loading && !error && projects.length === 0" class="projects-empty">No projects yet.</p>
     </div>
-    <p v-if="!loading && !error && projects.length === 0" class="projects-empty">No projects yet.</p>
   </div>
 </template>
 
@@ -116,6 +188,52 @@ onUnmounted(() => {
 .projects-header {
   flex-shrink: 0;
   margin-bottom: 1rem;
+}
+
+.projects-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pull-indicator {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: min-height 0.15s ease-out;
+}
+
+.pull-indicator--active .pull-indicator-text {
+  opacity: 1;
+}
+
+.pull-indicator-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #8888a0;
+  opacity: 0.9;
+}
+
+.pull-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #3a3a4e;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: pull-spin 0.7s linear infinite;
+}
+
+@keyframes pull-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .projects-title {

@@ -26,6 +26,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 - **Stop button** — replaces Send during processing; click to cancel the in-flight request. Restores focus to the input field. No data is modified on cancel.
 - **Microphone icon** — click to start recording. During recording, the input area is replaced by a waveform (no real-time transcript). Two buttons appear: **Cancel** (X) and **Confirm** (checkmark). Cancel aborts and returns to input. Confirm triggers transcription (with brief “Transcribing…” indicator if needed); the transcript is inserted at the caret position in the input (appending, not replacing existing text). User edits if desired and sends via the Send button.
 - Displayed data (e.g. recent activities) is refetched from the server after each message and after editing or deleting an entry.
+- **Pull to refresh:** On the conversation timeline and on the Projects view, the user can pull down from the top of the scroll area to refresh data (recent activities or project list). A short “Pull to refresh” / “Release to refresh” hint and a “Refreshing…” spinner give feedback. Touch-only on mobile; no full-page reload.
 
 ### Conversation timeline
 
