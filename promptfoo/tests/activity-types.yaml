@@ -1,0 +1,40 @@
+# Activity types (natures + TJM): CRUD and inference
+
+- description: List activity types - user asks for natures
+  vars:
+    message: "List my activity natures"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        return tc.some(t => t.name === 'list_activity_types');
+
+- description: Create activity type - user adds a new nature with rate
+  vars:
+    message: "Add an activity type CONSULT at 800 euros per day"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const create = tc.find(t => t.name === 'create_activity_type');
+        if (!create) return false;
+        let args = create.arguments;
+        if (typeof args === 'string') try { args = JSON.parse(args); } catch { return false; }
+        return (args.code === 'CONSULT' || (args.code && args.code.toUpperCase() === 'CONSULT')) &&
+          args.dailyRateCents === 80000;
+
+- description: Log time with inferred activity type - dev
+  vars:
+    message: "2 hours of dev on Horain"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = o.toolCalls || [];
+        const create = tc.find(t => t.name === 'create_time_log');
+        if (!create) return false;
+        let args = create.arguments;
+        if (typeof args === 'string') try { args = JSON.parse(args); } catch { return false; }
+        return args.durationMinutes === 120 && args.activityTypeCode === 'DEV';

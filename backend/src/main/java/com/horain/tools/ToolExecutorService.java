@@ -3,10 +3,12 @@ package com.horain.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.horain.analytics.AnalyticsService;
+import com.horain.dto.ActivityTypeDto;
 import com.horain.dto.ProjectDto;
 import com.horain.dto.TimeLogDto;
 import com.horain.llm.ToolCallRequest;
 import com.horain.llm.ToolCallResult;
+import com.horain.service.ActivityTypeService;
 import com.horain.service.ProjectService;
 import com.horain.service.TimeLogService;
 import org.slf4j.Logger;
@@ -36,16 +38,19 @@ public class ToolExecutorService {
 
     private final ProjectService projectService;
     private final TimeLogService timeLogService;
+    private final ActivityTypeService activityTypeService;
     private final AnalyticsService analyticsService;
     private final ObjectMapper objectMapper;
 
     public ToolExecutorService(
             ProjectService projectService,
             TimeLogService timeLogService,
+            ActivityTypeService activityTypeService,
             AnalyticsService analyticsService,
             ObjectMapper objectMapper) {
         this.projectService = projectService;
         this.timeLogService = timeLogService;
+        this.activityTypeService = activityTypeService;
         this.analyticsService = analyticsService;
         this.objectMapper = objectMapper;
     }
@@ -59,6 +64,10 @@ public class ToolExecutorService {
                 case ToolRegistry.CREATE_PROJECT -> executeCreateProject(args);
                 case ToolRegistry.UPDATE_PROJECT -> executeUpdateProject(args);
                 case ToolRegistry.DELETE_PROJECT -> executeDeleteProject(args);
+                case ToolRegistry.LIST_ACTIVITY_TYPES -> executeListActivityTypes();
+                case ToolRegistry.CREATE_ACTIVITY_TYPE -> executeCreateActivityType(args);
+                case ToolRegistry.UPDATE_ACTIVITY_TYPE -> executeUpdateActivityType(args);
+                case ToolRegistry.DELETE_ACTIVITY_TYPE -> executeDeleteActivityType(args);
                 case ToolRegistry.CREATE_TIME_LOG -> executeCreateTimeLog(args);
                 case ToolRegistry.GET_RECENT_LOGS -> executeGetRecentLogs(args);
                 case ToolRegistry.GET_TIME_LOGS_FOR_PERIOD -> executeGetTimeLogsForPeriod(args);
@@ -201,6 +210,66 @@ public class ToolExecutorService {
         return toJson(Map.of("status", "deleted"));
     }
 
+    private String executeListActivityTypes() {
+        List<ActivityTypeDto> types = activityTypeService.findAll();
+        List<Map<String, Object>> list = types.stream()
+                .map(a -> Map.<String, Object>of(
+                        "code", a.getCode(),
+                        "label", a.getLabel() != null ? a.getLabel() : "",
+                        "dailyRateCents", a.getDailyRateCents() != null ? a.getDailyRateCents() : 0))
+                .toList();
+        return toJson(Map.of("activity_types", list));
+    }
+
+    private String executeCreateActivityType(JsonNode args) {
+        String code = getText(args, "code");
+        String label = getText(args, "label");
+        Integer dailyRateCents = getInt(args, "dailyRateCents");
+        if (code == null || code.isBlank()) {
+            return toJson(Map.of("error", "code is required"));
+        }
+        if (dailyRateCents == null || dailyRateCents <= 0) {
+            return toJson(Map.of("error", "dailyRateCents must be a positive integer"));
+        }
+        ActivityTypeDto dto = new ActivityTypeDto();
+        dto.setCode(code.trim().toUpperCase());
+        dto.setLabel(label != null ? label.trim() : "");
+        dto.setDailyRateCents(dailyRateCents);
+        ActivityTypeDto created = activityTypeService.create(dto);
+        return toJson(Map.of(
+                "activity_type", Map.of(
+                        "code", created.getCode(),
+                        "label", created.getLabel(),
+                        "dailyRateCents", created.getDailyRateCents())));
+    }
+
+    private String executeUpdateActivityType(JsonNode args) {
+        String code = getText(args, "code");
+        if (code == null || code.isBlank()) {
+            return toJson(Map.of("error", "code is required"));
+        }
+        ActivityTypeDto patch = new ActivityTypeDto();
+        String label = getText(args, "label");
+        if (label != null) patch.setLabel(label);
+        Integer dailyRateCents = getInt(args, "dailyRateCents");
+        if (dailyRateCents != null) patch.setDailyRateCents(dailyRateCents);
+        ActivityTypeDto updated = activityTypeService.update(code.trim().toUpperCase(), patch);
+        return toJson(Map.of(
+                "activity_type", Map.of(
+                        "code", updated.getCode(),
+                        "label", updated.getLabel(),
+                        "dailyRateCents", updated.getDailyRateCents())));
+    }
+
+    private String executeDeleteActivityType(JsonNode args) {
+        String code = getText(args, "code");
+        if (code == null || code.isBlank()) {
+            return toJson(Map.of("error", "code is required"));
+        }
+        activityTypeService.deleteByCode(code.trim().toUpperCase());
+        return toJson(Map.of("status", "deleted"));
+    }
+
     private String executeCreateTimeLog(JsonNode args) {
         String projectIdStr = getText(args, "projectId");
         Integer durationMinutes = getInt(args, "durationMinutes");
@@ -217,6 +286,7 @@ public class ToolExecutorService {
                 ? Instant.parse(loggedAtStr)
                 : Instant.now();
         Boolean billableArg = getBoolean(args, "billable");
+        String activityTypeCode = getText(args, "activityTypeCode");
 
         TimeLogDto dto = TimeLogDto.builder()
                 .projectId(projectId)
@@ -225,6 +295,9 @@ public class ToolExecutorService {
                 .billable(billableArg)
                 .loggedAt(loggedAt)
                 .build();
+        if (activityTypeCode != null && !activityTypeCode.isBlank()) {
+            dto.setActivityTypeCode(activityTypeCode.trim());
+        }
         TimeLogDto created = timeLogService.create(dto);
         String projectName = projectService.findById(created.getProjectId())
                 .map(ProjectDto::getName)
@@ -237,6 +310,11 @@ public class ToolExecutorService {
         timeLogMap.put("note", created.getNote() != null ? created.getNote() : "");
         timeLogMap.put("billable", Boolean.TRUE.equals(created.getBillable()));
         timeLogMap.put("loggedAt", created.getLoggedAt().toString());
+        if (created.getActivityTypeCode() != null) {
+            timeLogMap.put("activityTypeCode", created.getActivityTypeCode());
+            timeLogMap.put("activityTypeLabel", created.getActivityTypeLabel() != null ? created.getActivityTypeLabel() : "");
+            timeLogMap.put("dailyRateCents", created.getDailyRateCents() != null ? created.getDailyRateCents() : 0);
+        }
         return toJson(Map.of("time_log", timeLogMap));
     }
 
@@ -257,6 +335,11 @@ public class ToolExecutorService {
             e.put("note", log.getNote() != null ? log.getNote() : "");
             e.put("billable", Boolean.TRUE.equals(log.getBillable()));
             e.put("loggedAt", log.getLoggedAt().toString());
+            if (log.getActivityTypeCode() != null) {
+                e.put("activityTypeCode", log.getActivityTypeCode());
+                e.put("activityTypeLabel", log.getActivityTypeLabel() != null ? log.getActivityTypeLabel() : "");
+                e.put("dailyRateCents", log.getDailyRateCents() != null ? log.getDailyRateCents() : 0);
+            }
             entries.add(e);
         }
         return toJson(Map.of("time_logs", entries));
@@ -287,6 +370,11 @@ public class ToolExecutorService {
             e.put("note", log.getNote() != null ? log.getNote() : "");
             e.put("billable", Boolean.TRUE.equals(log.getBillable()));
             e.put("loggedAt", log.getLoggedAt().toString());
+            if (log.getActivityTypeCode() != null) {
+                e.put("activityTypeCode", log.getActivityTypeCode());
+                e.put("activityTypeLabel", log.getActivityTypeLabel() != null ? log.getActivityTypeLabel() : "");
+                e.put("dailyRateCents", log.getDailyRateCents() != null ? log.getDailyRateCents() : 0);
+            }
             entries.add(e);
         }
         return toJson(Map.of("time_logs", entries));
@@ -406,6 +494,10 @@ public class ToolExecutorService {
         if (billableArg != null) {
             patch.setBillable(billableArg);
         }
+        String activityTypeCode = getText(args, "activityTypeCode");
+        if (activityTypeCode != null) {
+            patch.setActivityTypeCode(activityTypeCode.isBlank() ? "" : activityTypeCode.trim());
+        }
         TimeLogDto updated = timeLogService.update(id, patch);
         String projectName = projectService.findById(updated.getProjectId())
                 .map(ProjectDto::getName)
@@ -418,6 +510,11 @@ public class ToolExecutorService {
         timeLogMap.put("note", updated.getNote() != null ? updated.getNote() : "");
         timeLogMap.put("billable", Boolean.TRUE.equals(updated.getBillable()));
         timeLogMap.put("loggedAt", updated.getLoggedAt().toString());
+        if (updated.getActivityTypeCode() != null) {
+            timeLogMap.put("activityTypeCode", updated.getActivityTypeCode());
+            timeLogMap.put("activityTypeLabel", updated.getActivityTypeLabel() != null ? updated.getActivityTypeLabel() : "");
+            timeLogMap.put("dailyRateCents", updated.getDailyRateCents() != null ? updated.getDailyRateCents() : 0);
+        }
         return toJson(Map.of("time_log", timeLogMap));
     }
 

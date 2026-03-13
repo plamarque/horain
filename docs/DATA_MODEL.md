@@ -29,6 +29,19 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
 | user_id | VARCHAR(255) | nullable |
+| activity_type_code | VARCHAR(50) | nullable, REFERENCES activity_types(code) ON DELETE SET NULL |
+
+## Table: activity_types
+
+Activity natures with daily rate (TJM, 8h). Optional per time_log. Managed by the assistant via MCP tools (CRUD).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| code | VARCHAR(50) | PRIMARY KEY |
+| label | VARCHAR(255) | NOT NULL |
+| daily_rate_cents | INTEGER | NOT NULL, CHECK > 0 |
+
+Seed: DEV (Développement, 400 €), AI (Expertise IA, 1000 €), MARK (Marketing, 7000 €).
 
 ## Table: agent_turn
 
@@ -89,6 +102,7 @@ Indexes: `(status)`, `(turn_id)`.
 
 - **projects** ↔ **time_logs**: One-to-many. One project has many time_logs; each time_log belongs to one project.
 - `project_id` in time_logs is a foreign key to projects.id.
+- **activity_types** ↔ **time_logs**: Optional. A time_log may reference one activity_type via `activity_type_code`. On activity_type delete, time_logs.activity_type_code is set to NULL (SET NULL).
 - **agent_turn** ↔ **agent_feedback**: One-to-one. Each turn can have at most one feedback row.
 - **agent_turn** ↔ **eval_backlog**: One-to-many. A turn can have multiple eval_backlog entries (e.g. different triage outcomes).
 
@@ -96,6 +110,7 @@ Indexes: `(status)`, `(turn_id)`.
 
 - `time_logs(project_id)` — for lookups by project
 - `time_logs(logged_at DESC)` — for list_recent_logs
+- `time_logs(activity_type_code)` — for lookups by activity type
 - `projects(name)` — for search_project; UNIQUE constraint enforces one project per name.
 
 ## Notes
@@ -104,4 +119,6 @@ Indexes: `(status)`, `(turn_id)`.
 - **billable** (time_logs): Whether this entry is billable. Set from the project at creation; can be toggled per entry for reporting (billable vs non-billable time).
 - **logged_at** (activity date): The date the activity refers to. Can be overridden when logging past activity (e.g. via `loggedAt` parameter). Displayed in the UI, used for period queries and charts.
 - **created_at** (entry date): When the user created the record. Used for sorting and search ("when did I enter this?"). Not displayed in the log table.
+- **activity_type_code** (time_logs): Optional. When set, the entry has a nature (e.g. DEV, AI) and its value in euros can be computed as (duration_minutes / 480) × daily_rate_cents / 100. Displayed on the card verso with € and amount.
+- **activity_types**: Daily rate is stored in cents (e.g. 40000 = 400 €). Deletion of an activity type sets time_logs.activity_type_code to NULL for affected rows.
 - `user_id` supports future multi-tenant isolation (Supabase RLS).

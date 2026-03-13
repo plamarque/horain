@@ -145,6 +145,15 @@ async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
       next[idx] = { ...next[idx], ...patch } as TimeLogEntry
       recentLogs.value = next
     }
+    messages.value = messages.value.map((m) => {
+      if (!m.timeLogs?.length) return m
+      const updated = m.timeLogs.some((e) => e.id === patch.id)
+      if (!updated) return m
+      return {
+        ...m,
+        timeLogs: m.timeLogs.map((e) => (e.id === patch.id ? { ...e, ...patch } as TimeLogEntry : e)),
+      }
+    })
   }
   editingEntry.value = null
   if (!patch?.id) {

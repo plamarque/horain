@@ -53,10 +53,11 @@ test('delete log entry via edit modal', async ({ page, request }) => {
   await expect(card).toBeVisible({ timeout: 5000 })
   await card.dblclick()
 
-  const entryModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit entry' }) })
-  await expect(entryModal).toBeVisible()
+  const entryEditScreen = page.locator('.entry-edit-screen')
+  await expect(entryEditScreen).toBeVisible()
+  await expect(entryEditScreen.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
 
-  await entryModal.getByRole('button', { name: 'Delete' }).click()
+  await entryEditScreen.getByRole('button', { name: 'Delete' }).click()
 
   await expect(page.getByText('Delete this entry permanently?')).toBeVisible()
   await page.getByRole('button', { name: 'Delete' }).click()

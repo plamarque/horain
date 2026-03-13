@@ -51,15 +51,16 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   await card.dblclick()
 
   // Entry edit modal
-  const entryModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit entry' }) })
-  await expect(entryModal).toBeVisible()
+  const entryEditScreen = page.locator('.entry-edit-screen')
+  await expect(entryEditScreen).toBeVisible()
+  await expect(entryEditScreen.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
 
-  const billableCheckbox = entryModal.locator('#edit-billable')
+  const billableCheckbox = entryEditScreen.locator('#edit-billable')
   await expect(billableCheckbox).toBeVisible()
   await expect(billableCheckbox).toBeChecked()
 
   await billableCheckbox.uncheck({ force: true })
-  await entryModal.getByRole('button', { name: 'Save' }).click()
+  await entryEditScreen.getByRole('button', { name: 'Save' }).click()
 
   await expect(page.getByRole('heading', { name: 'Edit entry' })).not.toBeVisible()
 

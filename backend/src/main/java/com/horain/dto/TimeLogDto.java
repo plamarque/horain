@@ -17,6 +17,9 @@ public class TimeLogDto {
     private Instant createdAt;
     private Instant updatedAt;
     private String userId;
+    private String activityTypeCode;
+    private String activityTypeLabel;
+    private Integer dailyRateCents;
 
     public static TimeLogDto builder() { return new TimeLogDto(); }
     public TimeLogDto id(UUID id) { this.id = id; return this; }
@@ -28,6 +31,9 @@ public class TimeLogDto {
     public TimeLogDto createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
     public TimeLogDto updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
     public TimeLogDto userId(String userId) { this.userId = userId; return this; }
+    public TimeLogDto activityTypeCode(String activityTypeCode) { this.activityTypeCode = activityTypeCode; return this; }
+    public TimeLogDto activityTypeLabel(String activityTypeLabel) { this.activityTypeLabel = activityTypeLabel; return this; }
+    public TimeLogDto dailyRateCents(Integer dailyRateCents) { this.dailyRateCents = dailyRateCents; return this; }
     public TimeLogDto build() { return this; }
 
     public UUID getId() { return id; }
@@ -48,4 +54,10 @@ public class TimeLogDto {
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+    public String getActivityTypeCode() { return activityTypeCode; }
+    public void setActivityTypeCode(String activityTypeCode) { this.activityTypeCode = activityTypeCode; }
+    public String getActivityTypeLabel() { return activityTypeLabel; }
+    public void setActivityTypeLabel(String activityTypeLabel) { this.activityTypeLabel = activityTypeLabel; }
+    public Integer getDailyRateCents() { return dailyRateCents; }
+    public void setDailyRateCents(Integer dailyRateCents) { this.dailyRateCents = dailyRateCents; }
 }

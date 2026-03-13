@@ -44,6 +44,13 @@ public class TimeLog {
     @Column(name = "user_id")
     private String userId;
 
+    @Column(name = "activity_type_code")
+    private String activityTypeCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "activity_type_code", insertable = false, updatable = false)
+    private ActivityType activityType;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public UUID getProjectId() { return projectId; }
@@ -62,6 +69,9 @@ public class TimeLog {
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+    public String getActivityTypeCode() { return activityTypeCode; }
+    public void setActivityTypeCode(String activityTypeCode) { this.activityTypeCode = activityTypeCode; }
+    public ActivityType getActivityType() { return activityType; }
 
     @PrePersist
     protected void onCreate() {

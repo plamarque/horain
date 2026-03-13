@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { getProjects, updateTimeLog, deleteTimeLog } from '../services/apiClient'
+import { getProjects, getActivityTypes, updateTimeLog, deleteTimeLog } from '../services/apiClient'
 import type { TimeLogEntry } from '../types'
-import type { ProjectDto } from '../services/apiClient'
+import type { ProjectDto, ActivityTypeDto } from '../services/apiClient'
 
 const props = defineProps<{
   entry: TimeLogEntry
@@ -15,7 +15,9 @@ const emit = defineEmits<{
 }>()
 
 const projects = ref<ProjectDto[]>([])
+const activityTypes = ref<ActivityTypeDto[]>([])
 const projectId = ref('')
+const activityTypeCode = ref('')
 const durationMinutes = ref(0)
 const note = ref('')
 const billable = ref(true)
@@ -33,11 +35,20 @@ async function loadProjects() {
   }
 }
 
+async function loadActivityTypes() {
+  try {
+    activityTypes.value = await getActivityTypes()
+  } catch {
+    activityTypes.value = []
+  }
+}
+
 watch(
   () => props.entry,
   (entry) => {
     if (entry) {
       projectId.value = entry.projectId || ''
+      activityTypeCode.value = entry.activityTypeCode || ''
       durationMinutes.value = entry.durationMinutes || 0
       note.value = entry.note || ''
       billable.value = entry.billable !== false
@@ -47,6 +58,7 @@ watch(
       error.value = ''
       confirmDelete.value = false
       loadProjects()
+      loadActivityTypes()
     }
   },
   { immediate: true }
@@ -67,10 +79,22 @@ async function save() {
       note: note.value,
       billable: billable.value,
       loggedAt: formatLoggedAtForApi(loggedAt.value),
+      activityTypeCode: activityTypeCode.value || null,
     }
     if (projectId.value) patch.projectId = projectId.value
-    await updateTimeLog(props.entry.id, patch)
-    emit('saved', { id: props.entry.id, ...patch })
+    const updated = await updateTimeLog(props.entry.id, patch)
+    const savedPatch: Partial<TimeLogEntry> & { id: string } = {
+      id: props.entry.id,
+      durationMinutes: updated.durationMinutes,
+      note: updated.note,
+      billable: updated.billable,
+      loggedAt: updated.loggedAt,
+      projectId: updated.projectId,
+      activityTypeCode: updated.activityTypeCode ?? undefined,
+      activityTypeLabel: updated.activityTypeLabel,
+      dailyRateCents: updated.dailyRateCents,
+    }
+    emit('saved', savedPatch)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Update failed'
   } finally {
@@ -98,16 +122,37 @@ async function doDelete() {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="emit('close')">
-    <div class="modal">
-      <h3 class="modal-title">Edit entry</h3>
-      <form class="modal-form" @submit.prevent="save">
+  <div class="entry-edit-screen" role="dialog" aria-labelledby="entry-edit-title">
+    <header class="entry-edit-header">
+      <button
+        type="button"
+        class="entry-edit-back"
+        aria-label="Back"
+        @click="emit('close')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+      </button>
+      <h2 id="entry-edit-title" class="entry-edit-title">Edit entry</h2>
+    </header>
+    <div class="entry-edit-body">
+      <form class="entry-edit-form" @submit.prevent="save">
         <div class="form-row">
           <label for="edit-project">Project</label>
           <select id="edit-project" v-model="projectId" class="form-input">
             <option value="">—</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">
               {{ p.name }}
+            </option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="edit-activity-type">Nature d'activité</label>
+          <select id="edit-activity-type" v-model="activityTypeCode" class="form-input">
+            <option value="">—</option>
+            <option v-for="a in activityTypes" :key="a.code" :value="a.code">
+              {{ a.label }} ({{ (a.dailyRateCents / 100).toFixed(0) }} €/j)
             </option>
           </select>
         </div>
@@ -153,9 +198,9 @@ async function doDelete() {
           />
         </div>
         <p v-if="error" class="form-error">{{ error }}</p>
-        <div v-if="confirmDelete" class="modal-actions modal-actions--confirm">
+        <div v-if="confirmDelete" class="entry-edit-actions entry-edit-actions--confirm">
           <p class="confirm-text">Delete this entry permanently?</p>
-          <div class="modal-actions">
+          <div class="entry-edit-actions">
             <button type="button" class="btn btn-secondary" @click="cancelDelete">
               Cancel
             </button>
@@ -169,7 +214,7 @@ async function doDelete() {
             </button>
           </div>
         </div>
-        <div v-else class="modal-actions">
+        <div v-else class="entry-edit-actions">
           <button
             v-if="entry?.id"
             type="button"
@@ -191,32 +236,63 @@ async function doDelete() {
 </template>
 
 <style scoped>
-.modal-overlay {
+.entry-edit-screen {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  background: #0f0f1a;
+  display: flex;
+  flex-direction: column;
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.entry-edit-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #2a2a3e;
+  background: #1a1a2e;
+}
+
+.entry-edit-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #e8e8f0;
+  cursor: pointer;
+  border-radius: 8px;
 }
 
-.modal {
-  background: #1a1a2e;
-  border: 1px solid #2a2a3e;
-  border-radius: 12px;
-  padding: 1.25rem;
-  min-width: 320px;
-  max-width: 90vw;
+.entry-edit-back:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.modal-title {
-  margin: 0 0 1rem;
+.entry-edit-title {
+  margin: 0;
   font-size: 1.25rem;
+  font-weight: 600;
   color: #e8e8f0;
 }
 
-.modal-form {
+.entry-edit-body {
+  flex: 1;
+  overflow: auto;
+  padding: 1.25rem;
+  max-width: 540px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.entry-edit-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -273,7 +349,7 @@ async function doDelete() {
   color: #e57373;
 }
 
-.modal-actions {
+.entry-edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -317,6 +393,12 @@ async function doDelete() {
   margin-right: auto;
 }
 
+.entry-edit-actions--confirm {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
 .btn-danger:hover:not(:disabled) {
   background: #a52f42;
 }
@@ -324,12 +406,6 @@ async function doDelete() {
 .btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.modal-actions--confirm {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
 }
 
 .confirm-text {

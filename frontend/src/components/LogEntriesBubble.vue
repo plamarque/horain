@@ -30,6 +30,19 @@ function projectColor(entry: TimeLogEntry): string {
   return PROJECT_COLORS[idx]
 }
 
+/** Entry value in euros when billable and activity type has daily rate (TJM 8h). */
+function entryAmountEur(entry: TimeLogEntry): number | null {
+  if (entry.billable === false || entry.durationMinutes == null) return null
+  const cents = entry.dailyRateCents
+  if (cents == null || cents <= 0) return null
+  const eur = (entry.durationMinutes / 480) * (cents / 100)
+  return eur
+}
+
+function formatAmountEur(amount: number): string {
+  return Number.isInteger(amount) ? `${amount} €` : `${amount.toFixed(1)} €`
+}
+
 const props = defineProps<{
   entries: TimeLogEntry[]
 }>()
@@ -248,6 +261,13 @@ const moreCount = computed(
           >
             <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
             <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
+            <span
+              v-if="entry.activityTypeCode"
+              class="card-recto-tag"
+              :title="entry.activityTypeLabel || entry.activityTypeCode"
+            >
+              {{ entry.activityTypeCode }}
+            </span>
             <p class="card-recto-note" :title="entry.note || undefined">
               {{ entry.note || '—' }}
             </p>
@@ -272,7 +292,10 @@ const moreCount = computed(
             >
               {{ entry.projectName || '—' }}
             </span>
-            <span v-if="entry.billable !== false" class="card-billable-icon" aria-hidden="true">$</span>
+            <span v-if="entry.billable !== false" class="card-verso-amount">
+              <span v-if="entryAmountEur(entry) != null" class="card-amount-value">{{ formatAmountEur(entryAmountEur(entry)!) }}</span>
+              <span v-else class="card-billable-icon" aria-hidden="true">€</span>
+            </span>
             <p v-if="entry.note" class="card-note">{{ entry.note }}</p>
             <p v-else class="card-note card-note--empty">—</p>
           </div>
@@ -386,6 +409,19 @@ const moreCount = computed(
   margin-bottom: 0.55rem;
 }
 
+.card-recto-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  margin-bottom: 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.98);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .card-recto-note {
   margin: 0;
   font-size: 1.25rem;
@@ -446,11 +482,23 @@ const moreCount = computed(
   color: inherit;
 }
 
+.card-verso-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
 .card-billable-icon {
   font-size: 1.5625rem;
   font-weight: 700;
   color: #7cb342;
-  margin-bottom: 0.5rem;
+}
+
+.card-amount-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #7cb342;
 }
 
 .card-note {
@@ -538,6 +586,12 @@ const moreCount = computed(
   .card-duration {
     font-size: 1.25rem;
     margin-bottom: 0.45rem;
+  }
+
+  .card-recto-tag {
+    font-size: 0.6875rem;
+    padding: 0.15rem 0.4rem;
+    margin-bottom: 0.3rem;
   }
 
   .card-recto-note {

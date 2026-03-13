@@ -49,3 +49,4 @@ tests:
   - file://tests/billable.yaml
   - file://tests/multi-entry-and-followups.yaml
   - file://tests/empty-and-errors.yaml
+  - file://tests/activity-types.yaml

@@ -9,6 +9,15 @@ export interface ChartSpec {
 }
 
 /**
+ * Activity type (nature + daily rate) for time log qualification.
+ */
+export interface ActivityType {
+  code: string
+  label: string
+  dailyRateCents: number
+}
+
+/**
  * Time log entry displayed in the chat.
  */
 export interface TimeLogEntry {
@@ -20,6 +29,9 @@ export interface TimeLogEntry {
   billable?: boolean
   loggedAt: string
   createdAt?: string
+  activityTypeCode?: string
+  activityTypeLabel?: string
+  dailyRateCents?: number
 }
 
 /**

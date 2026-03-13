@@ -45,7 +45,10 @@ public class TimeLogController {
                         log.getNote(),
                         Boolean.TRUE.equals(log.getBillable()),
                         log.getLoggedAt() != null ? log.getLoggedAt().toString() : null,
-                        log.getCreatedAt() != null ? log.getCreatedAt().toString() : null))
+                        log.getCreatedAt() != null ? log.getCreatedAt().toString() : null,
+                        log.getActivityTypeCode(),
+                        log.getActivityTypeLabel(),
+                        log.getDailyRateCents()))
                 .toList();
         return ResponseEntity.ok(entries);
     }
@@ -81,6 +84,11 @@ public class TimeLogController {
         if (patch.containsKey("billable")) {
             Object v = patch.get("billable");
             dto.setBillable(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(v.toString()));
+        }
+        if (patch.containsKey("activityTypeCode")) {
+            Object v = patch.get("activityTypeCode");
+            String code = (v == null || (v instanceof String && ((String) v).isBlank())) ? "" : v.toString().trim();
+            dto.setActivityTypeCode(code);
         }
         TimeLogDto updated = timeLogService.update(id, dto);
         return ResponseEntity.ok(updated);

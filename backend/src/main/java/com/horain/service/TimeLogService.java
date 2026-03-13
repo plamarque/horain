@@ -1,7 +1,9 @@
 package com.horain.service;
 
 import com.horain.dto.TimeLogDto;
+import com.horain.model.ActivityType;
 import com.horain.model.TimeLog;
+import com.horain.repository.ActivityTypeRepository;
 import com.horain.repository.ProjectRepository;
 import com.horain.repository.TimeLogRepository;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -20,10 +23,13 @@ public class TimeLogService {
 
     private final TimeLogRepository timeLogRepository;
     private final ProjectRepository projectRepository;
+    private final ActivityTypeRepository activityTypeRepository;
 
-    public TimeLogService(TimeLogRepository timeLogRepository, ProjectRepository projectRepository) {
+    public TimeLogService(TimeLogRepository timeLogRepository, ProjectRepository projectRepository,
+                          ActivityTypeRepository activityTypeRepository) {
         this.timeLogRepository = timeLogRepository;
         this.projectRepository = projectRepository;
+        this.activityTypeRepository = activityTypeRepository;
     }
 
     @Transactional
@@ -40,6 +46,13 @@ public class TimeLogService {
         entity.setUserId(dto.getUserId());
         entity.setUpdatedAt(entity.getLoggedAt());
         entity.setId(dto.getId() != null ? dto.getId() : UUID.randomUUID());
+        if (dto.getActivityTypeCode() != null && !dto.getActivityTypeCode().isBlank()) {
+            String code = dto.getActivityTypeCode().trim().toUpperCase();
+            if (!activityTypeRepository.existsById(code)) {
+                throw new IllegalArgumentException("Activity type not found: " + dto.getActivityTypeCode());
+            }
+            entity.setActivityTypeCode(code);
+        }
         TimeLog saved = timeLogRepository.save(entity);
         return toDto(saved);
     }
@@ -127,6 +140,17 @@ public class TimeLogService {
         if (patch.getBillable() != null) {
             entity.setBillable(patch.getBillable());
         }
+        if (patch.getActivityTypeCode() != null) {
+            if (patch.getActivityTypeCode().isBlank()) {
+                entity.setActivityTypeCode(null);
+            } else {
+                String code = patch.getActivityTypeCode().trim().toUpperCase();
+                if (!activityTypeRepository.existsById(code)) {
+                    throw new IllegalArgumentException("Activity type not found: " + patch.getActivityTypeCode());
+                }
+                entity.setActivityTypeCode(code);
+            }
+        }
         return toDto(timeLogRepository.save(entity));
     }
 
@@ -139,7 +163,7 @@ public class TimeLogService {
     }
 
     private TimeLogDto toDto(TimeLog t) {
-        return TimeLogDto.builder()
+        TimeLogDto dto = TimeLogDto.builder()
                 .id(t.getId())
                 .projectId(t.getProjectId())
                 .durationMinutes(t.getDurationMinutes())
@@ -150,5 +174,14 @@ public class TimeLogService {
                 .updatedAt(t.getUpdatedAt())
                 .userId(t.getUserId())
                 .build();
+        if (t.getActivityTypeCode() != null && !t.getActivityTypeCode().isBlank()) {
+            Optional<ActivityType> at = activityTypeRepository.findById(t.getActivityTypeCode());
+            at.ifPresent(a -> {
+                dto.setActivityTypeCode(a.getCode());
+                dto.setActivityTypeLabel(a.getLabel());
+                dto.setDailyRateCents(a.getDailyRateCents());
+            });
+        }
+        return dto;
     }
 }

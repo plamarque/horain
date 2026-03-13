@@ -45,7 +45,7 @@ public class LlmChatService {
             - When the user asks to delete or remove a project: use delete_project. If delete_project returns an error (project has time log entries), inform the user of the entry count and ask explicitly whether they want to delete all entries first, then the project. NEVER automatically chain delete_time_log calls without user confirmation. If ambiguous which project, ask which one.
             - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
             - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
-            - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").
+            - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName, and when present activityTypeCode, activityTypeLabel, dailyRateCents for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").
             - When listing entries for a specific project (e.g. "list entries for Horain"): if the user did not specify a date range, call get_current_datetime first and use a period that includes recent activity (e.g. startOfMonth to endOfMonth, or startOfWeek to endOfWeek). Do NOT use an arbitrary past period (e.g. October); use the current month or week so that recent entries are included.
             - When the user asks to change/update/toggle "toutes les activités" or "all activities" for a project (e.g. "bascule toutes les activités associées à eXo en facturable") WITHOUT specifying a period: call get_current_datetime, then get_time_logs_for_period with start = "2000-01-01T00:00:00Z" and end = the endOfMonth value returned by get_current_datetime, and projectId = the project. This means all activities for that project with no date limit. Do NOT assume or use an arbitrary month (e.g. October); if no period was specified, use this all-time range.
             - When the user confirms a close_match (e.g. "yes Horain", "oui Horain" after you proposed "Did you mean Horain?"): use that project's id or exact name from close_matches for ALL subsequent tool calls in that turn; never pass the user's original typo (e.g. "Horian") to get_time_logs_for_period or sum_time_by_project.
@@ -63,6 +63,8 @@ public class LlmChatService {
             - When tools return empty data (no entries, no logs for a period): say "no entries", "0 hours", "aucun" or equivalent. Never invent or fabricate totals (e.g. do not say "55 hours" when there are no logs).
             - Be concise and friendly. Confirm actions clearly.
             - When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
+            - Activity types (natures + TJM): When the user asks to create, update, delete, or list activity types or daily rates (e.g. "add a nature CONSULT at 800 euros per day", "change DEV rate to 450", "list my natures", "delete the MARK nature"), use list_activity_types, create_activity_type, update_activity_type, or delete_activity_type. Rates are in euros; pass dailyRateCents (e.g. 40000 for 400 €).
+            - When logging time, if the user mentions an activity nature (e.g. "2h de dev sur Horain", "30 min d'expertise IA sur X", "marketing sur Y", "du code sur Z"), call list_activity_types to get available codes and labels, then match the user's wording (dev/développement/code → DEV, IA/expertise IA → AI, marketing → MARK, etc.) and pass activityTypeCode in create_time_log. If no match is clear, you may omit activityTypeCode; the user can set it later in the UI.
             - Formatting: For calculations and numbers in your reply, use plain text only. Do NOT use LaTeX or math markup (no \\frac, \\times, \\text, etc.). Use Unicode symbols if needed (×, ÷, =) and write formulas like "22,5 / 8 = 2,8125 jours" or "2,75 × 600 = 1650 euros" so the message displays correctly in the chat.
             """;
 
@@ -394,6 +396,9 @@ public class LlmChatService {
                         if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
                         if (entry.has("note")) map.put("note", entry.get("note").asText());
                         if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
+                        if (entry.has("activityTypeCode")) map.put("activityTypeCode", entry.get("activityTypeCode").asText());
+                        if (entry.has("activityTypeLabel")) map.put("activityTypeLabel", entry.get("activityTypeLabel").asText());
+                        if (entry.has("dailyRateCents")) map.put("dailyRateCents", entry.get("dailyRateCents").asInt());
                         entries.add(map);
                     }
                     if (!entries.isEmpty()) {
@@ -430,6 +435,9 @@ public class LlmChatService {
                             if (entry.has("note")) map.put("note", entry.get("note").asText());
                             if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
                             if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
+                            if (entry.has("activityTypeCode")) map.put("activityTypeCode", entry.get("activityTypeCode").asText());
+                            if (entry.has("activityTypeLabel")) map.put("activityTypeLabel", entry.get("activityTypeLabel").asText());
+                            if (entry.has("dailyRateCents")) map.put("dailyRateCents", entry.get("dailyRateCents").asInt());
                             entries.add(map);
                         }
                         if (!entries.isEmpty()) {
@@ -463,6 +471,9 @@ public class LlmChatService {
                 if (timeLog.has("projectName")) map.put("projectName", timeLog.get("projectName").asText());
                 if (timeLog.has("note")) map.put("note", timeLog.get("note").asText());
                 if (timeLog.has("billable")) map.put("billable", timeLog.get("billable").asBoolean());
+                if (timeLog.has("activityTypeCode")) map.put("activityTypeCode", timeLog.get("activityTypeCode").asText());
+                if (timeLog.has("activityTypeLabel")) map.put("activityTypeLabel", timeLog.get("activityTypeLabel").asText());
+                if (timeLog.has("dailyRateCents")) map.put("dailyRateCents", timeLog.get("dailyRateCents").asInt());
                 createdOrUpdatedEntries.add(map);
             } catch (Exception e) {
                 log.debug("Failed to parse time_log from {} result: {}", tc.name(), e.getMessage());
@@ -499,6 +510,9 @@ public class LlmChatService {
                 if (timeLog.has("projectName")) map.put("projectName", timeLog.get("projectName").asText());
                 if (timeLog.has("note")) map.put("note", timeLog.has("note") && !timeLog.get("note").isNull() ? timeLog.get("note").asText() : "");
                 if (timeLog.has("billable")) map.put("billable", timeLog.get("billable").asBoolean());
+                if (timeLog.has("activityTypeCode")) map.put("activityTypeCode", timeLog.get("activityTypeCode").asText());
+                if (timeLog.has("activityTypeLabel")) map.put("activityTypeLabel", timeLog.get("activityTypeLabel").asText());
+                if (timeLog.has("dailyRateCents")) map.put("dailyRateCents", timeLog.get("dailyRateCents").asInt());
                 byId.put(id, map);
             } catch (Exception e) {
                 log.debug("Failed to parse time_log from {} result: {}", tc.name(), e.getMessage());

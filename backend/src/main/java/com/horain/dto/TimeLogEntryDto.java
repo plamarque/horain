@@ -12,5 +12,8 @@ public record TimeLogEntryDto(
     String note,
     boolean billable,
     String loggedAt,
-    String createdAt
+    String createdAt,
+    String activityTypeCode,
+    String activityTypeLabel,
+    Integer dailyRateCents
 ) {}

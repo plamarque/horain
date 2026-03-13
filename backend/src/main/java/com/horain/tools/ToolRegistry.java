@@ -18,6 +18,10 @@ public class ToolRegistry {
     public static final String CREATE_PROJECT = "create_project";
     public static final String UPDATE_PROJECT = "update_project";
     public static final String DELETE_PROJECT = "delete_project";
+    public static final String LIST_ACTIVITY_TYPES = "list_activity_types";
+    public static final String CREATE_ACTIVITY_TYPE = "create_activity_type";
+    public static final String UPDATE_ACTIVITY_TYPE = "update_activity_type";
+    public static final String DELETE_ACTIVITY_TYPE = "delete_activity_type";
     public static final String CREATE_TIME_LOG = "create_time_log";
     public static final String GET_RECENT_LOGS = "get_recent_logs";
     public static final String GET_TIME_LOGS_FOR_PERIOD = "get_time_logs_for_period";
@@ -120,8 +124,54 @@ public class ToolRegistry {
                         )
                 ),
                 new ToolDefinition(
+                        LIST_ACTIVITY_TYPES,
+                        "List all activity types (natures with daily rate, TJM). Use to show or match natures when the user mentions dev, IA, marketing, etc., or when managing rates.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(),
+                                "required", List.of()
+                        )
+                ),
+                new ToolDefinition(
+                        CREATE_ACTIVITY_TYPE,
+                        "Create an activity type (nature + daily rate in cents). Use when the user asks to add a new nature or rate (e.g. 'add CONSULT at 800 euros per day').",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "code", Map.of("type", "string", "description", "Short code (e.g. DEV, AI, MARK)"),
+                                        "label", Map.of("type", "string", "description", "Human-readable label"),
+                                        "dailyRateCents", Map.of("type", "integer", "description", "Daily rate in cents (e.g. 40000 for 400 €)")
+                                ),
+                                "required", List.of("code", "label", "dailyRateCents")
+                        )
+                ),
+                new ToolDefinition(
+                        UPDATE_ACTIVITY_TYPE,
+                        "Update an existing activity type (label or daily rate). Use when the user asks to change a rate or rename a nature.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "code", Map.of("type", "string", "description", "Code of the activity type to update"),
+                                        "label", Map.of("type", "string", "description", "New label (optional)"),
+                                        "dailyRateCents", Map.of("type", "integer", "description", "New daily rate in cents (optional)")
+                                ),
+                                "required", List.of("code")
+                        )
+                ),
+                new ToolDefinition(
+                        DELETE_ACTIVITY_TYPE,
+                        "Delete an activity type. Entries that used this nature will have their activity type cleared (set to null). Use when the user asks to remove a nature or rate.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "code", Map.of("type", "string", "description", "Code of the activity type to delete")
+                                ),
+                                "required", List.of("code")
+                        )
+                ),
+                new ToolDefinition(
                         CREATE_TIME_LOG,
-                        "Create a time log entry. Record time spent on a project. Requires project ID from list_projects or search_project.",
+                        "Create a time log entry. Record time spent on a project. Requires project ID from list_projects or search_project. When the user mentions an activity nature (dev, IA, marketing, etc.), pass activityTypeCode from list_activity_types.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -144,6 +194,10 @@ public class ToolRegistry {
                                         "billable", Map.of(
                                                 "type", "boolean",
                                                 "description", "Override billable for this entry (default: project's billable)"
+                                        ),
+                                        "activityTypeCode", Map.of(
+                                                "type", "string",
+                                                "description", "Optional activity nature code (e.g. DEV, AI, MARK) from list_activity_types. Set when user says 'dev', 'expertise IA', 'marketing', etc."
                                         )
                                 ),
                                 "required", List.of("projectId", "durationMinutes")
@@ -335,7 +389,10 @@ public class ToolRegistry {
                                                                 "durationMinutes", Map.of("type", "integer"),
                                                                 "note", Map.of("type", "string"),
                                                                 "billable", Map.of("type", "boolean", "description", "Whether this entry is billable"),
-                                                                "loggedAt", Map.of("type", "string")
+                                                                "loggedAt", Map.of("type", "string"),
+                                                                "activityTypeCode", Map.of("type", "string"),
+                                                                "activityTypeLabel", Map.of("type", "string"),
+                                                                "dailyRateCents", Map.of("type", "integer")
                                                         )
                                                 ),
                                                 "description", "Time log entries from get_time_logs_for_period or get_recent_logs"
@@ -373,6 +430,10 @@ public class ToolRegistry {
                                         "billable", Map.of(
                                                 "type", "boolean",
                                                 "description", "Whether this entry is billable"
+                                        ),
+                                        "activityTypeCode", Map.of(
+                                                "type", "string",
+                                                "description", "Activity nature code (e.g. DEV, AI) or omit to leave unchanged"
                                         )
                                 ),
                                 "required", List.of("id")

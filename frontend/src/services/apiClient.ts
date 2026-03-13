@@ -110,6 +110,15 @@ export interface TimeLogDto {
   createdAt?: string
   updatedAt: string
   userId?: string
+  activityTypeCode?: string
+  activityTypeLabel?: string
+  dailyRateCents?: number
+}
+
+export interface ActivityTypeDto {
+  code: string
+  label: string
+  dailyRateCents: number
 }
 
 /** GET /projects - list all projects */
@@ -154,6 +163,7 @@ export async function updateTimeLog(
     note?: string
     billable?: boolean
     loggedAt?: string
+    activityTypeCode?: string | null
   }
 ): Promise<TimeLogDto> {
   return apiPatch<TimeLogDto>(`/time-logs/${id}`, patch)
@@ -162,6 +172,11 @@ export async function updateTimeLog(
 /** DELETE /time-logs/:id - delete a time log */
 export async function deleteTimeLog(id: string): Promise<void> {
   return apiDelete<void>(`/time-logs/${id}`)
+}
+
+/** GET /activity-types - list activity types (natures + TJM) */
+export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
+  return apiGet<ActivityTypeDto[]>('/activity-types')
 }
 
 /** GET /time-logs/recent - list most recent time logs with project names (for initial display) */
@@ -175,6 +190,9 @@ export async function getRecentTimeLogs(limit = 5): Promise<
     billable?: boolean
     loggedAt: string
     createdAt?: string
+    activityTypeCode?: string
+    activityTypeLabel?: string
+    dailyRateCents?: number
   }>
 > {
   const safeLimit = Math.min(Math.max(limit, 1), 50)
