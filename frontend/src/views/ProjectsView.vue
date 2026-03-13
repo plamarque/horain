@@ -222,7 +222,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: #8888a0;
   opacity: 0.9;
 }
@@ -244,25 +244,25 @@ onUnmounted(() => {
 
 .projects-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.375rem;
   font-weight: 600;
   color: #e8e8f0;
 }
 
 .projects-error {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   color: #e57373;
 }
 
 .projects-loading {
   color: #8888a0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
 }
 
 .projects-empty {
   color: #8888a0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   margin: 0;
 }
 
@@ -302,7 +302,7 @@ onUnmounted(() => {
 
 .project-card-name {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 1.0625rem;
   color: inherit;
   word-break: break-word;
   margin-bottom: 0.35rem;
@@ -310,7 +310,7 @@ onUnmounted(() => {
 
 .project-card-desc {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.85);
   line-height: 1.25;
   word-break: break-word;
@@ -322,7 +322,7 @@ onUnmounted(() => {
 }
 
 .project-card-billable {
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #b8e086;
   margin-top: 0.15rem;

@@ -195,7 +195,7 @@ const useHtml = computed(() => props.role === 'assistant')
 }
 
 .content {
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   white-space: pre-wrap;
   word-break: break-word;
 }

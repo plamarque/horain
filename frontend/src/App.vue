@@ -146,12 +146,12 @@ body {
 
 .header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5625rem;
   font-weight: 600;
 }
 
 .tagline {
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   color: #8888a0;
 }
 
@@ -163,7 +163,7 @@ body {
 }
 
 .header-link {
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: #6a6a80;
   background: none;
   border: none;

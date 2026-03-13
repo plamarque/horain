@@ -384,7 +384,7 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
   background: transparent;
   border: none;
   color: #e8e8f0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   min-height: 24px;
   overflow-wrap: break-word;
   overflow-x: hidden;
@@ -396,7 +396,7 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
 @media (max-width: 600px) {
   .text-input {
     padding: 0.75rem 1rem;
-    font-size: 1.0625rem; /* 17px - avoids zoom on iOS */
+    font-size: 1.33rem; /* ~21px - avoids zoom on iOS, +25% from base */
     min-height: 48px;
   }
 }
@@ -446,7 +446,7 @@ const showTranscribingView = () => voiceState.value === 'transcribing'
 
 .transcribing-text {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   color: #8888a0;
 }
 

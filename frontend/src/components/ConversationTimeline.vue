@@ -199,7 +199,7 @@ defineExpose({
   padding: 1.5rem 0.5rem;
   text-align: center;
   color: #8888a0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
 }
 
 .empty-state .example {
@@ -213,7 +213,7 @@ defineExpose({
 
 .empty-state .hint {
   margin-top: 1rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: #666680;
 }
 
@@ -287,7 +287,7 @@ defineExpose({
   color: #fff;
   border: 1px solid #4b5563;
   border-radius: 20px;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
@@ -300,7 +300,7 @@ defineExpose({
 }
 
 .new-message-indicator-arrow {
-  font-size: 1rem;
+  font-size: 1.25rem;
   line-height: 1;
 }
 
@@ -322,7 +322,7 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: #8888a0;
   opacity: 0.9;
 }

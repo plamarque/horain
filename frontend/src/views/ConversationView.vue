@@ -503,7 +503,7 @@ async function handleResetSeed() {
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   background: rgba(74, 110, 219, 0.2);
   color: #a0b8f0;
   border-radius: 8px;
@@ -516,7 +516,7 @@ async function handleResetSeed() {
   color: inherit;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.25rem;
   line-height: 1;
   opacity: 0.8;
 }
@@ -527,7 +527,7 @@ async function handleResetSeed() {
 
 .input-footer {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: #666680;
   display: flex;
   align-items: center;
@@ -538,7 +538,7 @@ async function handleResetSeed() {
 .version-inline {
   padding: 0;
   margin: 0;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: #5a5a70;
   background: none;
   border: none;

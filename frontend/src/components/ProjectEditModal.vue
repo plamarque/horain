@@ -134,7 +134,7 @@ async function save() {
 
 .modal-title {
   margin: 0 0 1rem;
-  font-size: 1rem;
+  font-size: 1.25rem;
   color: #e8e8f0;
 }
 
@@ -151,13 +151,13 @@ async function save() {
 }
 
 .form-row label {
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: #8888a0;
 }
 
 .form-input {
   padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   background: #0f0f1a;
   border: 1px solid #2a2a3e;
   border-radius: 6px;
@@ -179,7 +179,7 @@ async function save() {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   color: #e8e8f0;
 }
 
@@ -191,7 +191,7 @@ async function save() {
 
 .form-error {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 1.0625rem;
   color: #e57373;
 }
 
@@ -204,7 +204,7 @@ async function save() {
 
 .btn {
   padding: 0.5rem 1rem;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   border: none;
   border-radius: 6px;
   cursor: pointer;

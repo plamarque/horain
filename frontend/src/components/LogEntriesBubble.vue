@@ -374,13 +374,13 @@ const moreCount = computed(
 }
 
 .card-date {
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   opacity: 0.9;
   margin-bottom: 0.3rem;
 }
 
 .card-duration {
-  font-size: 1.1rem;
+  font-size: 1.375rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.55rem;
@@ -388,7 +388,7 @@ const moreCount = computed(
 
 .card-recto-note {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 1.25rem;
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.9);
   word-break: break-word;
@@ -402,7 +402,7 @@ const moreCount = computed(
 }
 
 .card-project {
-  font-size: 0.85rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   line-height: 1.4;
   word-break: break-word;
@@ -438,7 +438,7 @@ const moreCount = computed(
 }
 
 .card-verso-project {
-  font-size: 0.85rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.4;
   word-break: break-word;
@@ -447,7 +447,7 @@ const moreCount = computed(
 }
 
 .card-billable-icon {
-  font-size: 1.25rem;
+  font-size: 1.5625rem;
   font-weight: 700;
   color: #7cb342;
   margin-bottom: 0.5rem;
@@ -455,7 +455,7 @@ const moreCount = computed(
 
 .card-note {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 1.25rem;
   line-height: 1.35;
   word-break: break-word;
   overflow: auto;
@@ -474,7 +474,7 @@ const moreCount = computed(
   width: 100%;
   padding: 0.4rem 0.75rem;
   margin-top: 0.25rem;
-  font-size: 0.8rem;
+  font-size: 1.25rem;
   color: #7cb342;
   background: transparent;
   border: none;
@@ -504,7 +504,7 @@ const moreCount = computed(
   width: 100%;
   padding: 0.5rem 1rem;
   text-align: left;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   color: #e8e8f0;
   background: none;
   border: none;
@@ -532,28 +532,28 @@ const moreCount = computed(
   }
 
   .card-date {
-    font-size: 0.7rem;
+    font-size: 0.875rem;
   }
 
   .card-duration {
-    font-size: 1rem;
+    font-size: 1.25rem;
     margin-bottom: 0.45rem;
   }
 
   .card-recto-note {
-    font-size: 0.75rem;
+    font-size: 0.9375rem;
     -webkit-line-clamp: 3;
     line-clamp: 3;
   }
 
   .card-project,
   .card-verso-project {
-    font-size: 0.8rem;
+    font-size: 1.25rem;
     line-height: 1.4;
   }
 
   .card-note {
-    font-size: 0.75rem;
+    font-size: 0.9375rem;
   }
 }
 </style>
