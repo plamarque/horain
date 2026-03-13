@@ -4,6 +4,25 @@ import type { TimeLogEntry } from '../types'
 
 const INITIAL_SHOWN = 6
 
+// Stable palette for project-based card background (readable with white text)
+const PROJECT_COLORS = [
+  '#4a6edb',
+  '#5a8a4a',
+  '#c9a227',
+  '#c45c3a',
+  '#7b5fa2',
+  '#00838f',
+]
+
+function projectColor(entry: TimeLogEntry): string {
+  const key = entry.projectId ?? entry.projectName ?? ''
+  if (!key) return 'rgba(0,0,0,0.25)'
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h << 5) - h + key.charCodeAt(i)
+  const idx = Math.abs(h) % PROJECT_COLORS.length
+  return PROJECT_COLORS[idx]
+}
+
 const props = defineProps<{
   entries: TimeLogEntry[]
 }>()
@@ -14,12 +33,34 @@ const emit = defineEmits<{
   editProject: [entry: TimeLogEntry]
 }>()
 
-function onRowClick(entry: TimeLogEntry, e: MouseEvent) {
+const flippedIds = ref<Set<string>>(new Set())
+
+function toggleFlip(entry: TimeLogEntry) {
+  const id = entry.id ?? ''
+  if (!id) return
+  const next = new Set(flippedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  flippedIds.value = next
+}
+
+function isFlipped(entry: TimeLogEntry): boolean {
+  const id = entry.id ?? ''
+  return id ? flippedIds.value.has(id) : false
+}
+
+function onCardClick(entry: TimeLogEntry, e: MouseEvent) {
   if (e.detail === 2) {
     emit('editEntry', entry)
-  } else {
-    emit('selectEntry', entry)
+    return
   }
+  toggleFlip(entry)
+  emit('selectEntry', entry)
+}
+
+function onProjectDblClick(entry: TimeLogEntry, e: MouseEvent) {
+  e.stopPropagation()
+  emit('editProject', entry)
 }
 
 const expanded = ref(false)
@@ -67,38 +108,37 @@ const moreCount = computed(
 
 <template>
   <div class="log-entries-bubble">
-    <div class="log-table-wrapper">
-      <table class="log-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Projet</th>
-            <th>Durée</th>
-            <th>Facturable</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(entry, i) in displayedEntries"
-            :key="entry.id ?? i"
-            class="log-row log-row--clickable"
-            @click="onRowClick(entry, $event)"
+    <div class="log-cards">
+      <div
+        v-for="(entry, i) in displayedEntries"
+        :key="entry.id ?? i"
+        class="card-wrapper"
+        :class="{ 'card-wrapper--flipped': isFlipped(entry) }"
+        @click="onCardClick(entry, $event)"
+        @dblclick="emit('editEntry', entry)"
+      >
+        <div class="card-inner">
+          <div
+            class="card-face card-recto"
+            :style="{ backgroundColor: projectColor(entry) }"
           >
-            <td class="log-date">{{ formatLoggedAt(entry.loggedAt) }}</td>
-            <td
-              class="log-project log-project--editable"
+            <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
+            <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
+            <span
+              class="card-project"
               title="Double-click to edit project"
-              @dblclick.stop="emit('editProject', entry)"
+              @dblclick.stop="onProjectDblClick(entry, $event)"
             >
               {{ entry.projectName || '—' }}
-            </td>
-            <td class="log-duration">{{ formatDuration(entry.durationMinutes) }}</td>
-            <td class="log-billable">{{ entry.billable !== false ? 'Oui' : 'Non' }}</td>
-            <td class="log-note">{{ entry.note || '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
+            </span>
+          </div>
+          <div class="card-face card-verso">
+            <span v-if="entry.billable !== false" class="card-billable-icon" aria-hidden="true">$</span>
+            <p v-if="entry.note" class="card-note">{{ entry.note }}</p>
+            <p v-else class="card-note card-note--empty">—</p>
+          </div>
+        </div>
+      </div>
     </div>
     <button
       v-if="hasMore"
@@ -118,8 +158,100 @@ const moreCount = computed(
   background: rgba(0, 0, 0, 0.2);
 }
 
-.log-table-wrapper {
-  overflow-x: auto;
+.log-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.card-wrapper {
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 200px;
+  aspect-ratio: 3 / 4;
+  cursor: pointer;
+  perspective: 600px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.card-wrapper--flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0.75rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.card-recto {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.card-date {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-bottom: 0.25rem;
+}
+
+.card-duration {
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.35rem;
+}
+
+.card-project {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.card-verso {
+  background: rgba(30, 30, 45, 0.98);
+  color: #e8e8f0;
+  transform: rotateY(180deg);
+}
+
+.card-billable-icon {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #7cb342;
+  margin-bottom: 0.5rem;
+}
+
+.card-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  word-break: break-word;
+  overflow: auto;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-note--empty {
+  color: #8888a0;
 }
 
 .show-more {
@@ -140,78 +272,36 @@ const moreCount = computed(
   color: #8bc34a;
 }
 
-.log-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-  min-width: 320px;
-}
-
-.log-table th,
-.log-table td {
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.log-table th {
-  color: #8888a0;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.7rem;
-}
-
-.log-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.log-row:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.log-row--clickable {
-  cursor: pointer;
-}
-
-.log-date {
-  white-space: nowrap;
-  color: #a0a0c0;
-}
-
-.log-project {
-  color: #e8e8f0;
-  font-weight: 500;
-}
-
-.log-project--editable {
-  cursor: pointer;
-}
-
-.log-duration {
-  color: #7cb342;
-  font-variant-numeric: tabular-nums;
-}
-
-.log-billable {
-  color: #8888a0;
-  white-space: nowrap;
-}
-
-.log-note {
-  color: #8888a0;
-  white-space: normal;
-  word-break: break-word;
-}
-
 @media (max-width: 520px) {
-  .log-table {
+  .log-cards {
+    gap: 0.5rem;
+    padding: 0.4rem;
+  }
+
+  .card-wrapper {
+    flex: 1 1 100px;
+    min-width: 100px;
+    max-width: none;
+  }
+
+  .card-face {
+    padding: 0.5rem;
+  }
+
+  .card-date {
+    font-size: 0.7rem;
+  }
+
+  .card-duration {
+    font-size: 1rem;
+  }
+
+  .card-project {
     font-size: 0.8rem;
   }
 
-  .log-table th,
-  .log-table td {
-    padding: 0.4rem 0.5rem;
+  .card-note {
+    font-size: 0.75rem;
   }
 }
 </style>
