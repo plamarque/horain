@@ -45,7 +45,7 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   // Double-click on card to open entry modal (double-click on project name would open project modal)
   const card = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-project').filter({ hasText: projectName }) })
+    .filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) })
     .first()
   await expect(card).toBeVisible({ timeout: 5000 })
   await card.dblclick()
@@ -65,6 +65,6 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
 
   // After save, recent logs are refetched; card with this project should still be visible
   await expect(
-    page.locator('.card-project').filter({ hasText: projectName }).first()
-  ).toBeVisible({ timeout: 10000 })
+    page.locator('.card-verso-project').filter({ hasText: projectName })
+  ).toHaveCount(1, { timeout: 10000 })
 })

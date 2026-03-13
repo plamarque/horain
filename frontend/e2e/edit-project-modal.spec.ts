@@ -43,10 +43,10 @@ test('edit project via context menu on card', async ({ page, request }) => {
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
-  // Find the card that shows this project name (recto has .card-project)
+  // Find the card that contains this project name (on verso)
   const cardWithProject = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-project').filter({ hasText: projectName }) })
+    .filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) })
     .first()
   await expect(cardWithProject).toBeVisible({ timeout: 5000 })
 
@@ -66,10 +66,10 @@ test('edit project via context menu on card', async ({ page, request }) => {
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).not.toBeVisible()
 
-  // Cards should show the updated project name (recent logs are refreshed on save)
+  // Updated project name is present on a card verso (recent logs are refreshed on save)
   await expect(
-    page.locator('.card-project').filter({ hasText: updatedName })
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.card-verso-project').filter({ hasText: updatedName })
+  ).toHaveCount(1, { timeout: 5000 })
 })
 
 /**
@@ -101,9 +101,11 @@ test('edit project via double-click on project name on card', async ({ page, req
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
-  const projectNameOnCard = page.locator('.card-project').filter({ hasText: projectName }).first()
-  await expect(projectNameOnCard).toBeVisible({ timeout: 5000 })
-  await projectNameOnCard.dblclick()
+  const cardWithProject = page.locator('.card-wrapper').filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) }).first()
+  await expect(cardWithProject).toBeVisible({ timeout: 5000 })
+  await cardWithProject.click()
+  const projectNameOnVerso = cardWithProject.locator('.card-verso-project').filter({ hasText: projectName })
+  await projectNameOnVerso.dblclick()
 
   const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
   await expect(projectModal).toBeVisible()

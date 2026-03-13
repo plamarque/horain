@@ -242,15 +242,30 @@ const moreCount = computed(
           >
             <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
             <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
+            <p class="card-recto-note" :title="entry.note || undefined">
+              {{ entry.note || '—' }}
+            </p>
+          </div>
+          <div class="card-face card-verso">
+            <button
+              type="button"
+              class="card-verso-edit"
+              aria-label="Edit entry"
+              title="Edit entry"
+              @click.stop="emit('editEntry', entry)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                <path d="m15 5 4 4" />
+              </svg>
+            </button>
             <span
-              class="card-project"
+              class="card-verso-project"
               title="Double-click to edit project"
               @dblclick.stop="onProjectDblClick(entry, $event)"
             >
               {{ entry.projectName || '—' }}
             </span>
-          </div>
-          <div class="card-face card-verso">
             <span v-if="entry.billable !== false" class="card-billable-icon" aria-hidden="true">$</span>
             <p v-if="entry.note" class="card-note">{{ entry.note }}</p>
             <p v-else class="card-note card-note--empty">—</p>
@@ -341,7 +356,7 @@ const moreCount = computed(
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 0.75rem;
+  padding: 0.85rem;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -349,25 +364,41 @@ const moreCount = computed(
 .card-recto {
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  justify-content: flex-start;
 }
 
 .card-date {
   font-size: 0.75rem;
   opacity: 0.9;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.3rem;
 }
 
 .card-duration {
   font-size: 1.1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.card-recto-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  flex: 1;
+  min-height: 0;
 }
 
 .card-project {
   font-size: 0.85rem;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.4;
   word-break: break-word;
 }
 
@@ -375,6 +406,38 @@ const moreCount = computed(
   background: rgba(30, 30, 45, 0.98);
   color: #e8e8f0;
   transform: rotateY(180deg);
+  position: relative;
+}
+
+.card-verso-edit {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  border-radius: 6px;
+  color: #a0a0c0;
+  cursor: pointer;
+}
+
+.card-verso-edit:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: #e8e8f0;
+}
+
+.card-verso-project {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+  margin-bottom: 0.5rem;
+  color: inherit;
 }
 
 .card-billable-icon {
@@ -459,7 +522,7 @@ const moreCount = computed(
   }
 
   .card-face {
-    padding: 0.5rem;
+    padding: 0.6rem;
   }
 
   .card-date {
@@ -468,10 +531,19 @@ const moreCount = computed(
 
   .card-duration {
     font-size: 1rem;
+    margin-bottom: 0.45rem;
   }
 
-  .card-project {
+  .card-recto-note {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .card-project,
+  .card-verso-project {
     font-size: 0.8rem;
+    line-height: 1.4;
   }
 
   .card-note {
