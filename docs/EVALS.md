@@ -123,3 +123,5 @@ Les réponses de l’agent sont **traçées** en base (`agent_turn`) et le feedb
 4. **Promotion** : les cas retenus sont ajoutés au repo sous forme de fichiers Promptfoo (manuel ou script secondaire).
 
 Le script d’extraction ne décide pas quels cas deviennent des tests ; il prépare les candidats pour le triage.
+
+**Trace des appels d’outils :** Chaque ligne exportée inclut le champ `tool_calls` (liste des outils exécutés pour ce tour). Chaque entrée contient `name`, `arguments` et `result`. En cas d’échec d’un outil, `result` contient typiquement un JSON avec une clé `error` (ex. `{"error": "Cannot delete project: it has 38 time log entries..."}`). Le triage peut s’appuyer sur cette trace pour comprendre *pourquoi* un tour a échoué ou pourquoi la réponse de l’agent était incorrecte (ex. incohérence entre des `get_time_logs_for_period` vides et un `delete_project` qui signale des entrées existantes), sans avoir à rejouer la conversation.

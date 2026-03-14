@@ -118,7 +118,9 @@ npm run eval:deterministic   # déterministe seulement
 
 ## Export eval candidates
 
-Pour alimenter la boucle d’amélioration et les evals (voir [EVALS.md](EVALS.md) section 9), un script exporte les **candidats à l’éval** : turns avec feedback 👎 ou avec statut d’erreur (tool_error, empty_result, max_iterations). La sortie est un fichier **JSONL** (une ligne = un objet par tour) avec notamment : `source_turn_id`, `conversation_id`, `user_message`, `assistant_message`, `tool_calls`, `feedback`, `feedback_reason`, `system_prompt_version`, `expected_behavior` (vide à remplir au triage), `eval_family`, `assertion_strategy`.
+Pour alimenter la boucle d’amélioration et les evals (voir [EVALS.md](EVALS.md) section 9), un script exporte les **candidats à l’éval** : turns avec feedback 👎 ou avec statut d’erreur (tool_error, empty_result, max_iterations). La sortie est un fichier **JSONL** (une ligne = un objet par tour) avec notamment : `source_turn_id`, `conversation_id`, `user_message`, `assistant_message`, `tool_calls`, `feedback`, `feedback_reason`, `feedback_comment`, `system_prompt_version`, `expected_behavior` (vide à remplir au triage), `eval_family`, `assertion_strategy`.
+
+**Champ `tool_calls` :** Liste des appels d’outils exécutés pour ce tour. Chaque élément est un objet `{ "name", "arguments", "result" }`. Les erreurs renvoyées par les outils sont dans `result` (souvent un JSON avec clé `"error"`, ex. `{"error": "Cannot delete project: it has 38 time log entries..."}`). Ce champ permet au triage d’identifier précisément quel outil a échoué et avec quel message, comme dans la trace affichée sous la bulle en prod.
 
 Le script appelle `GET /admin/export-eval-candidates` sur l’instance **prod**. Il ne touche pas à la base locale ni au `.env` du backend.
 
