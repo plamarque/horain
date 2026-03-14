@@ -54,7 +54,8 @@ public class DevSeedService {
     private static final String[] NOTES = {
             "Feature implementation", "Bug fix", "Code review", "Refactor",
             "Documentation", "API integration", "UI polish", "Tests",
-            "Sprint planning", "Client call", "Research", "Deployment"
+            "Sprint planning", "Client call", "Research", "Deployment",
+            "Développement backend", "API REST", "Tests e2e"
     };
 
     private final ProjectService projectService;

@@ -25,6 +25,7 @@ public class ToolRegistry {
     public static final String CREATE_TIME_LOG = "create_time_log";
     public static final String GET_RECENT_LOGS = "get_recent_logs";
     public static final String GET_TIME_LOGS_FOR_PERIOD = "get_time_logs_for_period";
+    public static final String SEARCH_TIME_LOGS = "search_time_logs";
     public static final String SUM_TIME_BY_PROJECT = "sum_time_by_project";
     public static final String SUM_TIME_FOR_PERIOD = "sum_time_for_period";
     public static final String SUM_BILLABLE_TIME_FOR_PERIOD = "sum_billable_time_for_period";
@@ -247,6 +248,25 @@ public class ToolRegistry {
                         )
                 ),
                 new ToolDefinition(
+                        SEARCH_TIME_LOGS,
+                        "Search time log entries by keyword. Matches the keyword in the entry note or project name (case-insensitive). Use when the user asks to find entries containing a word or phrase (e.g. 'find logs with backend', 'entries mentioning Horain', 'recherche pie chart'). Do NOT use for listing by date—use get_time_logs_for_period or get_recent_logs. Returns: time_logs array. Then call propose_entries to display them.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "query", Map.of(
+                                                "type", "string",
+                                                "description", "Keyword or phrase to search for in note or project name"
+                                        ),
+                                        "limit", Map.of(
+                                                "type", "integer",
+                                                "description", "Maximum number of results (1-50)",
+                                                "default", 20
+                                        )
+                                ),
+                                "required", List.of("query")
+                        )
+                ),
+                new ToolDefinition(
                         SUM_TIME_BY_PROJECT,
                         "Sum total logged time for a specific project in a period. Use for 'how many hours on X this week?'",
                         Map.of(
@@ -380,7 +400,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         PROPOSE_ENTRIES,
-                        "Propose time log entries to display in the conversation. Call ONLY after get_time_logs_for_period or get_recent_logs; pass the time_logs array from that result as the entries argument. Do NOT call with empty or invented data. Example: get_recent_logs(limit=10) returns time_logs; then propose_entries(entries: <that time_logs array>). The UI will display them in a table.",
+                        "Propose time log entries to display in the conversation. Call ONLY after get_time_logs_for_period, get_recent_logs, or search_time_logs; pass the time_logs array from that result as the entries argument. Do NOT call with empty or invented data. Example: get_recent_logs(limit=10) returns time_logs; then propose_entries(entries: <that time_logs array>). The UI will display them in a table.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(

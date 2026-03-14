@@ -1,0 +1,49 @@
+# Search time logs by keyword — agent uses search_time_logs then propose_entries
+# Seed includes notes with "développement", "API", "Tests" (DevSeedService NOTES).
+
+- description: Search by keyword - calls search_time_logs
+  vars:
+    message: "find entries that contain the word API"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = (o && o.toolCalls) || [];
+        const hasSearch = tc.some(t => t.name === 'search_time_logs');
+        return hasSearch;
+
+- description: Search by keyword (French) - calls search_time_logs
+  vars:
+    message: "recherche les entrées qui contiennent développement"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = (o && o.toolCalls) || [];
+        return tc.some(t => t.name === 'search_time_logs');
+
+- description: Search by keyword - then propose_entries to display
+  vars:
+    message: "show me logs that mention test"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = (o && o.toolCalls) || [];
+        const hasSearch = tc.some(t => t.name === 'search_time_logs');
+        const hasPropose = tc.some(t => t.name === 'propose_entries');
+        return hasSearch && hasPropose;
+
+- description: Search multiple keywords - development, api, test
+  vars:
+    message: "entrées qui contiennent les mots clés développement, api et test"
+  assert:
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const tc = (o && o.toolCalls) || [];
+        const searchCall = tc.find(t => t.name === 'search_time_logs');
+        if (!searchCall) return false;
+        const args = (() => { try { return typeof searchCall.arguments === 'string' ? JSON.parse(searchCall.arguments || '{}') : (searchCall.arguments || {}); } catch { return {}; } })();
+        const q = (args.query || '').toLowerCase();
+        return q.includes('développement') || q.includes('api') || q.includes('test');

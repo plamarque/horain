@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Pageable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -61,4 +63,11 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
      */
     @Query("SELECT t.projectId, t.activityTypeCode, at.label, COUNT(t) FROM TimeLog t JOIN t.activityType at WHERE t.activityTypeCode IS NOT NULL GROUP BY t.projectId, t.activityTypeCode, at.label")
     List<Object[]> countByProjectIdAndActivityType();
+
+    /**
+     * Search time logs by keyword: matches in note (case-insensitive contains) or project name.
+     * Returns results ordered by loggedAt DESC, limited by pageable.
+     */
+    @Query("SELECT t FROM TimeLog t JOIN t.project p WHERE (LOWER(COALESCE(t.note, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%'))) ORDER BY t.loggedAt DESC")
+    List<TimeLog> searchByKeyword(@Param("query") String query, Pageable pageable);
 }

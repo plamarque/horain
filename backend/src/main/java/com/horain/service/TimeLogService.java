@@ -6,6 +6,7 @@ import com.horain.model.TimeLog;
 import com.horain.repository.ActivityTypeRepository;
 import com.horain.repository.ProjectRepository;
 import com.horain.repository.TimeLogRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,6 +93,20 @@ public class TimeLogService {
         List<TimeLog> logs = projectId != null
                 ? timeLogRepository.findByProjectIdAndLoggedAtBetweenOrderByLoggedAtDesc(projectId, start, end)
                 : timeLogRepository.findByLoggedAtBetweenOrderByLoggedAtDesc(start, end);
+        return logs.stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Search time logs by keyword (note or project name, case-insensitive contains).
+     * Returns at most {@code limit} results (1–50), most recent first.
+     */
+    @Transactional(readOnly = true)
+    public List<TimeLogDto> findLogsByKeyword(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        List<TimeLog> logs = timeLogRepository.searchByKeyword(query.trim(), PageRequest.of(0, safeLimit));
         return logs.stream().map(this::toDto).collect(Collectors.toList());
     }
 

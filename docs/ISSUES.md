@@ -14,6 +14,8 @@
 
 ## Différé
 
+- **RAG pour la recherche de logs** — À terme : envisager un outil ou une couche RAG (embeddings + similarité sémantique) pour la recherche dans les time logs, afin de retrouver des entrées par sens plutôt que par mot-clé exact (ex. « ce qui touche au backend », « réunions client »). La recherche actuelle par mot-clé (`search_time_logs`) reste adaptée au volume et au besoin « contient X ». Voir MCP_TOOLS.md.
+
 - **Déplacer des règles du system prompt vers les descriptions d’outils** — À moyen terme : évaluer si une partie des règles du SYSTEM_PROMPT (LlmChatService) peut être déplacée dans les descriptions d’outils (quand utiliser / ne pas utiliser, ordre d’appel) pour éviter la duplication et alléger le bloc central. Certaines règles restent nécessaires dans le prompt (ex. comportement close_match, mass deletion guard). Voir plan d’audit design agent (guideline 4, contexte rare).
 
 - **Reasoning interne (o1, o3, o4-mini)** — Afficher le raisonnement interne de l'agent. Le raisonnement utilise l'API **Responses** (`/v1/responses`), pas Chat Completions. Paramètres : `reasoning.summary: "auto"` ou `"detailed"` ; événements `response.reasoning_summary_text.delta`. Options : garder Chat Completions (sans reasoning), migrer vers Responses API, ou branche conditionnelle selon le modèle.

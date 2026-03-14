@@ -75,6 +75,7 @@ public class ToolExecutorService {
                 case ToolRegistry.CREATE_TIME_LOG -> executeCreateTimeLog(args);
                 case ToolRegistry.GET_RECENT_LOGS -> executeGetRecentLogs(args);
                 case ToolRegistry.GET_TIME_LOGS_FOR_PERIOD -> executeGetTimeLogsForPeriod(args);
+                case ToolRegistry.SEARCH_TIME_LOGS -> executeSearchTimeLogs(args);
                 case ToolRegistry.SUM_TIME_BY_PROJECT -> executeSumTimeByProject(args);
                 case ToolRegistry.SUM_TIME_FOR_PERIOD -> executeSumTimeForPeriod(args);
                 case ToolRegistry.SUM_BILLABLE_TIME_FOR_PERIOD -> executeSumBillableTimeForPeriod(args);
@@ -426,6 +427,43 @@ public class ToolExecutorService {
         return toDualResult(llm, Map.of("time_logs", entries));
     }
 
+    private String executeSearchTimeLogs(JsonNode args) {
+        String query = getText(args, "query");
+        if (query == null || query.isBlank()) {
+            return toDualResult("Error: query is required. Provide a keyword or phrase to search in notes and project names.", Map.of("error", "query is required"));
+        }
+        Integer limit = getInt(args, "limit");
+        int limitVal = limit != null && limit > 0 ? Math.min(limit, 50) : 20;
+        List<TimeLogDto> logs = timeLogService.findLogsByKeyword(query.trim(), limitVal);
+        List<ProjectDto> projects = projectService.findAll();
+        var projectMap = projects.stream().collect(Collectors.toMap(p -> p.getId().toString(), p -> p.getName()));
+
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (TimeLogDto log : logs) {
+            Map<String, Object> e = new java.util.HashMap<>();
+            e.put("id", log.getId().toString());
+            e.put("projectId", log.getProjectId().toString());
+            e.put("projectName", projectMap.getOrDefault(log.getProjectId().toString(), "?"));
+            e.put("durationMinutes", log.getDurationMinutes());
+            e.put("note", log.getNote() != null ? log.getNote() : "");
+            e.put("billable", Boolean.TRUE.equals(log.getBillable()));
+            e.put("loggedAt", log.getLoggedAt().toString());
+            if (log.getActivityTypeCode() != null) {
+                e.put("activityTypeCode", log.getActivityTypeCode());
+                e.put("activityTypeLabel", log.getActivityTypeLabel() != null ? log.getActivityTypeLabel() : "");
+                e.put("dailyRateCents", log.getDailyRateCents() != null ? log.getDailyRateCents() : 0);
+            }
+            entries.add(e);
+        }
+        String llm = "## Search results for \"" + query.trim() + "\" (" + entries.size() + ")\n"
+                + entries.stream()
+                .limit(10)
+                .map(e -> "- " + e.get("projectName") + ": " + e.get("durationMinutes") + " min" + (e.get("note") != null && !e.get("note").toString().isBlank() ? " — " + e.get("note") : ""))
+                .collect(Collectors.joining("\n"))
+                + (entries.size() > 10 ? "\n... and " + (entries.size() - 10) + " more" : "");
+        return toDualResult(llm, Map.of("time_logs", entries));
+    }
+
     private String executeSumTimeByProject(JsonNode args) {
         String projectIdStr = getText(args, "projectId");
         String startStr = getText(args, "start");
@@ -542,7 +580,7 @@ public class ToolExecutorService {
     private String executeUpdateTimeLog(JsonNode args) {
         String idStr = getText(args, "id");
         if (idStr == null || idStr.isBlank()) {
-            return toDualResult("Error: id is required. Use entry id from get_recent_logs, get_time_logs_for_period, or [Context].", Map.of("error", "id is required"));
+            return toDualResult("Error: id is required. Use entry id from get_recent_logs, get_time_logs_for_period, search_time_logs, or [Context].", Map.of("error", "id is required"));
         }
         UUID id = UUID.fromString(idStr.trim());
         TimeLogDto patch = TimeLogDto.builder().id(id).build();
@@ -593,7 +631,7 @@ public class ToolExecutorService {
     private String executeDeleteTimeLog(JsonNode args) {
         String idStr = getText(args, "id");
         if (idStr == null || idStr.isBlank()) {
-            return toDualResult("Error: id is required. Use entry id from get_recent_logs, get_time_logs_for_period, or [Context].", Map.of("error", "id is required"));
+            return toDualResult("Error: id is required. Use entry id from get_recent_logs, get_time_logs_for_period, search_time_logs, or [Context].", Map.of("error", "id is required"));
         }
         UUID id = UUID.fromString(idStr.trim());
         timeLogService.deleteById(id);

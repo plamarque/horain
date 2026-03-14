@@ -52,6 +52,7 @@ tests:
   - file://tests/robustness.yaml
   - file://tests/project-lifecycle.yaml
   - file://tests/entry-mutations.yaml
+  - file://tests/search-time-logs.yaml
   - file://tests/multi-entry-and-followups.yaml
   - file://tests/empty-and-errors.yaml
   - file://tests/memory.yaml
