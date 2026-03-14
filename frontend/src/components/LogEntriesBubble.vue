@@ -53,7 +53,7 @@ const emit = defineEmits<{
   editProject: [entry: TimeLogEntry]
 }>()
 
-const flippedIds = ref<Set<string>>(new Set())
+const expandedIds = ref<Set<string>>(new Set())
 
 // Context menu (right-click or long-press)
 const contextMenuEntry = ref<TimeLogEntry | null>(null)
@@ -166,18 +166,18 @@ onUnmounted(() => {
   }
 })
 
-function toggleFlip(entry: TimeLogEntry) {
+function toggleExpand(entry: TimeLogEntry) {
   const id = entry.id ?? ''
   if (!id) return
-  const next = new Set(flippedIds.value)
+  const next = new Set(expandedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
-  flippedIds.value = next
+  expandedIds.value = next
 }
 
-function isFlipped(entry: TimeLogEntry): boolean {
+function isExpanded(entry: TimeLogEntry): boolean {
   const id = entry.id ?? ''
-  return id ? flippedIds.value.has(id) : false
+  return id ? expandedIds.value.has(id) : false
 }
 
 function onCardClick(entry: TimeLogEntry, e: MouseEvent) {
@@ -186,7 +186,7 @@ function onCardClick(entry: TimeLogEntry, e: MouseEvent) {
     emit('editEntry', entry)
     return
   }
-  toggleFlip(entry)
+  toggleExpand(entry)
   emit('selectEntry', entry)
 }
 
@@ -245,7 +245,7 @@ const moreCount = computed(
         v-for="(entry, i) in displayedEntries"
         :key="entry.id ?? i"
         class="card-wrapper"
-        :class="{ 'card-wrapper--flipped': isFlipped(entry) }"
+        :class="{ 'card-wrapper--expanded': isExpanded(entry) }"
         @click="onCardClick(entry, $event)"
         @dblclick="emit('editEntry', entry)"
         @contextmenu.prevent="onContextMenu(entry, $event)"
@@ -254,53 +254,49 @@ const moreCount = computed(
         @touchend="onTouchEnd"
         @touchcancel="onTouchEnd"
       >
-        <div class="card-inner">
-          <div
-            class="card-face card-recto"
-            :style="{ backgroundColor: projectColor(entry) }"
+        <div
+          class="card-face"
+          :style="{ backgroundColor: projectColor(entry) }"
+        >
+          <button
+            type="button"
+            class="card-edit"
+            aria-label="Edit entry"
+            title="Edit entry"
+            @click.stop="emit('editEntry', entry)"
           >
-            <div class="card-recto-header">
-              <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
-              <span
-                v-if="entry.activityTypeCode"
-                class="card-recto-tag"
-                :title="entry.activityTypeLabel || entry.activityTypeCode"
-              >
-                {{ entry.activityTypeCode }}
-              </span>
-            </div>
-            <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
-            <p class="card-recto-note" :title="entry.note || undefined">
-              {{ entry.note || '—' }}
-            </p>
-          </div>
-          <div class="card-face card-verso">
-            <button
-              type="button"
-              class="card-verso-edit"
-              aria-label="Edit entry"
-              title="Edit entry"
-              @click.stop="emit('editEntry', entry)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                <path d="m15 5 4 4" />
-              </svg>
-            </button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
+          </button>
+          <!-- Collapsed: stacked layout. Expanded: two rows, full width -->
+          <div class="card-row card-row--meta">
+            <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
             <span
-              class="card-verso-project"
+              v-if="entry.activityTypeCode"
+              class="card-tag"
+              :title="entry.activityTypeLabel || entry.activityTypeCode"
+            >
+              {{ entry.activityTypeCode }}
+            </span>
+            <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
+            <span v-if="isExpanded(entry)" class="card-sep" aria-hidden="true">·</span>
+            <span
+              class="card-project"
               title="Double-click to edit project"
               @dblclick.stop="onProjectDblClick(entry, $event)"
             >
               {{ entry.projectName || '—' }}
             </span>
-            <span v-if="entry.billable !== false" class="card-verso-amount">
+            <span v-if="entry.billable !== false" class="card-amount">
               <span v-if="entryAmountEur(entry) != null" class="card-amount-value">{{ formatAmountEur(entryAmountEur(entry)!) }}</span>
-              <span v-else class="card-billable-icon" aria-hidden="true">€</span>
+              <span v-else class="card-amount-icon" aria-hidden="true">€</span>
             </span>
-            <p v-if="entry.note" class="card-note">{{ entry.note }}</p>
-            <p v-else class="card-note card-note--empty">—</p>
           </div>
+          <p class="card-note" :title="entry.note || undefined">
+            {{ entry.note || '—' }}
+          </p>
         </div>
       </div>
     </div>
@@ -363,48 +359,82 @@ const moreCount = computed(
   max-width: 200px;
   aspect-ratio: 3 / 4;
   cursor: pointer;
-  perspective: 600px;
+  transition: flex-basis 0.3s ease, max-width 0.3s ease, aspect-ratio 0.3s ease;
 }
 
-.card-inner {
-  position: relative;
+/* Expanded card: full width on its own row, pushes others down (no overlay) */
+.card-wrapper--expanded {
+  flex: 1 1 100%;
   width: 100%;
-  height: 100%;
-  transition: transform 0.4s ease;
-  transform-style: preserve-3d;
-}
-
-.card-wrapper--flipped .card-inner {
-  transform: rotateY(180deg);
+  min-width: 100%;
+  max-width: 100%;
+  aspect-ratio: auto;
+  min-height: 4.5rem;
 }
 
 .card-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
+  position: relative;
+  width: 100%;
+  height: 100%;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 0.85rem;
+  padding-top: 2.25rem;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.card-recto {
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  justify-content: flex-start;
 }
 
-.card-recto-header {
-  display: flex;
+.card-wrapper--expanded .card-face {
+  justify-content: flex-start;
+  padding: 0.6rem 0.85rem 0.6rem 0.85rem;
+  padding-right: 2.5rem;
+  text-align: left;
+  align-items: stretch;
+}
+
+.card-edit {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+
+.card-edit:hover {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+/* Collapsed: vertical stack (date+tag, duration, note) */
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.card-row--meta {
+  margin-bottom: 0.4rem;
+}
+
+.card-wrapper:not(.card-wrapper--expanded) .card-row--meta {
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .card-date {
@@ -413,8 +443,16 @@ const moreCount = computed(
   flex-shrink: 0;
 }
 
-.card-recto-header .card-recto-tag {
-  margin-bottom: 0;
+.card-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.98);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
@@ -422,25 +460,59 @@ const moreCount = computed(
   font-size: 1.5rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin-top: 0.5rem;
-  margin-bottom: 0.55rem;
   letter-spacing: 0.02em;
 }
 
-.card-recto-tag {
-  display: inline-block;
-  font-size: 0.75rem;
+.card-wrapper--expanded .card-duration {
+  font-size: 1.125rem;
+  margin-right: 0.5rem;
+}
+
+.card-sep {
+  opacity: 0.7;
   font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  margin-bottom: 0.4rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.98);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  user-select: none;
 }
 
-.card-recto-note {
+.card-project {
+  font-size: 1.0625rem;
+  font-weight: 500;
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-wrapper--expanded .card-project {
+  font-weight: 600;
+}
+
+.card-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.card-amount-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.card-wrapper:not(.card-wrapper--expanded) .card-project,
+.card-wrapper:not(.card-wrapper--expanded) .card-amount-value,
+.card-wrapper:not(.card-wrapper--expanded) .card-amount-icon {
+  display: none;
+}
+
+.card-amount-icon {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.card-note {
   margin: 0;
   font-size: 1.25rem;
   line-height: 1.35;
@@ -455,84 +527,12 @@ const moreCount = computed(
   min-height: 0;
 }
 
-.card-project {
-  font-size: 1.0625rem;
-  font-weight: 500;
+.card-wrapper--expanded .card-note {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 1rem;
   line-height: 1.4;
-  word-break: break-word;
-}
-
-.card-verso {
-  background: rgba(30, 30, 45, 0.98);
-  color: #e8e8f0;
-  transform: rotateY(180deg);
-  position: relative;
-}
-
-.card-verso-edit {
-  position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
-  border: none;
-  border-radius: 6px;
-  color: #a0a0c0;
-  cursor: pointer;
-}
-
-.card-verso-edit:hover {
-  background: rgba(0, 0, 0, 0.5);
-  color: #e8e8f0;
-}
-
-.card-verso-project {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.4;
-  word-break: break-word;
-  margin-bottom: 0.5rem;
-  color: inherit;
-}
-
-.card-verso-amount {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
-}
-
-.card-billable-icon {
-  font-size: 1.5625rem;
-  font-weight: 700;
-  color: #7cb342;
-}
-
-.card-amount-value {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #7cb342;
-}
-
-.card-note {
-  margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.35;
-  word-break: break-word;
-  overflow: auto;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-note--empty {
-  color: #8888a0;
+  margin-top: 0.25rem;
 }
 
 .show-more {
@@ -595,6 +595,12 @@ const moreCount = computed(
 
   .card-face {
     padding: 0.6rem;
+    padding-top: 2rem;
+  }
+
+  .card-wrapper--expanded .card-face {
+    padding: 0.5rem 0.6rem;
+    padding-right: 2.25rem;
   }
 
   .card-date {
@@ -603,24 +609,15 @@ const moreCount = computed(
 
   .card-duration {
     font-size: 1.25rem;
-    margin-bottom: 0.45rem;
   }
 
-  .card-recto-tag {
+  .card-tag {
     font-size: 0.6875rem;
     padding: 0.15rem 0.4rem;
-    margin-bottom: 0.3rem;
   }
 
-  .card-recto-note {
-    font-size: 0.9375rem;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-  }
-
-  .card-project,
-  .card-verso-project {
-    font-size: 1.25rem;
+  .card-project {
+    font-size: 1rem;
     line-height: 1.4;
   }
 
