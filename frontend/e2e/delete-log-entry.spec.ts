@@ -45,16 +45,16 @@ test('delete log entry via edit modal', async ({ page, request }) => {
   await expect(page.getByText('Dernières activités')).toBeVisible({
     timeout: 5000,
   })
-  // Find the card that contains this project (project name is on verso)
   const card = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e delete test' }) })
     .first()
   await expect(card).toBeVisible({ timeout: 5000 })
-  await card.dblclick()
+  await card.click()
+  await card.getByRole('button', { name: 'Edit entry' }).click()
 
   const entryEditScreen = page.locator('.entry-edit-screen')
-  await expect(entryEditScreen).toBeVisible()
+  await expect(entryEditScreen).toBeVisible({ timeout: 5000 })
   await expect(entryEditScreen.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
 
   await entryEditScreen.getByRole('button', { name: 'Delete' }).click()
@@ -63,7 +63,8 @@ test('delete log entry via edit modal', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Delete' }).click()
 
   await expect(page.getByRole('heading', { name: 'Edit entry' })).not.toBeVisible()
+  // Wait for the deleted entry (unique note) to disappear from the list
   await expect(
-    page.locator('.card-verso-project').filter({ hasText: projectName })
-  ).toHaveCount(0, { timeout: 5000 })
+    page.locator('.card-wrapper').filter({ has: page.locator('.card-note').filter({ hasText: 'e2e delete test' }) })
+  ).toHaveCount(0, { timeout: 10000 })
 })

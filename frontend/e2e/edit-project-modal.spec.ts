@@ -43,10 +43,10 @@ test('edit project via context menu on card', async ({ page, request }) => {
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
-  // Find the card that contains this project name (on verso)
+  // Find the card by note (visible when collapsed); project name is visible when expanded
   const cardWithProject = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e project modal test' }) })
     .first()
   await expect(cardWithProject).toBeVisible({ timeout: 5000 })
 
@@ -66,9 +66,9 @@ test('edit project via context menu on card', async ({ page, request }) => {
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).not.toBeVisible()
 
-  // Updated project name is present on a card verso (recent logs are refreshed on save)
+  // Updated project name is present on a card (recent logs are refreshed on save)
   await expect(
-    page.locator('.card-verso-project').filter({ hasText: updatedName })
+    page.locator('.card-project').filter({ hasText: updatedName })
   ).toHaveCount(1, { timeout: 5000 })
 })
 
@@ -94,19 +94,25 @@ test('edit project via double-click on project name on card', async ({ page, req
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { projectId: project.id, durationMinutes: 10, note: 'e2e' },
+    data: { projectId: project.id, durationMinutes: 10, note: 'e2e dblclick' },
   })
 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
-  const cardWithProject = page.locator('.card-wrapper').filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) }).first()
+  // Find card by note, then expand (click) so project name is visible
+  const cardWithProject = page
+    .locator('.card-wrapper')
+    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e dblclick' }) })
+    .first()
   await expect(cardWithProject).toBeVisible({ timeout: 5000 })
   await cardWithProject.click()
-  const projectNameOnVerso = cardWithProject.locator('.card-verso-project').filter({ hasText: projectName })
-  await projectNameOnVerso.dblclick()
+  const projectNameEl = cardWithProject.locator('.card-project').filter({ hasText: projectName })
+  await expect(projectNameEl).toBeVisible()
+  await projectNameEl.dblclick({ delay: 80 })
 
+  await expect(page.getByRole('heading', { name: 'Edit project' })).toBeVisible({ timeout: 10000 })
   const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
   await expect(projectModal).toBeVisible()
   await projectModal.getByRole('button', { name: 'Cancel' }).click()

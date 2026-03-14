@@ -42,17 +42,16 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
-  // Double-click on card to open entry modal (double-click on project name would open project modal)
   const card = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-verso-project').filter({ hasText: projectName }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e billable test' }) })
     .first()
   await expect(card).toBeVisible({ timeout: 5000 })
-  await card.dblclick()
+  await card.click()
+  await card.getByRole('button', { name: 'Edit entry' }).click()
 
-  // Entry edit modal
   const entryEditScreen = page.locator('.entry-edit-screen')
-  await expect(entryEditScreen).toBeVisible()
+  await expect(entryEditScreen).toBeVisible({ timeout: 5000 })
   await expect(entryEditScreen.getByRole('heading', { name: 'Edit entry' })).toBeVisible()
 
   const billableCheckbox = entryEditScreen.locator('#edit-billable')
@@ -66,6 +65,6 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
 
   // After save, recent logs are refetched; card with this project should still be visible
   await expect(
-    page.locator('.card-verso-project').filter({ hasText: projectName })
+    page.locator('.card-project').filter({ hasText: projectName })
   ).toHaveCount(1, { timeout: 10000 })
 })

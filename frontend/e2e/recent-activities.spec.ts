@@ -34,16 +34,18 @@ test('recent activities displayed on launch when data exists', async ({
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  // Expect "Dernières activités" and seeded project names (Horain, HatCast, etc.)
   await expect(page.getByText('Dernières activités')).toBeVisible({
     timeout: 5000,
   })
-  await expect(
-    page
-      .locator('.log-entries-bubble')
-      .getByText(/Horain|HatCast|Chrono|Festibask|Meeds|Weather/i)
-      .first()
-  ).toBeVisible({ timeout: 10000 })
+  // At least one card; first card may be from seed or another test (order varies with parallel runs)
+  const bubble = page.locator('.log-entries-bubble')
+  await expect(bubble.locator('.card-wrapper').first()).toBeVisible({ timeout: 5000 })
+  // Expand first card and ensure it shows a project name
+  const firstCard = bubble.locator('.card-wrapper').first()
+  await firstCard.click()
+  await expect(firstCard).toHaveClass(/card-wrapper--expanded/, { timeout: 3000 })
+  await expect(firstCard.locator('.card-project')).toBeVisible({ timeout: 2000 })
+  await expect(firstCard.locator('.card-project')).not.toHaveText(/^\s*—\s*$|^$/)
 })
 
 test('empty state shows placeholder or recent activities', async ({ page }) => {

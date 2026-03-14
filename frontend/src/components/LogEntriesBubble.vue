@@ -285,6 +285,7 @@ const moreCount = computed(
             <span
               class="card-project"
               title="Double-click to edit project"
+              @click.stop
               @dblclick.stop="onProjectDblClick(entry, $event)"
             >
               {{ entry.projectName || '—' }}

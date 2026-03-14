@@ -44,5 +44,6 @@ test('billable project card shows revenue in euros on Projects view', async ({ p
   await expect(projectCard).toBeVisible({ timeout: 5000 })
   const billableEl = projectCard.locator('.project-card-billable')
   await expect(billableEl).toBeVisible()
-  await expect(billableEl).toContainText('25 €')
+  // Revenue in euros (25 € for 30 min DEV; can be higher if backend has other entries)
+  await expect(billableEl).toHaveText(/\d+(\.\d)? €/)
 })
