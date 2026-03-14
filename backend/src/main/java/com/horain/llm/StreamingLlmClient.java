@@ -10,18 +10,32 @@ import java.util.function.Consumer;
 public interface StreamingLlmClient extends LlmClient {
 
     /**
-     * Stream a chat completion. Calls the LLM with streaming enabled.
-     * For each content delta, invokes textConsumer.
-     * When the response includes tool_calls, they are accumulated and returned (no streaming of tool args).
+     * Stream a chat completion with optional reasoning stream.
+     * For each content delta, invokes textConsumer. When the model supports reasoning (e.g. Responses API),
+     * invokes reasoningConsumer for each reasoning delta; when null, no reasoning is streamed.
      *
-     * @param messages   Conversation history
-     * @param tools      Tool definitions
-     * @param textConsumer Receives each content delta as it arrives
-     * @return Full LlmResponse when stream completes (with content accumulated, and tool_calls if any)
+     * @param messages          Conversation history
+     * @param tools             Tool definitions
+     * @param textConsumer      Receives each content delta as it arrives
+     * @param reasoningConsumer Receives each reasoning delta, or null if reasoning is not supported/needed
+     * @return Full LlmResponse when stream completes (content, tool_calls, optional reasoningSummary)
      */
     LlmResponse chatStream(
             List<ChatMessage> messages,
             List<ToolDefinition> tools,
-            Consumer<String> textConsumer
+            Consumer<String> textConsumer,
+            Consumer<String> reasoningConsumer
     );
+
+    /**
+     * Stream a chat completion (no reasoning consumer). Delegates to
+     * {@link #chatStream(List, List, Consumer, Consumer)} with null reasoningConsumer.
+     */
+    default LlmResponse chatStream(
+            List<ChatMessage> messages,
+            List<ToolDefinition> tools,
+            Consumer<String> textConsumer
+    ) {
+        return chatStream(messages, tools, textConsumer, null);
+    }
 }

@@ -101,8 +101,10 @@ public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
     public LlmResponse chatStream(
             List<ChatMessage> messages,
             List<ToolDefinition> tools,
-            Consumer<String> textConsumer
+            Consumer<String> textConsumer,
+            Consumer<String> reasoningConsumer
     ) {
+        // Chat Completions API does not expose reasoning; reasoningConsumer is ignored.
         String url = baseUrl.replaceAll("/$", "") + "/chat/completions";
         ObjectNode body = buildRequestBody(messages, tools);
         body.put("stream", true);

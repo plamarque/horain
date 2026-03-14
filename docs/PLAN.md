@@ -23,6 +23,7 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 | 4 | Voice (push-to-talk, STT) | Done |
 | 5 | Full flow + e2e tests + CI/CD | Done |
 | 6 | PWA + stores (optional) | PWA Done, stores optional |
+| 7 | Trace par types de tâches (Phase 1) — sections repliables, accordéon | Done |
 
 ## Tasks (Slice 1)
 
@@ -66,6 +67,17 @@ Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vi
 
 - [x] PWA manifest and service worker
 - [ ] Store packaging (optional, see PUBLISHING_STORES.md)
+
+## Slices (trace / reasoning)
+
+| Slice | Objective | Status |
+|-------|-----------|--------|
+| **Phase 1** | Trace par types de tâches (Exploration, Lecture, Écriture, etc.), sections repliables avec résumé succinct / détail, accordéon | Done |
+| **A** | Backend : support du raisonnement (optionnel selon modèle) — events `reasoning_chunk`, API Responses ou champ reasoning dans le stream | Done |
+| **B** | Frontend : section Thinking repliable (résumé / détail), réception des `reasoning_chunk` | Done |
+| **C** | Multi-modèle et détection d'intention (routage vers modèle approprié) | Différé |
+
+Backend : `StreamEventWriter.sendReasoningChunk`, `sendDone(…, reasoningText, reasoningDurationMs)` ; client `OpenAiResponsesLlmClient` (Responses API) ; choix via `llm.client=openai-responses`. Frontend : event `reasoning_chunk`, payload `done` avec `reasoningText` / `reasoningDurationMs`, bloc « Thought for Xs » dans AgentTraceBlock. Voir [docs/ISSUES.md](docs/ISSUES.md) pour le reasoning interne.
 
 ## Différé (post-MVP)
 

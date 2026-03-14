@@ -61,6 +61,8 @@ Implémentation : `backend/.../tools/ToolRegistry.java`, `ToolExecutorService.ja
 
 When agent capabilities grow (many tools or more complex workflows), consider a **sub-agent** architecture: a dedicated system prompt, a restricted tool set, and a focused objective. This reduces context pollution and improves reasoning reliability. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
 
+The SSE stream supports **optional reasoning**: events `reasoning_chunk` (text deltas) and optional fields `reasoningText` / `reasoningDurationMs` in the `done` payload. When the selected LLM client exposes reasoning (e.g. OpenAI Responses API with a reasoning model), the backend forwards it; otherwise the stream is unchanged. Future **multi-model orchestration** (routing by task complexity) will use the same contract: one client per request, with or without reasoning emission.
+
 ## Technology Stack
 
 - **Front-end:** Vue 3, Vite, HTML, CSS (custom UI, no PrimeVue)

@@ -7,7 +7,7 @@ import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
-import type { AgentTrace, ChartSpec, Message, TimeLogEntry } from '../types'
+import type { AgentTrace, AssistantMessageSegment, ChartSpec, Message, TimeLogEntry } from '../types'
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const versionDisplay = inject<string>('versionDisplay', '')
@@ -80,6 +80,8 @@ function buildAgentTrace(
 const messages = ref<Message[]>([])
 const isProcessing = ref(false)
 const streamingMessageId = ref<string | null>(null)
+/** Segments for interleaved display (text then tools per turn); reset when starting a new stream. */
+const streamingSegments = ref<AssistantMessageSegment[]>([])
 const abortControllerRef = ref<AbortController | null>(null)
 
 /** True when the last assistant message is streaming; used so timeline hides "Processing..." as soon as the streaming bubble exists. */
@@ -313,6 +315,7 @@ async function handleSubmit(text: string) {
       {
         onChunk(chunk) {
           if (!streamingMessageId.value) {
+            streamingSegments.value = []
             const id = crypto.randomUUID()
             streamingMessageId.value = id
             const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
@@ -333,15 +336,46 @@ async function handleSubmit(text: string) {
             if (msg) msg.text += chunk
           }
         },
+        onReasoningChunk(reasoningDelta) {
+          let id = streamingMessageId.value
+          if (!id) {
+            streamingSegments.value = []
+            id = crypto.randomUUID()
+            streamingMessageId.value = id
+            const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
+            messages.value.push({
+              id,
+              role: 'assistant',
+              text: '',
+              timestamp: new Date(),
+              isStreaming: true,
+              agentTrace: { toolCalls: [], reasoningText: reasoningDelta },
+            })
+            nextTick(() => {
+              if (wasAtBottom) timelineRef.value?.scrollToBottom()
+              else hasNewMessageBelow.value = true
+            })
+            return
+          }
+          const msg = messages.value.find((m) => m.id === id)
+          if (msg?.agentTrace) {
+            msg.agentTrace.reasoningText = (msg.agentTrace.reasoningText ?? '') + reasoningDelta
+          }
+        },
+        onAssistantSegment(text) {
+          streamingSegments.value.push({ type: 'text', text })
+        },
         onToolCall(call) {
           const display = {
             name: call.name,
             arguments: call.arguments,
             result: call.result,
+            success: !isToolResultError(call.result ?? ''),
             ...(typeof call.iterationIndex === 'number' && { iterationIndex: call.iterationIndex }),
           }
           let id = streamingMessageId.value
           if (!id) {
+            streamingSegments.value = []
             id = crypto.randomUUID()
             streamingMessageId.value = id
             const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
@@ -353,6 +387,11 @@ async function handleSubmit(text: string) {
               isStreaming: true,
               agentTrace: { toolCalls: [display] },
             })
+            streamingSegments.value.push({
+              type: 'tools',
+              iterationIndex: typeof call.iterationIndex === 'number' ? call.iterationIndex : 0,
+              toolCalls: [display],
+            })
             nextTick(() => {
               if (wasAtBottom) timelineRef.value?.scrollToBottom()
               else hasNewMessageBelow.value = true
@@ -362,6 +401,14 @@ async function handleSubmit(text: string) {
           const msg = messages.value.find((m) => m.id === id)
           if (msg?.agentTrace) {
             msg.agentTrace.toolCalls.push(display)
+          }
+          const iter = typeof call.iterationIndex === 'number' ? call.iterationIndex : 0
+          const segs = streamingSegments.value
+          const last = segs[segs.length - 1]
+          if (last?.type === 'tools' && last.iterationIndex === iter) {
+            last.toolCalls.push(display)
+          } else {
+            streamingSegments.value.push({ type: 'tools', iterationIndex: iter, toolCalls: [display] })
           }
         },
         onDone(payload) {
@@ -377,17 +424,31 @@ async function handleSubmit(text: string) {
           if (streamingMessageId.value) {
             const msg = messages.value.find((m) => m.id === streamingMessageId.value)
             if (msg) {
-              msg.text = payload.assistantMessage ?? msg.text
+              // Keep streamed text (intermediate turns); use payload only when no chunks were received (e.g. non-streaming)
+              const streamedText = msg.text != null && msg.text.length > 0
+              msg.text = streamedText ? msg.text : (payload.assistantMessage ?? '')
               msg.isStreaming = false
               if (chart) msg.chart = chart
               if (timeLogs?.length) msg.timeLogs = timeLogs
               if (payload.turnId != null) msg.turnId = payload.turnId
-              if (agentTrace) msg.agentTrace = agentTrace
+              msg.agentTrace = agentTrace ?? msg.agentTrace ?? { toolCalls: [] }
+              if (payload.reasoningText != null) msg.agentTrace.reasoningText = payload.reasoningText
+              if (payload.reasoningDurationMs != null) msg.agentTrace.reasoningDurationMs = payload.reasoningDurationMs
+              if (payload.reasoningSummary != null) msg.agentTrace.reasoningSummary = payload.reasoningSummary
+              if (streamingSegments.value.length > 0) {
+                msg.segments = [...streamingSegments.value]
+              }
             }
           } else {
-            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId, agentTrace)
+            const mergedTrace: AgentTrace | undefined = agentTrace
+              ? { ...agentTrace, reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary }
+              : (payload.reasoningText != null || payload.reasoningDurationMs != null || payload.reasoningSummary != null)
+                ? { toolCalls: [], reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary }
+                : undefined
+            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId, mergedTrace)
           }
           streamingMessageId.value = null
+          streamingSegments.value = []
           getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
         },
         onError(err) {
@@ -418,7 +479,13 @@ async function handleSubmit(text: string) {
           ? (response.data as { timeLogs: unknown }).timeLogs
           : undefined
         const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
-        const agentTrace = buildAgentTrace(response.toolCalls)
+        let agentTrace = buildAgentTrace(response.toolCalls)
+        if (response.reasoningText != null || response.reasoningDurationMs != null || response.reasoningSummary != null) {
+          agentTrace = agentTrace ?? { toolCalls: [] }
+          if (response.reasoningText != null) agentTrace.reasoningText = response.reasoningText
+          if (response.reasoningDurationMs != null) agentTrace.reasoningDurationMs = response.reasoningDurationMs
+          if (response.reasoningSummary != null) agentTrace.reasoningSummary = response.reasoningSummary
+        }
         addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId, agentTrace)
         getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {

@@ -12,6 +12,12 @@ export interface ChatMessageResponse {
   data?: unknown
   /** Turn id for feedback API (thumb up/down). */
   turnId?: string | null
+  /** Optional reasoning text when model exposes it (e.g. Responses API). */
+  reasoningText?: string
+  /** Optional duration of reasoning phase in ms (for "Thought for Xs" header). */
+  reasoningDurationMs?: number
+  /** Optional one-line summary (Cursor-style); when absent, UI derives from reasoningText. */
+  reasoningSummary?: string
 }
 
 /** Maximum number of history messages to send (keeps context window manageable). */
@@ -112,6 +118,10 @@ export interface StreamCallbacks {
   onError?: (err: Error) => void
   /** Called for each tool execution during stream (event: tool_call). */
   onToolCall?: (call: ToolCallPayload) => void
+  /** Called for each reasoning text delta (event: reasoning_chunk). */
+  onReasoningChunk?: (text: string) => void
+  /** Called when a text segment is sent before tool calls for a turn (event: assistant_segment). */
+  onAssistantSegment?: (text: string, iterationIndex: number) => void
 }
 
 /**
@@ -260,6 +270,16 @@ function dispatchEvent(
           result: typeof data.result === 'string' ? data.result : '',
           iterationIndex: typeof data.iterationIndex === 'number' ? data.iterationIndex : undefined,
         })
+      }
+    } else if (event === 'reasoning_chunk') {
+      const data = JSON.parse(dataStr) as { text?: string }
+      if (typeof data.text === 'string') {
+        callbacks.onReasoningChunk?.(data.text)
+      }
+    } else if (event === 'assistant_segment') {
+      const data = JSON.parse(dataStr) as { text?: string; iterationIndex?: number }
+      if (typeof data.text === 'string') {
+        callbacks.onAssistantSegment?.(data.text, typeof data.iterationIndex === 'number' ? data.iterationIndex : 0)
       }
     }
   } catch (e) {

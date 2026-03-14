@@ -156,6 +156,7 @@ defineExpose({
       :is-streaming="msg.isStreaming"
       :turn-id="msg.turnId"
       :agent-trace="msg.agentTrace"
+      :segments="msg.segments"
       @select-entry="emit('selectEntry', $event)"
       @edit-entry="emit('editEntry', $event)"
       @edit-project="emit('editProject', $event)"

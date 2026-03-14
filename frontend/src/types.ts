@@ -53,9 +53,20 @@ export interface ToolCallDisplay {
  */
 export interface AgentTrace {
   toolCalls: ToolCallDisplay[]
-  /** Optional reasoning text (Phase 2: filled by stream or done when model exposes it). */
+  /** Optional reasoning text (filled by stream or done when model exposes it). */
   reasoningText?: string
+  /** Optional duration of reasoning phase in ms (for "Thought for Xs" header). */
+  reasoningDurationMs?: number
+  /** Optional one-line summary (Cursor-style: shown in white below grey detail). When absent, derived from reasoningText. */
+  reasoningSummary?: string
 }
+
+/**
+ * One segment of an assistant message for interleaved display (text then tools per turn).
+ */
+export type AssistantMessageSegment =
+  | { type: 'text'; text: string }
+  | { type: 'tools'; iterationIndex: number; toolCalls: ToolCallDisplay[] }
 
 /**
  * Conversation message stored in memory.
@@ -73,4 +84,6 @@ export interface Message {
   turnId?: string | null
   /** Tools and execution trace for this turn (assistant only). Session-only. */
   agentTrace?: AgentTrace
+  /** When present, render message as interleaved text + tool blocks (assistant only). */
+  segments?: AssistantMessageSegment[]
 }

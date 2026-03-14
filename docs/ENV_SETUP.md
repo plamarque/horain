@@ -127,6 +127,7 @@ L'assistant nécessite un fournisseur LLM pour répondre aux questions ("combien
 | `LLM_API_KEY` ou `OPENAI_API_KEY` | Oui | Clé API du fournisseur (OpenAI, OpenRouter, etc.) |
 | `LLM_BASE_URL` | Non | URL de base de l'API chat. Défaut: `https://api.openai.com/v1`. OpenRouter: `https://openrouter.ai/api/v1` |
 | `LLM_MODEL` | Non | Modèle à utiliser. Défaut: `gpt-4o-mini`. OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-3-haiku`, etc. |
+| `LLM_CLIENT` | Non | Client à utiliser. Vide = détection auto (modèles o1/o3/o4-mini → Responses API avec repli sur Completions si échec). Valeurs: `openai-responses`, `openai-compatible`, `spring-ai`. |
 
 ### 2. Fournisseurs supportés
 

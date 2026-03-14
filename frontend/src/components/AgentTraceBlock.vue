@@ -57,6 +57,8 @@ const props = withDefaults(
 )
 
 const collapsed = ref(true)
+/** Reasoning block ("Thought for Xs") collapsed by default. */
+const reasoningCollapsed = ref(true)
 /** Accordion: id of the single open section (e.g. "0-exploring") or null. */
 const openedSectionKey = ref<string | null>(null)
 /** Which iteration (turn) is expanded when not streaming; null = all collapsed. During streaming, current turn is always expanded. */
@@ -70,6 +72,35 @@ const showTraceContent = computed(() => {
 /** Show "Thinking..." only when streaming and no tool calls yet. */
 const showThinkingOnly = computed(() => {
   return (props.isStreaming ?? false) && !(props.agentTrace?.toolCalls?.length ?? 0)
+})
+
+/** Whether we have reasoning text to show (Cursor-style "Thought for Xs"). */
+const hasReasoning = computed(() => {
+  const t = props.agentTrace?.reasoningText
+  return typeof t === 'string' && t.length > 0
+})
+
+/** "Thought for Xs" label: duration in seconds from reasoningDurationMs, or empty. */
+const reasoningDurationLabel = computed(() => {
+  const ms = props.agentTrace?.reasoningDurationMs
+  if (ms == null || ms < 0) return ''
+  const sec = Math.round(ms / 1000)
+  return sec <= 0 ? '1' : String(sec)
+})
+
+/** One-line summary (Cursor-style: visible in white below the grey detail). Uses backend reasoningSummary when present, else first sentence or ~120 chars of reasoningText. */
+const reasoningSummaryLine = computed(() => {
+  const explicit = props.agentTrace?.reasoningSummary
+  if (explicit && typeof explicit === 'string' && explicit.trim()) return explicit.trim()
+  const t = props.agentTrace?.reasoningText
+  if (!t || typeof t !== 'string') return ''
+  const trimmed = t.trim()
+  if (!trimmed) return ''
+  const maxLen = 120
+  const firstLine = trimmed.split(/\n/)[0]?.trim() ?? trimmed
+  const firstSentence = firstLine.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() ?? firstLine
+  if (firstSentence.length <= maxLen) return firstSentence
+  return firstSentence.slice(0, maxLen).trimEnd() + '…'
 })
 
 /** Group tool calls by iteration index (Tour 1, Tour 2, …). */
@@ -166,7 +197,7 @@ function sectionSummary(section: { label: string; calls: ToolCallDisplay[] }): s
 
 <template>
   <div
-    v-if="showThinkingOnly || showTraceContent"
+    v-if="showThinkingOnly || showTraceContent || hasReasoning"
     class="agent-trace-block"
     role="region"
     aria-label="Agent execution trace"
@@ -175,8 +206,28 @@ function sectionSummary(section: { label: string; calls: ToolCallDisplay[] }): s
     <div v-if="showThinkingOnly" class="agent-trace-thinking">
       <span class="agent-trace-thinking-text">Thinking...</span>
     </div>
+    <!-- Reasoning (Cursor-style "Thought for Xs"): optional, only when model exposes it -->
+    <template v-if="hasReasoning">
+      <button
+        type="button"
+        class="agent-trace-reasoning-toggle"
+        :aria-expanded="!reasoningCollapsed"
+        @click="reasoningCollapsed = !reasoningCollapsed"
+      >
+        <span class="agent-trace-reasoning-label">
+          Thought for {{ reasoningDurationLabel || '?' }}s
+        </span>
+        <span class="agent-trace-reasoning-chevron" aria-hidden="true">
+          {{ reasoningCollapsed ? '▼' : '▲' }}
+        </span>
+      </button>
+      <div v-show="!reasoningCollapsed" class="agent-trace-reasoning-content">
+        <p class="agent-trace-reasoning-text">{{ agentTrace?.reasoningText }}</p>
+      </div>
+      <p v-if="reasoningSummaryLine" class="agent-trace-reasoning-summary">{{ reasoningSummaryLine }}</p>
+    </template>
     <!-- Tool calls (during stream or after): collapsible block with sections by task type -->
-    <template v-else-if="showTraceContent">
+    <template v-if="showTraceContent">
       <button
         type="button"
         class="agent-trace-toggle"
@@ -305,6 +356,68 @@ function sectionSummary(section: { label: string; calls: ToolCallDisplay[] }): s
 .agent-trace-thinking-text {
   font-style: italic;
   color: #6e6e86;
+}
+
+.agent-trace-reasoning-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.25rem 0;
+  margin-top: 0.25rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-trace-reasoning-toggle:hover {
+  color: #8a8aa0;
+}
+
+.agent-trace-reasoning-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-trace-reasoning-chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+.agent-trace-reasoning-content {
+  margin-left: 0.5em;
+  margin-top: 0.15rem;
+  padding: 0.35rem 0;
+  padding-left: 0.25rem;
+  border-left: 1px solid rgba(120, 120, 140, 0.2);
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.agent-trace-reasoning-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #7a7a92;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/** Cursor-style: one-line summary in white below the grey reasoning block (gist without expanding). */
+.agent-trace-reasoning-summary {
+  margin: 0.4rem 0 0 0.5em;
+  font-size: 0.875rem;
+  color: #e8e8f0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .agent-trace-toggle {

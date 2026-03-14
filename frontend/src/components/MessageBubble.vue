@@ -5,7 +5,7 @@ import LogEntriesBlock from './LogEntriesBlock.vue'
 import AgentTraceBlock from './AgentTraceBlock.vue'
 import { renderMarkdown } from '../utils/markdown'
 import { sendFeedback } from '../services/chatClient'
-import type { AgentTrace, ChartSpec, TimeLogEntry } from '../types'
+import type { AgentTrace, AssistantMessageSegment, ChartSpec, TimeLogEntry } from '../types'
 
 const props = defineProps<{
   role: 'user' | 'assistant'
@@ -17,6 +17,8 @@ const props = defineProps<{
   turnId?: string | null
   /** Agent tool execution trace (assistant only). Session-only. */
   agentTrace?: AgentTrace | null
+  /** Interleaved text + tool segments (assistant only). When set, message is rendered as text then tools per turn. */
+  segments?: AssistantMessageSegment[]
 }>()
 
 const emit = defineEmits<{
@@ -47,31 +49,64 @@ const formattedContent = computed(() => {
 })
 
 const useHtml = computed(() => props.role === 'assistant')
+
+/** When segments are present, render interleaved; each segment formatted for display. */
+function segmentTextHtml(seg: { type: 'text'; text: string }) {
+  if (seg.type !== 'text' || !seg.text) return ''
+  return renderMarkdown(seg.text)
+}
 </script>
 
 <template>
   <div class="message-block">
-    <!-- Trace first (work in progress), then the reply (result); same row alignment as assistant bubble -->
-    <div v-if="role === 'assistant'" class="message-row assistant trace-row">
-      <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
-      <AgentTraceBlock
-        :agent-trace="agentTrace"
-        :is-streaming="isStreaming ?? false"
-      />
-    </div>
-    <div class="message-row" :class="role">
-      <img
-        v-if="role === 'assistant'"
-        src="/favicon.svg"
-        alt="Horain"
-        class="avatar"
-      >
-      <div class="bubble" :class="role">
-        <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
-        <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
-        <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+    <!-- Interleaved: text then tools per turn (assistant with segments from stream) -->
+    <template v-if="role === 'assistant' && segments?.length">
+      <div v-if="agentTrace?.reasoningText" class="message-row assistant trace-row">
+        <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
+        <AgentTraceBlock
+          :agent-trace="{ toolCalls: [], reasoningText: agentTrace.reasoningText, reasoningDurationMs: agentTrace.reasoningDurationMs, reasoningSummary: agentTrace.reasoningSummary }"
+          :is-streaming="false"
+        />
       </div>
-    </div>
+      <template v-for="(seg, idx) in segments" :key="idx">
+        <div v-if="seg.type === 'text'" class="message-row assistant">
+          <img src="/favicon.svg" alt="" class="avatar" aria-hidden="true" />
+          <div class="bubble assistant">
+            <div class="content content--markdown" v-html="segmentTextHtml(seg)" />
+          </div>
+        </div>
+        <div v-else class="message-row assistant trace-row">
+          <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
+          <AgentTraceBlock
+            :agent-trace="{ toolCalls: seg.toolCalls }"
+            :is-streaming="false"
+          />
+        </div>
+      </template>
+    </template>
+    <!-- Default: trace above, then one bubble -->
+    <template v-else>
+      <div v-if="role === 'assistant'" class="message-row assistant trace-row">
+        <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
+        <AgentTraceBlock
+          :agent-trace="agentTrace"
+          :is-streaming="isStreaming ?? false"
+        />
+      </div>
+      <div class="message-row" :class="role">
+        <img
+          v-if="role === 'assistant'"
+          src="/favicon.svg"
+          alt="Horain"
+          class="avatar"
+        >
+        <div class="bubble" :class="role">
+          <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
+          <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
+          <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+        </div>
+      </div>
+    </template>
     <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
       v-if="timeLogs?.length"

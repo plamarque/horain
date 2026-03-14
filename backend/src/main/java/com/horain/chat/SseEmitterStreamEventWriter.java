@@ -53,7 +53,8 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
     }
 
     @Override
-    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, List<Integer> toolCallIterations, Object data, UUID turnId) {
+    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, List<Integer> toolCallIterations,
+                         Object data, UUID turnId, String reasoningText, Long reasoningDurationMs) {
         if (completed) return;
         try {
             List<Map<String, Object>> toolCallsDto = toolCalls != null
@@ -78,6 +79,12 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
             if (turnId != null) {
                 payload.put("turnId", turnId.toString());
             }
+            if (reasoningText != null && !reasoningText.isBlank()) {
+                payload.put("reasoningText", reasoningText);
+            }
+            if (reasoningDurationMs != null && reasoningDurationMs >= 0) {
+                payload.put("reasoningDurationMs", reasoningDurationMs);
+            }
             String json = objectMapper.writeValueAsString(payload);
             emitter.send(SseEmitter.event().name("done").data(json, MediaType.APPLICATION_JSON));
             emitter.complete();
@@ -87,6 +94,18 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
             completeWithError(e.getMessage());
         } catch (IOException e) {
             log.warn("Failed to send done: {}", e.getMessage());
+            completeWithError(e.getMessage());
+        }
+    }
+
+    @Override
+    public void sendReasoningChunk(String text) {
+        if (completed) return;
+        try {
+            String data = objectMapper.writeValueAsString(Map.of("text", text != null ? text : ""));
+            emitter.send(SseEmitter.event().name("reasoning_chunk").data(data, MediaType.APPLICATION_JSON));
+        } catch (IOException e) {
+            log.warn("Failed to send reasoning_chunk: {}", e.getMessage());
             completeWithError(e.getMessage());
         }
     }
@@ -111,6 +130,21 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
             log.warn("Failed to serialize tool_call payload: {}", e.getMessage());
         } catch (IOException e) {
             log.warn("Failed to send tool_call: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void sendAssistantSegment(String text, int iterationIndex) {
+        if (completed) return;
+        try {
+            Map<String, Object> payload = new java.util.HashMap<>(Map.of(
+                    "text", text != null ? text : "",
+                    "iterationIndex", iterationIndex));
+            String json = objectMapper.writeValueAsString(payload);
+            emitter.send(SseEmitter.event().name("assistant_segment").data(json, MediaType.APPLICATION_JSON));
+        } catch (IOException e) {
+            log.warn("Failed to send assistant_segment: {}", e.getMessage());
+            completeWithError(e.getMessage());
         }
     }
 

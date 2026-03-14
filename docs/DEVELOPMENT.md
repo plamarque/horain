@@ -28,6 +28,8 @@ Backend (8080) + frontend (5173). L’URL réseau local s’affiche pour tester 
 
 Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans backend/.env (voir `backend/.env.example`). Optionnel : `LLM_BASE_URL`, `LLM_MODEL`. Détails : [ENV_SETUP.md](ENV_SETUP.md) section D.
 
+**Raisonnement (modèles o1, o3, o4-mini) :** Avec un modèle à raisonnement (ex. `LLM_MODEL=o4-mini`), le client Responses API est choisi automatiquement ; aucun `llm.client` n’est requis. En cas d’échec (400/404/422), le backend bascule une seule fois sur Chat Completions et conserve ce choix pour les appels suivants. Pour forcer le client : `llm.client=openai-responses` (Responses uniquement) ou `llm.client=openai-compatible` (Completions uniquement).
+
 ## Commandes (front-end)
 
 | Commande | Rôle |

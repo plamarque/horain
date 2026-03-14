@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Orchestrates the chat flow: receives user message, calls LLM with tools,
@@ -365,12 +366,22 @@ public class LlmChatService {
         List<ToolCallRecord> toolCallsExecuted = new ArrayList<>();
         List<Integer> toolCallIterations = new ArrayList<>();
         boolean streamingClient = llmClient instanceof StreamingLlmClient;
+        // Track reasoning phase duration for "Thought for Xs" (only for streaming clients that emit reasoning)
+        final long[] reasoningTimeMs = { -1L, -1L };
+        // Accumulate assistant text from every turn so the client gets the full interleaved story, not just the last turn
+        StringBuilder accumulatedAssistantMessage = new StringBuilder();
 
         try {
             for (int iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
                 LlmResponse response;
                 if (streamingClient) {
-                    response = ((StreamingLlmClient) llmClient).chatStream(messages, tools, writer::sendChunk);
+                    Consumer<String> reasoningConsumer = (String text) -> {
+                        writer.sendReasoningChunk(text);
+                        long now = System.currentTimeMillis();
+                        if (reasoningTimeMs[0] < 0) reasoningTimeMs[0] = now;
+                        reasoningTimeMs[1] = now;
+                    };
+                    response = ((StreamingLlmClient) llmClient).chatStream(messages, tools, writer::sendChunk, reasoningConsumer);
                 } else {
                     response = llmClient.chat(messages, tools);
                 }
@@ -379,18 +390,33 @@ public class LlmChatService {
                     log.debug("Tool iteration {} for message: {}", iterations, userMessage);
                 }
 
+                String turnContent = response.content() != null ? response.content() : "";
+                if (!turnContent.isBlank()) {
+                    if (accumulatedAssistantMessage.length() > 0) {
+                        accumulatedAssistantMessage.append("\n\n");
+                    }
+                    accumulatedAssistantMessage.append(turnContent.trim());
+                }
+
                 if (!response.hasToolCalls()) {
                     Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
                     Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
                     Map<String, Object> data = new HashMap<>();
                     if (chartData != null) data.put("chart", chartData);
                     if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-                    String assistantMessage = response.content() != null && !response.content().isBlank()
-                            ? response.content()
+                    String assistantMessage = accumulatedAssistantMessage.length() > 0
+                            ? accumulatedAssistantMessage.toString()
                             : "I'm sorry, I couldn't generate a response.";
+                    if (!turnContent.isBlank()) {
+                        writer.sendAssistantSegment(turnContent.trim(), iterations);
+                    }
+                    String reasoningText = response.reasoningSummary() != null && !response.reasoningSummary().isBlank()
+                            ? response.reasoningSummary() : null;
+                    Long reasoningDurationMs = (reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0)
+                            ? Long.valueOf(reasoningTimeMs[1] - reasoningTimeMs[0]) : null;
                     UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted,
                             data.isEmpty() ? null : data, history, contextEntries, startTime, false);
-                    writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId);
+                    writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, reasoningText, reasoningDurationMs);
                     return;
                 }
 
@@ -398,6 +424,9 @@ public class LlmChatService {
                         response.content() != null ? response.content() : "",
                         response.toolCalls()));
 
+                if (!turnContent.isBlank()) {
+                    writer.sendAssistantSegment(turnContent.trim(), iterations);
+                }
                 for (ToolCallRequest tc : response.toolCalls()) {
                     ToolCallResult result;
                     if (ToolRegistry.DELETE_TIME_LOG.equals(tc.name())) {
@@ -432,7 +461,7 @@ public class LlmChatService {
             String maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request.";
             UUID turnId = persistTurn(userMessage, maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data,
                     history, contextEntries, startTime, true);
-            writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId);
+            writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, null, null);
         } catch (Exception e) {
             log.error("chatStream error: {}", e.getMessage(), e);
             writer.sendError(e.getMessage());
