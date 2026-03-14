@@ -259,15 +259,17 @@ const moreCount = computed(
             class="card-face card-recto"
             :style="{ backgroundColor: projectColor(entry) }"
           >
-            <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
+            <div class="card-recto-header">
+              <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
+              <span
+                v-if="entry.activityTypeCode"
+                class="card-recto-tag"
+                :title="entry.activityTypeLabel || entry.activityTypeCode"
+              >
+                {{ entry.activityTypeCode }}
+              </span>
+            </div>
             <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
-            <span
-              v-if="entry.activityTypeCode"
-              class="card-recto-tag"
-              :title="entry.activityTypeLabel || entry.activityTypeCode"
-            >
-              {{ entry.activityTypeCode }}
-            </span>
             <p class="card-recto-note" :title="entry.note || undefined">
               {{ entry.note || '—' }}
             </p>
@@ -396,17 +398,33 @@ const moreCount = computed(
   justify-content: flex-start;
 }
 
-.card-date {
-  font-size: 0.9375rem;
-  opacity: 0.9;
+.card-recto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.5rem;
   margin-bottom: 0.3rem;
 }
 
+.card-date {
+  font-size: 0.9375rem;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.card-recto-header .card-recto-tag {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
 .card-duration {
-  font-size: 1.375rem;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  margin-top: 0.5rem;
   margin-bottom: 0.55rem;
+  letter-spacing: 0.02em;
 }
 
 .card-recto-tag {
