@@ -8,6 +8,7 @@ public class ActivityTypeDto {
     private String code;
     private String label;
     private Integer dailyRateCents;
+    private String description;
 
     public static ActivityTypeDto builder() {
         return new ActivityTypeDto();
@@ -25,6 +26,11 @@ public class ActivityTypeDto {
 
     public ActivityTypeDto dailyRateCents(Integer dailyRateCents) {
         this.dailyRateCents = dailyRateCents;
+        return this;
+    }
+
+    public ActivityTypeDto description(String description) {
+        this.description = description;
         return this;
     }
 
@@ -50,5 +56,13 @@ public class ActivityTypeDto {
 
     public void setDailyRateCents(Integer dailyRateCents) {
         this.dailyRateCents = dailyRateCents;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

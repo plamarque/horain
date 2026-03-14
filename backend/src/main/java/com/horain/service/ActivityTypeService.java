@@ -49,6 +49,7 @@ public class ActivityTypeService {
         entity.setCode(dto.getCode().trim().toUpperCase());
         entity.setLabel(dto.getLabel() != null ? dto.getLabel().trim() : "");
         entity.setDailyRateCents(dto.getDailyRateCents());
+        entity.setDescription(dto.getDescription() != null && !dto.getDescription().isBlank() ? dto.getDescription().trim() : null);
         ActivityType saved = activityTypeRepository.save(entity);
         return toDto(saved);
     }
@@ -66,6 +67,9 @@ public class ActivityTypeService {
             }
             entity.setDailyRateCents(patch.getDailyRateCents());
         }
+        if (patch.getDescription() != null) {
+            entity.setDescription(patch.getDescription().isBlank() ? null : patch.getDescription().trim());
+        }
         return toDto(activityTypeRepository.save(entity));
     }
 
@@ -82,6 +86,7 @@ public class ActivityTypeService {
         dto.setCode(a.getCode());
         dto.setLabel(a.getLabel());
         dto.setDailyRateCents(a.getDailyRateCents());
+        dto.setDescription(a.getDescription());
         return dto;
     }
 }

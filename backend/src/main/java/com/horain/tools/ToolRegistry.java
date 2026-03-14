@@ -140,7 +140,8 @@ public class ToolRegistry {
                                 "properties", Map.of(
                                         "code", Map.of("type", "string", "description", "Short code (e.g. DEV, AI, MARK)"),
                                         "label", Map.of("type", "string", "description", "Human-readable label"),
-                                        "dailyRateCents", Map.of("type", "integer", "description", "Daily rate in cents (e.g. 40000 for 400 €)")
+                                        "dailyRateCents", Map.of("type", "integer", "description", "Daily rate in cents (e.g. 40000 for 400 €)"),
+                                        "description", Map.of("type", "string", "description", "Optional description or detection hints for the AI (e.g. synonyms, typical phrases)")
                                 ),
                                 "required", List.of("code", "label", "dailyRateCents")
                         )
@@ -153,7 +154,8 @@ public class ToolRegistry {
                                 "properties", Map.of(
                                         "code", Map.of("type", "string", "description", "Code of the activity type to update"),
                                         "label", Map.of("type", "string", "description", "New label (optional)"),
-                                        "dailyRateCents", Map.of("type", "integer", "description", "New daily rate in cents (optional)")
+                                        "dailyRateCents", Map.of("type", "integer", "description", "New daily rate in cents (optional)"),
+                                        "description", Map.of("type", "string", "description", "Optional description or detection hints for the AI (e.g. synonyms, typical phrases)")
                                 ),
                                 "required", List.of("code")
                         )

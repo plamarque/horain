@@ -151,7 +151,12 @@ async function doDelete() {
           <label for="edit-activity-type">Nature d'activité</label>
           <select id="edit-activity-type" v-model="activityTypeCode" class="form-input">
             <option value="">—</option>
-            <option v-for="a in activityTypes" :key="a.code" :value="a.code">
+            <option
+              v-for="a in activityTypes"
+              :key="a.code"
+              :value="a.code"
+              :title="a.description || a.label"
+            >
               {{ a.label }} ({{ (a.dailyRateCents / 100).toFixed(0) }} €/j)
             </option>
           </select>

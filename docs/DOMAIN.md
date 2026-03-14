@@ -22,7 +22,7 @@ Shared vocabulary and rules for Horain: projects, time logs, intent detection, a
 
 - **Project:** id, name, description, billable, created_at. User-defined; referenced by time_logs.
 - **Time log:** id, project_id (FK), duration_minutes, note, billable, created_at, source, activity_type_code (optional FK). Belongs to one project. Billable is set from the project at creation and can be overridden per entry. When activity_type_code is set and the entry is billable, the entry value in euros can be computed and displayed.
-- **Activity type:** code (PK), label, daily_rate_cents. Referenced optionally by time_logs. CRUD is done by the assistant on user request (e.g. "add a nature CONSULT at 800 €/day", "change DEV rate to 450").
+- **Activity type:** code (PK), label, daily_rate_cents, optional description (detection hints for the assistant). Referenced optionally by time_logs. CRUD is done by the assistant on user request (e.g. "add a nature CONSULT at 800 €/day", "change DEV rate to 450").
 - **Relationship:** One project has many time_logs; each time_log belongs to one project. Optional: a time_log may reference one activity_type.
 
 ## Domain Rules

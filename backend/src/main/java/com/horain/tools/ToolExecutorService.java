@@ -216,7 +216,8 @@ public class ToolExecutorService {
                 .map(a -> Map.<String, Object>of(
                         "code", a.getCode(),
                         "label", a.getLabel() != null ? a.getLabel() : "",
-                        "dailyRateCents", a.getDailyRateCents() != null ? a.getDailyRateCents() : 0))
+                        "dailyRateCents", a.getDailyRateCents() != null ? a.getDailyRateCents() : 0,
+                        "description", a.getDescription() != null ? a.getDescription() : ""))
                 .toList();
         return toJson(Map.of("activity_types", list));
     }
@@ -235,12 +236,15 @@ public class ToolExecutorService {
         dto.setCode(code.trim().toUpperCase());
         dto.setLabel(label != null ? label.trim() : "");
         dto.setDailyRateCents(dailyRateCents);
+        String description = getText(args, "description");
+        if (description != null) dto.setDescription(description);
         ActivityTypeDto created = activityTypeService.create(dto);
         return toJson(Map.of(
                 "activity_type", Map.of(
                         "code", created.getCode(),
                         "label", created.getLabel(),
-                        "dailyRateCents", created.getDailyRateCents())));
+                        "dailyRateCents", created.getDailyRateCents(),
+                        "description", created.getDescription() != null ? created.getDescription() : "")));
     }
 
     private String executeUpdateActivityType(JsonNode args) {
@@ -253,12 +257,15 @@ public class ToolExecutorService {
         if (label != null) patch.setLabel(label);
         Integer dailyRateCents = getInt(args, "dailyRateCents");
         if (dailyRateCents != null) patch.setDailyRateCents(dailyRateCents);
+        String description = getText(args, "description");
+        if (description != null) patch.setDescription(description);
         ActivityTypeDto updated = activityTypeService.update(code.trim().toUpperCase(), patch);
         return toJson(Map.of(
                 "activity_type", Map.of(
                         "code", updated.getCode(),
                         "label", updated.getLabel(),
-                        "dailyRateCents", updated.getDailyRateCents())));
+                        "dailyRateCents", updated.getDailyRateCents(),
+                        "description", updated.getDescription() != null ? updated.getDescription() : "")));
     }
 
     private String executeDeleteActivityType(JsonNode args) {

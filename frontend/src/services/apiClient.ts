@@ -121,6 +121,7 @@ export interface ActivityTypeDto {
   code: string
   label: string
   dailyRateCents: number
+  description?: string | null
 }
 
 /** GET /projects - list all projects */

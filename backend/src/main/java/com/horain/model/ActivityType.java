@@ -20,6 +20,9 @@ public class ActivityType {
     @Column(name = "daily_rate_cents", nullable = false)
     private Integer dailyRateCents;
 
+    @Column(length = 2000)
+    private String description;
+
     public String getCode() {
         return code;
     }
@@ -42,5 +45,13 @@ public class ActivityType {
 
     public void setDailyRateCents(Integer dailyRateCents) {
         this.dailyRateCents = dailyRateCents;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

@@ -40,8 +40,9 @@ Activity natures with daily rate (TJM, 8h). Optional per time_log. Managed by th
 | code | VARCHAR(50) | PRIMARY KEY |
 | label | VARCHAR(255) | NOT NULL |
 | daily_rate_cents | INTEGER | NOT NULL, CHECK > 0 |
+| description | VARCHAR(2000) | nullable |
 
-Seed: DEV (Développement, 400 €), AI (Expertise IA, 1000 €), MARK (Marketing, 7000 €).
+Seed: DEV (Développement, 400 €), AI (Expertise IA, 1000 €), MARK (Marketing, 7000 €). The optional `description` helps the assistant match user wording (synonyms, typical phrases) when inferring activity type.
 
 ## Table: agent_turn
 
@@ -120,5 +121,5 @@ Indexes: `(status)`, `(turn_id)`.
 - **logged_at** (activity date): The date the activity refers to. Can be overridden when logging past activity (e.g. via `loggedAt` parameter). Displayed in the UI, used for period queries and charts.
 - **created_at** (entry date): When the user created the record. Used for sorting and search ("when did I enter this?"). Not displayed in the log table.
 - **activity_type_code** (time_logs): Optional. When set, the entry has a nature (e.g. DEV, AI) and its value in euros can be computed as (duration_minutes / 480) × daily_rate_cents / 100. Displayed on the card verso with € and amount.
-- **activity_types**: Daily rate is stored in cents (e.g. 40000 = 400 €). Deletion of an activity type sets time_logs.activity_type_code to NULL for affected rows.
+- **activity_types**: Daily rate is stored in cents (e.g. 40000 = 400 €). Optional `description` provides detection hints for the assistant (synonyms, typical phrases). Deletion of an activity type sets time_logs.activity_type_code to NULL for affected rows.
 - `user_id` supports future multi-tenant isolation (Supabase RLS).
