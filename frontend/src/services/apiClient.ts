@@ -98,6 +98,8 @@ export interface ProjectDto {
   createdAt: string
   updatedAt: string
   userId?: string
+  /** Total revenue in cents from billable time logs with activity type. Set when listing projects. */
+  revenueCents?: number | null
 }
 
 export interface TimeLogDto {

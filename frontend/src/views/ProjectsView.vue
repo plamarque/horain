@@ -98,6 +98,13 @@ function truncate(s: string | undefined, maxLen: number): string {
   return s.length <= maxLen ? s : s.slice(0, maxLen) + '…'
 }
 
+/** Format project revenue for display: "0 €" or "2 500 €" (space as thousands separator). */
+function formatRevenue(revenueCents: number | null | undefined): string {
+  if (revenueCents == null || revenueCents === 0) return '0 €'
+  const euros = Math.round(revenueCents / 100)
+  return `${euros.toLocaleString('fr-FR', { useGrouping: true, minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`
+}
+
 // Refetch when a project is saved (e.g. from edit modal)
 function onProjectSaved() {
   loadProjects()
@@ -160,7 +167,7 @@ onUnmounted(() => {
           <span class="project-card-name">{{ p.name }}</span>
           <p v-if="p.description" class="project-card-desc">{{ truncate(p.description, 60) }}</p>
           <span v-else class="project-card-desc project-card-desc--empty">—</span>
-          <span v-if="p.billable !== false" class="project-card-billable" aria-hidden="true">$</span>
+          <span v-if="p.billable !== false" class="project-card-billable" :aria-label="`Revenue: ${formatRevenue(p.revenueCents)}`">{{ formatRevenue(p.revenueCents) }}</span>
         </div>
         <button
           type="button"

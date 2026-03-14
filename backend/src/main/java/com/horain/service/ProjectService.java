@@ -7,9 +7,11 @@ import com.horain.repository.TimeLogRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -63,9 +65,30 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectDto> findAll() {
-        return projectRepository.findAll().stream()
-                .map(this::toDto)
+        List<Project> all = projectRepository.findAll();
+        Map<UUID, Long> revenueByProject = sumRevenueCentsByProjectMap();
+        return all.stream()
+                .map(p -> toDto(p, revenueByProject.get(p.getId())))
                 .collect(Collectors.toList());
+    }
+
+    /** Builds projectId -> total revenue (cents) for billable entries with activity type. */
+    private Map<UUID, Long> sumRevenueCentsByProjectMap() {
+        List<Object[]> rows = timeLogRepository.sumRevenueCentsByProject();
+        return rows.stream()
+                .collect(Collectors.toMap(
+                        row -> toUuid(row[0]),
+                        row -> Math.round(((Number) row[1]).doubleValue())));
+    }
+
+    private static UUID toUuid(Object value) {
+        if (value == null) throw new IllegalArgumentException("projectId is null");
+        if (value instanceof UUID) return (UUID) value;
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer bb = ByteBuffer.wrap(bytes);
+            return new UUID(bb.getLong(), bb.getLong());
+        }
+        return UUID.fromString(value.toString());
     }
 
     /**
@@ -175,6 +198,10 @@ public class ProjectService {
     }
 
     private ProjectDto toDto(Project p) {
+        return toDto(p, null);
+    }
+
+    private ProjectDto toDto(Project p, Long revenueCents) {
         return ProjectDto.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -183,6 +210,7 @@ public class ProjectService {
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .userId(p.getUserId())
+                .revenueCents(revenueCents)
                 .build();
     }
 }
