@@ -45,9 +45,9 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
 
     /**
      * Sum revenue in cents per project for billable time logs that have an activity type (TJM).
-     * Formula per entry: (duration_minutes / 480) * (daily_rate_cents / 100) in euros, then sum and convert to cents.
+     * Formula per entry: value_cents = (duration_minutes * daily_rate_cents) / 480 (no extra * 100).
      * Returns one row per projectId with non-zero revenue. Uses JPQL for dialect compatibility (H2 and PostgreSQL).
      */
-    @Query("SELECT t.projectId, SUM((t.durationMinutes * at.dailyRateCents) / 480.0 * 100) FROM TimeLog t JOIN t.activityType at WHERE t.billable = true AND t.activityTypeCode IS NOT NULL GROUP BY t.projectId")
+    @Query("SELECT t.projectId, SUM((t.durationMinutes * at.dailyRateCents) / 480.0) FROM TimeLog t JOIN t.activityType at WHERE t.billable = true AND t.activityTypeCode IS NOT NULL GROUP BY t.projectId")
     List<Object[]> sumRevenueCentsByProject();
 }

@@ -46,6 +46,6 @@ test('entry with activity type shows euro and amount on verso', async ({ page, r
 
   await card.click()
   await expect(card.locator('.card-verso')).toBeVisible()
-  await expect(card.locator('.card-billable-icon').filter({ hasText: '€' })).toBeVisible()
+  // When entry has activity type with rate, we show amount in .card-amount-value (not .card-billable-icon)
   await expect(card.locator('.card-amount-value').filter({ hasText: '25 €' })).toBeVisible()
 })

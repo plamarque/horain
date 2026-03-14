@@ -38,8 +38,11 @@ test('billable project card shows revenue in euros on Projects view', async ({ p
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Projects' }).click()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 5000 })
 
   const projectCard = page.locator('.project-card').filter({ hasText: projectName }).first()
   await expect(projectCard).toBeVisible({ timeout: 5000 })
-  await expect(projectCard.locator('.project-card-billable').filter({ hasText: '25 €' })).toBeVisible()
+  const billableEl = projectCard.locator('.project-card-billable')
+  await expect(billableEl).toBeVisible()
+  await expect(billableEl).toContainText('25 €')
 })

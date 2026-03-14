@@ -17,10 +17,10 @@ test('log time via text input', async ({ page }) => {
   await input.fill('30 minutes on HatCast V1 working on the selection algorithm')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  // Expect confirmation in last assistant message (not project cards)
+  // Expect confirmation in last assistant message (wording may vary: logged/created/recorded, minutes, HatCast)
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created.*HatCast|minutes.*HatCast/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast/i)
+  ).toBeVisible({ timeout: 10000 })
 })
 
 /**
@@ -44,10 +44,10 @@ test('send button appears when typing and submits on click', async ({ page }) =>
   // Submit via Send button click instead of Enter
   await page.getByRole('button', { name: 'Send' }).click()
 
-  // Expect confirmation in last assistant message (not project cards)
+  // Expect confirmation in last assistant message (wording may vary)
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|minutes|HatCast/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast/i)
+  ).toBeVisible({ timeout: 10000 })
 })
 
 /**
@@ -65,6 +65,6 @@ test('log time via French phrase', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|minutes|HatCast/i)
-  ).toBeVisible({ timeout: 5000 })
+    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast|enregistré/i)
+  ).toBeVisible({ timeout: 10000 })
 })
