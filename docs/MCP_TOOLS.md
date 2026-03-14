@@ -9,7 +9,8 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 Tool design in this project follows context-engineering principles so that the LLM can use tools reliably within a limited context window.
 
 - **Tools are prompt extensions:** Descriptions are written for the LLM. Each tool should convey when to use it, when not to use it, and (where helpful) example usage. See the table and the backend `ToolRegistry` for the canonical descriptions.
-- **Outputs are LLM-oriented:** Tool responses should favour readability, structure, and short summaries. Avoid raw database-style dumps or large unstructured JSON. The goal is to improve the model’s reasoning reliability.
+- **Dual output (LLM vs app):** Each tool result has two facettes: **llm** (readable summary or Markdown sent only to the model) and **data** (structured JSON for the client: trace, cards, charts). The backend sends only the **llm** string to the LLM; the API exposes the full result (llm + data) so the frontend can use **data** for display.
+- **Outputs are LLM-oriented:** The **llm** part of tool responses should favour readability, structure, and short summaries. Avoid raw database-style dumps or large unstructured JSON. The goal is to improve the model’s reasoning reliability.
 - **Task-oriented tools:** Each tool represents a clear capability (e.g. `sum_time_by_project`, `search_project`). Prefer dedicated tools over a generic “query” API.
 - **Minimize model errors:** Use a small number of parameters, descriptive names, defaults where possible, and explicit warnings for invalid use. Design for robust tool calling, not API completeness.
 
@@ -40,6 +41,15 @@ Full guidelines: [docs/AGENT_DESIGN.md](AGENT_DESIGN.md).
 | `sum_non_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums non-billable time in the period. |
 | `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project` (stacked bar by project per day), `day_and_billable` (stacked bar billable vs non-billable per day), `project_only` (pie), `billable_vs_non_billable` (pie for whole period). |
 | `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
+
+## Example calls (at-risk tools)
+
+To reduce model errors, these tools have explicit example invocations in their descriptions (see also `ToolRegistry` in the backend). Summary:
+
+- **search_project:** `{"name": "Horain"}` or `{"name": "HatCast"}`. Do NOT use to list all projects; use list_projects instead.
+- **create_time_log:** `{"projectId": "Horain", "durationMinutes": 90, "note": "backend API"}` or with activity type `{"projectId": "<uuid from search_project>", "durationMinutes": 30, "activityTypeCode": "DEV"}`. Always get projectId from list_projects or search_project first.
+- **get_time_aggregated_for_chart:** Call get_current_datetime first, then e.g. `{"start": "<startOfWeek>", "end": "<endOfWeek>", "groupBy": "day_and_project"}`. Then call propose_chart with the returned categories and series.
+- **propose_entries:** Call only after get_time_logs_for_period or get_recent_logs; pass the returned time_logs array as the entries argument. Example flow: get_recent_logs(limit=10) → propose_entries(entries: time_logs from that result).
 
 ## When adding a new tool
 
@@ -72,6 +82,8 @@ The table above is the contractual spec; this template describes how to write ea
 
 ## Implementation Notes
 
+- **Tool result format:** Each tool returns a dual payload: **llm** (string sent to the model; readable summary) and **data** (structured JSON for the client). The backend sends only **llm** to the LLM; the API exposes the full result. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
+- **When not to use / Expected output:** These are specified in the backend `ToolRegistry` for each tool and summarized in the "Example calls (at-risk tools)" section above. Keep the table descriptions aligned with the code.
 - `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.
 - `search_project`: name contains (case-insensitive) returns `matching_projects`; when empty, backend may return `close_matches` (typo-tolerant similarity). The agent proposes the close match and asks for confirmation before logging.
 - `list_recent_logs` order: most recent first. Limit (e.g. 50) to be defined.

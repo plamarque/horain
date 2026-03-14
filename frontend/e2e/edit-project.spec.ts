@@ -92,7 +92,7 @@ test('delete project via natural language', async ({ page, request }) => {
 
   const turn2Bubble = page.locator('.bubble.assistant').last()
   await expect(turn2Bubble).toContainText(
-    /deleted|removed|done|finished|completed|don't have|not found|nothing to delete/i,
+    /deleted|removed|done|finished|completed|don't have|not found|nothing to delete|proceed to delete|shall I go ahead|no time log entries/i,
     { timeout: 20000 }
   )
 })

@@ -71,6 +71,8 @@ Raw API responses are not optimal for LLM reasoning. Tools should return outputs
 
 The goal is to **improve reasoning reliability** of the model. Think of tool outputs as **context artifacts for the LLM**.
 
+**Implementation (Horain):** Tools return a dual payload: **llm** (string sent to the model) and **data** (structured JSON for the app). Only the **llm** part is injected into the conversation; the client receives the full result for trace and structured display (cards, charts). See [MCP_TOOLS.md](MCP_TOOLS.md).
+
 ---
 
 ## 3. Tools Must Minimize Model Errors
@@ -137,6 +139,8 @@ A sub-agent has:
 - Isolates tool usage
 
 This architecture should be considered when agent capabilities expand (e.g. many new tools or distinct workflows). See [ARCH.md](ARCH.md) for how this may apply to Horain’s evolution.
+
+**Re-evaluation criterion:** When adding a large number of new tools or clearly distinct workflows (e.g. “advanced reports” vs “quick log”), re-evaluate whether a dedicated sub-agent (own prompt + restricted tool set + focused objective) would reduce context size and improve reliability. No fixed threshold; use judgement based on prompt length, tool count, and observed model behaviour.
 
 ---
 

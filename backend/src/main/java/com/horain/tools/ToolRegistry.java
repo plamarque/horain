@@ -40,7 +40,7 @@ public class ToolRegistry {
         return List.of(
                 new ToolDefinition(
                         LIST_PROJECTS,
-                        "List all projects. Use to see available projects before logging time or when answering questions about projects.",
+                        "List all projects. Use to see available projects before logging time or when answering questions about projects. Do NOT use to search by name—use search_project instead. Returns: projects (id, name, description, billable).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(),
@@ -49,7 +49,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         SEARCH_PROJECT,
-                        "Search for projects by name. Returns matching_projects (name contains query, case-insensitive). When no match is found, may also return close_matches: similar project names (typo-tolerant). If you get close_matches, propose the first one and ask the user to confirm (e.g. 'Did you mean Horain? Should I log 120 minutes on Horain?') before logging; only offer to create a new project if there are no close_matches or the user declines.",
+                        "Search for projects by name. Do NOT use to list all projects—use list_projects instead. Returns matching_projects (name contains query, case-insensitive). When no match is found, may return close_matches (typo-tolerant); if so, propose the first and ask for confirmation before logging. Example: {\"name\": \"Horain\"} or {\"name\": \"HatCast\"}. Only offer to create a new project if no close_matches or user declines.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -63,7 +63,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         CREATE_PROJECT,
-                        "Create a new project. Use when the user wants to log time on a project that does not exist yet.",
+                        "Create a new project. Use when the user wants to log time on a project that does not exist yet. Do NOT use if the project may already exist—call search_project first. Returns: project (id, name, description, billable).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -77,7 +77,8 @@ public class ToolRegistry {
                                         ),
                                         "billable", Map.of(
                                                 "type", "boolean",
-                                                "description", "Whether time on this project is billable by default (default true)"
+                                                "description", "Whether time on this project is billable by default (default true)",
+                                                "default", true
                                         )
                                 ),
                                 "required", List.of("name")
@@ -125,7 +126,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         LIST_ACTIVITY_TYPES,
-                        "List all activity types (natures with daily rate, TJM). Use to show or match natures when the user mentions dev, IA, marketing, etc., or when managing rates.",
+                        "List all activity types (natures with daily rate, TJM). Use to show or match natures when the user mentions dev, IA, marketing, etc., or when managing rates. Do NOT use to create or update—use create_activity_type or update_activity_type. Returns: activity_types (code, label, dailyRateCents, description).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(),
@@ -173,7 +174,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         CREATE_TIME_LOG,
-                        "Create a time log entry. Record time spent on a project. Requires project ID from list_projects or search_project. When the user mentions an activity nature (dev, IA, marketing, etc.), pass activityTypeCode from list_activity_types.",
+                        "Create a time log entry. Record time spent on a project. Requires projectId from list_projects or search_project (do NOT guess or invent ids). When the user mentions an activity nature (dev, IA, marketing), pass activityTypeCode from list_activity_types. Example: {\"projectId\": \"Horain\", \"durationMinutes\": 90, \"note\": \"backend API\"} or with nature {\"projectId\": \"<uuid>\", \"durationMinutes\": 30, \"activityTypeCode\": \"DEV\"}.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -207,7 +208,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_RECENT_LOGS,
-                        "Get the most recent time log entries. Use to answer 'what did I do today?' or show recent activity.",
+                        "Get the most recent time log entries. Use to answer 'what did I do today?' or show recent activity. Do NOT use for a specific date range—use get_time_logs_for_period instead. Returns: time_logs array (id, projectName, durationMinutes, note, loggedAt, billable, activity type fields).",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -222,7 +223,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_LOGS_FOR_PERIOD,
-                        "Get time logs for a date range. Use for 'what did I do today/week/month?' or to list entries.",
+                        "Get time logs for a date range. Call get_current_datetime first for start/end bounds. Use for 'what did I do today/week/month?' or to list entries. Do NOT use for 'most recent N' without a range—use get_recent_logs. Returns: time_logs array.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -308,7 +309,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_CURRENT_DATETIME,
-                        "Get the current server date and time with timezone. Use to determine 'today', 'this week', 'this month' when the user asks relative time questions.",
+                        "Get the current server date and time with timezone. Use to determine 'today', 'this week', 'this month' when the user asks relative time questions. Call before get_time_logs_for_period, sum_*_for_period, or get_time_aggregated_for_chart when you need bounds. Returns: iso, timezone, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(),
@@ -317,7 +318,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_AGGREGATED_FOR_CHART,
-                        "Get time aggregated for chart display. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable per day?') and you want to show a chart. groupBy: 'day_and_project' for stacked bar (hours by project per day), 'day_and_billable' for stacked bar (billable vs non-billable hours per day; use this for 'heures facturables vs non facturables par jour'), 'project_only' for pie (distribution by project), 'billable_vs_non_billable' for pie (Facturé vs Non facturé for whole period).",
+                        "Get time aggregated for chart display. Call get_current_datetime first to get start/end bounds, then call this tool. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable per day?'). groupBy: 'day_and_project' (stacked bar by project per day), 'day_and_billable' (stacked bar billable vs non-billable per day), 'project_only' (pie by project), 'billable_vs_non_billable' (pie for whole period). Example: {\"start\": \"<startOfWeek from get_current_datetime>\", \"end\": \"<endOfWeek>\", \"groupBy\": \"day_and_project\"}. Then call propose_chart with the returned categories and series.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -339,7 +340,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         PROPOSE_CHART,
-                        "Propose a chart to display in the conversation. Call this after get_time_aggregated_for_chart when you have data to visualize. chartType: stackedBar (hours by project per day), pie (distribution by project), bar (simple bar chart). Pass the categories and series from the aggregation result.",
+                        "Propose a chart to display in the conversation. Call ONLY after get_time_aggregated_for_chart; pass its categories and series as-is. Do NOT call without chart data. chartType: stackedBar, pie, or bar. Returns: status ok.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -376,7 +377,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         PROPOSE_ENTRIES,
-                        "Propose time log entries to display in the conversation. Call this after get_time_logs_for_period or get_recent_logs when the user asked for a list of entries, details, or 'what did I log'. Pass the time_logs array from the tool result. The UI will display them in a table.",
+                        "Propose time log entries to display in the conversation. Call ONLY after get_time_logs_for_period or get_recent_logs; pass the time_logs array from that result as the entries argument. Do NOT call with empty or invented data. Example: get_recent_logs(limit=10) returns time_logs; then propose_entries(entries: <that time_logs array>). The UI will display them in a table.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -405,7 +406,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         UPDATE_TIME_LOG,
-                        "Update an existing time log entry. Use when the user asks to edit, change, or correct an entry (e.g. change duration, update note). Only provided fields are updated.",
+                        "Update an existing time log entry. Use when the user asks to edit, change, or correct an entry (e.g. change duration, update note). Requires entry id from get_recent_logs, get_time_logs_for_period, or [Context] selected entries. Do NOT use create_time_log to modify—only update. Only provided fields are updated. Returns: time_log.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -443,7 +444,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         DELETE_TIME_LOG,
-                        "Delete a time log entry. Use when the user asks to remove or delete an entry.",
+                        "Delete a time log entry. Use when the user asks to remove or delete an entry. Requires entry id from get_recent_logs, get_time_logs_for_period, or [Context]. Returns: status deleted.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(

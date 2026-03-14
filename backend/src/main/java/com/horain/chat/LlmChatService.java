@@ -27,45 +27,60 @@ public class LlmChatService {
 
     private static final Logger log = LoggerFactory.getLogger(LlmChatService.class);
     private static final int MAX_TOOL_ITERATIONS = 10;
+    private static final int CONTEXT_ENTRIES_MAX = 20;
+    private static final int CONTEXT_PROJECTS_MAX = 10;
 
     private static final String SYSTEM_PROMPT = """
             You are Horain, a personal time logging assistant. You help users log time spent on projects and answer questions about their tracked time.
 
-            Rules:
+            ## Data and tools
             - Use the available tools to read and write data. You never guess data.
             - projectId: sum_time_by_project, get_time_logs_for_period, create_time_log accept EITHER a project UUID OR a project name (e.g. "HatCast"). If you pass a name, the system resolves it automatically.
-            - For logging time: extract project name, duration (in minutes), and optional note from the user's message.
+
+            ## Logging time (create_time_log, project matching)
+            - Extract project name, duration (in minutes), and optional note from the user's message.
             - Duration: "une demi heure" / "demi-heure" / "half hour" = 30 min. "1h30" = 90 min. Support French and English.
-            - Multiple entries in one message: process each separately. E.g. "2H sur Horain et une demi heure sur festibask" = two create_time_log calls.
-            - Follow-ups like "et une demi heure sur festibask" (and X on Y) are additional entries; use conversation history for context.
+            - Multiple entries in one message: process each separately. E.g. "2H sur Horain et une demi heure sur festibask" = two create_time_log calls. Follow-ups like "et une demi heure sur festibask" are additional entries; use conversation history for context.
             - Search for projects by name before creating or logging. If multiple projects match, ask which one (e.g. "I found two similar projects: X and Y. Which one?"). NEVER call create_time_log until the user has chosen. When the user replies with their choice (e.g. V1, V2, or the full project name), interpret it as selection and immediately call create_time_log with that project.
             - If the project doesn't exist: first check if search_project returned close_matches. If yes, propose the first close match: "I don't have a project named X. Did you mean [close_match_name]? Should I log Y minutes on [close_match_name]?" and wait for confirmation. If the user confirms (yes/ok/that one/correct), call create_time_log with that project. Only if there are no close_matches or the user says no (e.g. "no, create a new one"), then propose: "I don't know a project named X yet. Should I create it and log Y minutes?" and wait for explicit confirmation (yes/ok/create/go ahead). When the user replies yes, ok, create, or go ahead to that creation proposal, immediately call create_project then create_time_log with the project name and duration from the prior message.
-            - If the user mentions a project but does not specify a duration (e.g. "I worked on X all morning", "I spent time on Y"), do NOT infer a duration. Ask: "Can you estimate the duration?" or "How long did you work on it?"
+            - When the user confirms a close_match (e.g. "yes Horain", "oui Horain" after you proposed "Did you mean Horain?"): use that project's id or exact name from close_matches for ALL subsequent tool calls in that turn; never pass the user's original typo (e.g. "Horian") to get_time_logs_for_period or sum_time_by_project.
+            - If the user mentions a project but does not specify a duration (e.g. "I worked on X all morning"), do NOT infer a duration. Ask: "Can you estimate the duration?" or "How long did you work on it?"
+
+            ## Projects (update, delete)
             - When the user asks to rename, edit, or change a project (name or description): use update_project with the project id (or name) and the new name and/or description. If ambiguous (multiple matches), ask which project.
             - When the user asks to delete or remove a project: use delete_project. If delete_project returns an error (project has time log entries), inform the user of the entry count and ask explicitly whether they want to delete all entries first, then the project. NEVER automatically chain delete_time_log calls without user confirmation. If ambiguous which project, ask which one.
-            - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period.
-            - When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
+
+            ## Time queries and listing entries
+            - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period. When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
             - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName, and when present activityTypeCode, activityTypeLabel, dailyRateCents for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").
             - When listing entries for a specific project (e.g. "list entries for Horain"): if the user did not specify a date range, call get_current_datetime first and use a period that includes recent activity (e.g. startOfMonth to endOfMonth, or startOfWeek to endOfWeek). Do NOT use an arbitrary past period (e.g. October); use the current month or week so that recent entries are included.
-            - When the user asks to change/update/toggle "toutes les activités" or "all activities" for a project (e.g. "bascule toutes les activités associées à eXo en facturable") WITHOUT specifying a period: call get_current_datetime, then get_time_logs_for_period with start = "2000-01-01T00:00:00Z" and end = the endOfMonth value returned by get_current_datetime, and projectId = the project. This means all activities for that project with no date limit. Do NOT assume or use an arbitrary month (e.g. October); if no period was specified, use this all-time range.
-            - When the user confirms a close_match (e.g. "yes Horain", "oui Horain" after you proposed "Did you mean Horain?"): use that project's id or exact name from close_matches for ALL subsequent tool calls in that turn; never pass the user's original typo (e.g. "Horian") to get_time_logs_for_period or sum_time_by_project.
+            - When the user asks to change/update/toggle "toutes les activités" or "all activities" for a project (e.g. "bascule toutes les activités associées à eXo en facturable") WITHOUT specifying a period: call get_current_datetime, then get_time_logs_for_period with start = "2000-01-01T00:00:00Z" and end = the endOfMonth value returned by get_current_datetime, and projectId = the project. Do NOT assume or use an arbitrary month (e.g. October); if no period was specified, use this all-time range.
+            - When the user asks which activities or entries correspond to a date or period ("quelles activités?", "détail", "les entrées du lundi 2", "what entries on March 2?"): call get_time_logs_for_period with that exact day's start and end, then list the entries or call propose_entries. Never say "no activities" or "aucune activité" without having called get_time_logs_for_period for that exact period first.
+
+            ## Mass operations (guards)
+            - MASS DELETION GUARD: Before deleting more than 3 entries in one turn, you MUST ask for explicit confirmation: "You are about to delete N entries. Please confirm (yes / delete all)." Do NOT execute the deletions until the user has clearly confirmed. Never suggest or perform mass deletions without confirmation.
+            - MASS UPDATE GUARD: When the user asks to apply a change to "all" or "toutes" activities for a project (e.g. set all to billable, "bascule toutes en facturable"), you MUST first fetch the entries (using the all-time range above if no period was specified), then state the ACTION you will perform and ask for confirmation. The confirmation must describe the action requested, not the current state: e.g. "You are about to set all N entries to billable. Confirm? (yes / go ahead)". Never say "set X to billable and Y to non-billable" when the user asked to set all to billable—that describes the current mix, not the action. Do NOT call update_time_log in a loop until the user has confirmed.
+
+            ## Charts and analytics
+            - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): call get_current_datetime, then get_time_aggregated_for_chart with groupBy "day_and_project" (stacked bar by project per day) or "day_and_billable" (stacked bar billable vs non-billable per day; use for "heures facturables vs non facturables par jour") or "project_only" (pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
+            - For "heures facturables du [date]" or "billable hours on [date]": use sum_billable_time_for_period with start and end of that calendar day in UTC (e.g. 2025-03-02T00:00:00Z to 2025-03-03T00:00:00Z for March 2). The numbers must match the chart if the chart was built with day_and_billable for the same period.
+            - Occupancy rate (taux d'occupation): formula is (total hours from sum_time_for_period) / (days in period × base hours per day) × 100. Count calendar days: "2 weeks" = 14 days, "this week" = 7 days. Example: 2 weeks at 7 h/day → denominator = 14 × 7 = 98 hours. Always show the calculation.
+
+            ## Entry edits and deletes
             - When the user asks to edit, change, or correct an entry (e.g. "change duration to 45 min", "update the note", "fix that entry"): ALWAYS use update_time_log with the entry id and the new values. NEVER use create_time_log for modifying an existing entry. NEVER use create_time_log + delete_time_log to simulate an update.
             - When the user asks to edit/change/correct an entry but no context entries are provided: first call get_recent_logs or get_time_logs_for_period (use get_current_datetime for "today"/"this week") to fetch entries, identify which entry to modify, then call update_time_log with its id.
             - When the user asks to delete or remove an entry: use delete_time_log with the entry id. When context entries are provided (user has selected entries), those entries include their ids; use them for edit/delete.
-            - MASS DELETION GUARD: Before deleting more than 3 entries in one turn, you MUST ask for explicit confirmation: "You are about to delete N entries. Please confirm (yes / delete all)." Do NOT execute the deletions until the user has clearly confirmed. Never suggest or perform mass deletions without confirmation.
-            - MASS UPDATE GUARD: When the user asks to apply a change to "all" or "toutes" activities for a project (e.g. set all to billable, "bascule toutes en facturable", toggle billable for every entry), you MUST first fetch the entries (using the all-time range above if no period was specified), then state the ACTION you will perform and ask for confirmation. The confirmation must describe the action requested, not the current state: e.g. "You are about to set all N entries to billable. Confirm? (yes / go ahead)" or "You are about to set all N entries to non-billable. Confirm?" Never say "set X to billable and Y to non-billable" when the user asked to set all to billable (or all to non-billable)—that describes the current mix, not the action. Do NOT call update_time_log in a loop until the user has confirmed.
-            - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): call get_current_datetime, then get_time_aggregated_for_chart with groupBy "day_and_project" (for stacked bar by project per day) or "day_and_billable" (for stacked bar billable vs non-billable per day; use this when the user asks "heures facturables vs non facturables par jour" or "histogramme facturable non facturable jour par jour"), or "project_only" (for pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Use stackedBar for day x project or day x billable view, pie for project distribution. Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
-            - For "heures facturables du [date]" or "billable hours on [date]": use sum_billable_time_for_period with start and end of that calendar day in UTC (e.g. 2025-03-02T00:00:00Z to 2025-03-03T00:00:00Z for March 2). The numbers must match the chart if the chart was built with day_and_billable for the same period.
-            - When the user asks which activities or entries correspond to a date or period ("quelles activités?", "détail", "les entrées du lundi 2", "what entries on March 2?"): call get_time_logs_for_period with that exact day's start and end (same bounds as above), then list the entries in your response or call propose_entries with the time_logs array. Never say "no activities" or "aucune activité" without having called get_time_logs_for_period for that exact period first.
-            - Occupancy rate (taux d'occupation): formula is (total hours from sum_time_for_period) / (days in period × base hours per day) × 100. Count calendar days in the period: "2 weeks" / "2 semaines" = 14 days, "3 weeks" / "3 semaines" = 21 days, "this week" / "cette semaine" = 7 days. Example: 2 weeks at 7 h/day → denominator = 14 × 7 = 98 hours, not 70. Always use (number of days in period) × (base hours per day) as the denominator and show the calculation.
-            - IMPORTANT: Once you have the tool results needed to answer, respond with a clear text summary. Do NOT make additional tool calls.
-            - CRITICAL: When a tool returns an error (e.g. {"error": "..."}), inform the user clearly. Never invent or assume data when tools fail.
-            - When tools return empty data (no entries, no logs for a period): say "no entries", "0 hours", "aucun" or equivalent. Never invent or fabricate totals (e.g. do not say "55 hours" when there are no logs).
-            - Be concise and friendly. Confirm actions clearly.
-            - When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
-            - Activity types (natures + TJM): When the user asks to create, update, delete, or list activity types or daily rates (e.g. "add a nature CONSULT at 800 euros per day", "change DEV rate to 450", "list my natures", "delete the MARK nature"), use list_activity_types, create_activity_type, update_activity_type, or delete_activity_type. Rates are in euros; pass dailyRateCents (e.g. 40000 for 400 €).
-            - When logging time, if the user mentions an activity nature (e.g. "2h de dev sur Horain", "30 min d'expertise IA sur X", "marketing sur Y", "du code sur Z"), call list_activity_types to get available codes and labels, then match the user's wording (dev/développement/code → DEV, IA/expertise IA → AI, marketing → MARK, etc.) and pass activityTypeCode in create_time_log. If no match is clear, you may omit activityTypeCode; the user can set it later in the UI.
-            - Formatting: For calculations and numbers in your reply, use plain text only. Do NOT use LaTeX or math markup (no \\frac, \\times, \\text, etc.). Use Unicode symbols if needed (×, ÷, =) and write formulas like "22,5 / 8 = 2,8125 jours" or "2,75 × 600 = 1650 euros" so the message displays correctly in the chat.
+
+            ## Activity types (natures + TJM)
+            - When the user asks to create, update, delete, or list activity types or daily rates (e.g. "add a nature CONSULT at 800 euros per day", "change DEV rate to 450", "list my natures", "delete the MARK nature"), use list_activity_types, create_activity_type, update_activity_type, or delete_activity_type. Rates are in euros; pass dailyRateCents (e.g. 40000 for 400 €).
+            - When logging time, if the user mentions an activity nature (e.g. "2h de dev sur Horain", "30 min d'expertise IA sur X"), call list_activity_types to get available codes and labels, then match the user's wording (dev/développement/code → DEV, IA/expertise IA → AI, marketing → MARK, etc.) and pass activityTypeCode in create_time_log. If no match is clear, you may omit activityTypeCode; the user can set it later in the UI.
+
+            ## Response and formatting
+            - Once you have the tool results needed to answer, respond with a clear text summary. Do NOT make additional tool calls.
+            - When a tool returns an error (e.g. {"error": "..."}), inform the user clearly. Never invent or assume data when tools fail.
+            - When tools return empty data (no entries, no logs for a period): say "no entries", "0 hours", "aucun" or equivalent. Never invent or fabricate totals.
+            - Be concise and friendly. Confirm actions clearly. When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
+            - For calculations and numbers in your reply, use plain text only. Do NOT use LaTeX or math markup (no \\frac, \\times, \\text, etc.). Use Unicode symbols if needed (×, ÷, =) and write formulas like "22,5 / 8 = 2,8125 jours" or "2,75 × 600 = 1650 euros" so the message displays correctly in the chat.
             """;
 
     private final LlmClient llmClient;
@@ -95,25 +110,7 @@ public class LlmChatService {
                              List<Map<String, Object>> contextProjects) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT;
-        if (contextEntries != null && !contextEntries.isEmpty()) {
-            try {
-                String contextJson = objectMapper.writeValueAsString(contextEntries);
-                systemPrompt += "\n\n[Context] The user has selected these time log entries. Use their ids for update_time_log or delete_time_log when asked: "
-                        + contextJson;
-            } catch (Exception e) {
-                log.debug("Failed to serialize context entries: {}", e.getMessage());
-            }
-        }
-        if (contextProjects != null && !contextProjects.isEmpty()) {
-            try {
-                String projectsJson = objectMapper.writeValueAsString(contextProjects);
-                systemPrompt += "\n\n[Context] The user has selected these projects. When they refer to 'these projects' or by name, use these ids: "
-                        + projectsJson;
-            } catch (Exception e) {
-                log.debug("Failed to serialize context projects: {}", e.getMessage());
-            }
-        }
+        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects);
         messages.add(ChatMessage.system(systemPrompt));
         if (history != null && !history.isEmpty()) {
             for (ChatHistoryEntry e : history) {
@@ -175,7 +172,7 @@ public class LlmChatService {
                     result = toolExecutor.execute(tc);
                 }
                 toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
-                messages.add(ChatMessage.tool(result.content(), result.toolCallId()));
+                messages.add(ChatMessage.tool(contentForLlm(result.content()), result.toolCallId()));
             }
         }
 
@@ -189,6 +186,86 @@ public class LlmChatService {
         return persistTurnAndBuildResponse(userMessage,
                 "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
                 toolCallsExecuted, data.isEmpty() ? null : data, history, contextEntries, startTime, true);
+    }
+
+    /**
+     * Summarizes context entries and projects for the system prompt to reduce context size.
+     * Format: "Selected entries: id1 (ProjectA, 30 min), ...; use these ids for update_time_log/delete_time_log."
+     * and "Selected projects: name1 (id1), ...". Truncates at CONTEXT_ENTRIES_MAX / CONTEXT_PROJECTS_MAX.
+     */
+    private String summarizeContext(List<Map<String, Object>> contextEntries, List<Map<String, Object>> contextProjects) {
+        StringBuilder sb = new StringBuilder();
+        if (contextEntries != null && !contextEntries.isEmpty()) {
+            int max = Math.min(contextEntries.size(), CONTEXT_ENTRIES_MAX);
+            List<String> parts = new ArrayList<>();
+            for (int i = 0; i < max; i++) {
+                Map<String, Object> e = contextEntries.get(i);
+                String id = e.get("id") != null ? e.get("id").toString() : "?";
+                String projectName = e.get("projectName") != null ? e.get("projectName").toString() : "?";
+                Object dur = e.get("durationMinutes");
+                String min = dur != null ? dur + " min" : "?";
+                parts.add(id + " (" + projectName + ", " + min + ")");
+            }
+            sb.append("\n\n[Context] Selected entries: ").append(String.join(", ", parts));
+            if (contextEntries.size() > max) {
+                sb.append(" ... and ").append(contextEntries.size() - max).append(" more");
+            }
+            sb.append(". Use these ids for update_time_log or delete_time_log when asked.");
+        }
+        if (contextProjects != null && !contextProjects.isEmpty()) {
+            int max = Math.min(contextProjects.size(), CONTEXT_PROJECTS_MAX);
+            List<String> parts = new ArrayList<>();
+            for (int i = 0; i < max; i++) {
+                Map<String, Object> p = contextProjects.get(i);
+                String name = p.get("name") != null ? p.get("name").toString() : "?";
+                String id = p.get("id") != null ? p.get("id").toString() : "?";
+                parts.add(name + " (" + id + ")");
+            }
+            sb.append("\n\n[Context] Selected projects: ").append(String.join(", ", parts));
+            if (contextProjects.size() > max) {
+                sb.append(" ... and ").append(contextProjects.size() - max).append(" more");
+            }
+            sb.append(". When the user refers to 'these projects' or by name, use these ids.");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Extracts the LLM-facing content from a tool result. If the result is dual format (has "llm" and "data"),
+     * returns only the "llm" string for the model; otherwise returns the full content (backward compat).
+     */
+    private String contentForLlm(String toolResultContent) {
+        if (toolResultContent == null || toolResultContent.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode root = objectMapper.readTree(toolResultContent);
+            if (root.isObject() && root.has("llm") && root.get("llm").isTextual()) {
+                return root.get("llm").asText();
+            }
+        } catch (Exception e) {
+            log.trace("Tool result is not dual JSON, using as-is: {}", e.getMessage());
+        }
+        return toolResultContent;
+    }
+
+    /**
+     * Returns the payload to use when parsing tool result for data (time_logs, time_log, etc.).
+     * If the result is dual format, returns the "data" node; otherwise returns the root.
+     */
+    private JsonNode resultDataNode(String toolResultContent) {
+        if (toolResultContent == null || toolResultContent.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(toolResultContent);
+            if (root.isObject() && root.has("data")) {
+                return root.get("data");
+            }
+            return root;
+        } catch (Exception e) {
+            return objectMapper.createObjectNode();
+        }
     }
 
     private static String deriveStatus(String assistantMessage, List<ToolCallRecord> toolCalls, boolean maxIterations) {
@@ -237,25 +314,7 @@ public class LlmChatService {
                           StreamEventWriter writer) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT;
-        if (contextEntries != null && !contextEntries.isEmpty()) {
-            try {
-                String contextJson = objectMapper.writeValueAsString(contextEntries);
-                systemPrompt += "\n\n[Context] The user has selected these time log entries. Use their ids for update_time_log or delete_time_log when asked: "
-                        + contextJson;
-            } catch (Exception e) {
-                log.debug("Failed to serialize context entries: {}", e.getMessage());
-            }
-        }
-        if (contextProjects != null && !contextProjects.isEmpty()) {
-            try {
-                String projectsJson = objectMapper.writeValueAsString(contextProjects);
-                systemPrompt += "\n\n[Context] The user has selected these projects. When they refer to 'these projects' or by name, use these ids: "
-                        + projectsJson;
-            } catch (Exception e) {
-                log.debug("Failed to serialize context projects: {}", e.getMessage());
-            }
-        }
+        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects);
         messages.add(ChatMessage.system(systemPrompt));
         if (history != null && !history.isEmpty()) {
             for (ChatHistoryEntry e : history) {
@@ -328,7 +387,7 @@ public class LlmChatService {
                     toolCallsExecuted.add(record);
                     toolCallIterations.add(iterations);
                     writer.sendToolCall(record, iterations);
-                    messages.add(ChatMessage.tool(result.content(), result.toolCallId()));
+                    messages.add(ChatMessage.tool(contentForLlm(result.content()), result.toolCallId()));
                 }
             }
 
@@ -445,7 +504,7 @@ public class LlmChatService {
         }
         if (lastLogsCall != null && lastLogsCall.result() != null) {
             try {
-                JsonNode root = objectMapper.readTree(lastLogsCall.result());
+                JsonNode root = resultDataNode(lastLogsCall.result());
                 if (!root.has("error")) {
                     JsonNode timeLogs = root.get("time_logs");
                     if (timeLogs != null && timeLogs.isArray()) {
@@ -482,7 +541,7 @@ public class LlmChatService {
             }
             if (tc.result() == null) continue;
             try {
-                JsonNode root = objectMapper.readTree(tc.result());
+                JsonNode root = resultDataNode(tc.result());
                 if (root.has("error")) continue;
                 JsonNode timeLog = root.get("time_log");
                 if (timeLog == null || !timeLog.isObject()) continue;
@@ -522,7 +581,7 @@ public class LlmChatService {
             }
             if (tc.result() == null) continue;
             try {
-                JsonNode root = objectMapper.readTree(tc.result());
+                JsonNode root = resultDataNode(tc.result());
                 if (root.has("error")) continue;
                 JsonNode timeLog = root.get("time_log");
                 if (timeLog == null || !timeLog.isObject() || !timeLog.has("id")) continue;
