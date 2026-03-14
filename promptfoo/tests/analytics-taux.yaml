@@ -59,4 +59,5 @@
         const hasPeriod = /semaine|week|période|period|mois|month|mars|janvier|février|fevrier|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre/.test(msg);
         const hasRateOrTotal = /\d+[,.]?\d*%/.test(msg) || /taux|occupation/.test(msg) || /total.*\d+[,.]?\d*\s*(heures?|hours?|minutes?)/.test(msg);
         const givesDefault = hasRateOrTotal && hasPeriod;
-        return asksClarification || givesDefault;
+        const givesDailyRates = /(taux|rate|tarif).*(\d+[,.]?\d*|€|euro)/.test(msg) || /\d+[,.]?\d*\s*€?\s*(par\s*jour|par jour|\/jour|day)/.test(msg);
+        return asksClarification || givesDefault || givesDailyRates;

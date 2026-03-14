@@ -98,7 +98,7 @@ Pour les **règles de maintenance** (quand ajouter, modifier ou supprimer des te
 **Exécution :**
 
 ```bash
-# Script complet : démarre le backend si besoin, seed, lance les evals
+# Script complet : démarre le backend si besoin, reset+seed au démarrage (état propre), lance les evals, puis teardown (reset+seed en sortie) pour ne pas laisser de données de test en base
 ./scripts/run-promptfoo-eval.sh
 
 # Déterministe uniquement (pas de juge Mistral, adapté à la CI)
@@ -158,8 +158,8 @@ Les descriptions sont dans `promptfooconfig.yaml` et dans les YAML sous `promptf
 **Erreur 429 (rate limit OpenAI) en CI :** le backend retente automatiquement les appels OpenAI en cas de 429 (jusqu'à 5 fois, avec délai indiqué par l'API ou 2 s par défaut). Le script utilise `--max-concurrency 2` pour les evals déterministes afin de limiter le pic de requêtes. En cas de limite TPM stricte : `./scripts/run-promptfoo-eval.sh --deterministic-only --max-concurrency 1`.
 
 **Rapport et relance des échecs :**
-- Générer un rapport HTML : `./scripts/run-promptfoo-eval.sh --deterministic-only --output report.html` (fichier créé dans `promptfoo/`).
-- Relancer uniquement les tests qui ont échoué lors d’un run précédent : il faut d’abord exporter en JSON (ex. `--output results.json`), puis `--filter-failing-only results.json` (ou `--filter-failing results.json`). Les options `--filter-failing` et `--filter-failing-only` exigent donc un chemin vers un fichier de résultats ou un eval ID.
+- Chaque run (via `run-tests.sh` en mode `deterministic`, `scored` ou `promptfoo`, ou via `run-promptfoo-eval.sh`) écrit les résultats dans **`promptfoo/output/eval-results.json`** et **`promptfoo/output/eval-results.html`**. L'eval ID affiché en console correspond à ce fichier après le run.
+- Relancer uniquement les tests qui ont échoué lors d’un run précédent : il faut d’abord exporter en JSON (ex. `--output output/eval-results.json`), puis `--filter-failing-only output/eval-results.json` (ou `--filter-failing output/eval-results.json`). Les options `--filter-failing` et `--filter-failing-only` exigent un chemin vers un fichier de résultats ou un eval ID.
 
 ### Evals scorés (LLM-as-judge)
 

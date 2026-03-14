@@ -9,6 +9,7 @@ import com.horain.dto.TimeLogDto;
 import com.horain.llm.ToolCallRequest;
 import com.horain.llm.ToolCallResult;
 import com.horain.service.ActivityTypeService;
+import com.horain.service.MemoryService;
 import com.horain.service.ProjectService;
 import com.horain.service.TimeLogService;
 import org.slf4j.Logger;
@@ -40,6 +41,7 @@ public class ToolExecutorService {
     private final TimeLogService timeLogService;
     private final ActivityTypeService activityTypeService;
     private final AnalyticsService analyticsService;
+    private final MemoryService memoryService;
     private final ObjectMapper objectMapper;
 
     public ToolExecutorService(
@@ -47,11 +49,13 @@ public class ToolExecutorService {
             TimeLogService timeLogService,
             ActivityTypeService activityTypeService,
             AnalyticsService analyticsService,
+            MemoryService memoryService,
             ObjectMapper objectMapper) {
         this.projectService = projectService;
         this.timeLogService = timeLogService;
         this.activityTypeService = activityTypeService;
         this.analyticsService = analyticsService;
+        this.memoryService = memoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -81,6 +85,9 @@ public class ToolExecutorService {
                 case ToolRegistry.PROPOSE_ENTRIES -> executeProposeEntries(args);
                 case ToolRegistry.UPDATE_TIME_LOG -> executeUpdateTimeLog(args);
                 case ToolRegistry.DELETE_TIME_LOG -> executeDeleteTimeLog(args);
+                case ToolRegistry.STORE_MEMORY -> executeStoreMemory(args);
+                case ToolRegistry.GET_MEMORIES -> executeGetMemories(args);
+                case ToolRegistry.FORGET_MEMORY -> executeForgetMemory(args);
                 default -> toDualResult("Error: Unknown tool " + request.name(), Map.of("error", "Unknown tool: " + request.name()));
             };
             return new ToolCallResult(request.id(), result);
@@ -514,7 +521,13 @@ public class ToolExecutorService {
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
         var result = analyticsService.getTimeAggregatedForChart(start, end, groupBy, DEFAULT_ZONE);
-        String llm = "Chart data ready. Pass categories and series to propose_chart.";
+        String llm;
+        try {
+            llm = "Chart data ready. Pass the following categories and series exactly to propose_chart (do not invent data): "
+                    + objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            llm = "Chart data ready. Pass categories and series from the data payload to propose_chart.";
+        }
         return toDualResult(llm, result);
     }
 
@@ -585,6 +598,62 @@ public class ToolExecutorService {
         UUID id = UUID.fromString(idStr.trim());
         timeLogService.deleteById(id);
         return toDualResult("Entry deleted.", Map.of("status", "deleted"));
+    }
+
+    private String executeStoreMemory(JsonNode args) {
+        String kind = getText(args, "kind");
+        String memoryKey = getText(args, "memoryKey");
+        String value = getText(args, "value");
+        String factText = getText(args, "factText");
+        Integer ttlSeconds = getInt(args, "ttlSeconds");
+        if (kind == null || kind.isBlank()) {
+            return toDualResult("Error: kind is required (project_disambiguation, typo, default_project, preference, explicit_fact).", Map.of("error", "kind is required"));
+        }
+        if (memoryKey == null || memoryKey.isBlank()) {
+            return toDualResult("Error: memoryKey is required.", Map.of("error", "memoryKey is required"));
+        }
+        if (factText == null || factText.isBlank()) {
+            return toDualResult("Error: factText is required.", Map.of("error", "factText is required"));
+        }
+        Long ttl = ttlSeconds != null && ttlSeconds > 0 ? ttlSeconds.longValue() : null;
+        String userId = memoryService.getDefaultUserId();
+        memoryService.save(userId, kind.trim(), memoryKey.trim(), value != null ? value : "", factText.trim(), ttl);
+        return toDualResult("Memory stored: " + kind + " / " + memoryKey + ".", Map.of("status", "stored", "kind", kind, "memoryKey", memoryKey));
+    }
+
+    private String executeGetMemories(JsonNode args) {
+        String kind = getText(args, "kind");
+        String userId = memoryService.getDefaultUserId();
+        List<com.horain.model.Memory> memories = kind != null && !kind.isBlank()
+                ? memoryService.findActiveByUserIdAndKind(userId, kind)
+                : memoryService.findActiveByUserId(userId);
+        if (memories.isEmpty()) {
+            return toDualResult("No stored memories." + (kind != null && !kind.isBlank() ? " (kind=" + kind + ")" : ""), Map.of("memories", List.of()));
+        }
+        StringBuilder llm = new StringBuilder("## Stored memories (" + memories.size() + ")\n");
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (com.horain.model.Memory m : memories) {
+            llm.append("- ").append(m.getFactText()).append("\n");
+            list.add(Map.of(
+                    "kind", m.getKind(),
+                    "memoryKey", m.getMemoryKey(),
+                    "factText", m.getFactText() != null ? m.getFactText() : ""));
+        }
+        return toDualResult(llm.toString().trim(), Map.of("memories", list));
+    }
+
+    private String executeForgetMemory(JsonNode args) {
+        String kind = getText(args, "kind");
+        String memoryKey = getText(args, "memoryKey");
+        if (kind == null || kind.isBlank()) {
+            return toDualResult("Error: kind is required to forget memories.", Map.of("error", "kind is required"));
+        }
+        String userId = memoryService.getDefaultUserId();
+        memoryService.forget(userId, kind.trim(), memoryKey);
+        if (memoryKey != null && !memoryKey.isBlank()) {
+            return toDualResult("Forgot memory: " + kind + " / " + memoryKey + ".", Map.of("status", "forgotten", "kind", kind, "memoryKey", memoryKey));
+        }
+        return toDualResult("Forgot all memories of kind: " + kind + ".", Map.of("status", "forgotten", "kind", kind));
     }
 
     private String getText(JsonNode args, String key) {

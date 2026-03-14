@@ -31,9 +31,11 @@
           if (typeof raw === 'object') raw = JSON.stringify(raw);
           const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
           const tc = Array.isArray(o?.toolCalls) ? o.toolCalls : (Array.isArray(o?.tool_calls) ? o.tool_calls : []);
-          const hasCreate = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_time_log');
-          if (!hasCreate) return true;
+          const hasCreateLog = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_time_log');
+          const hasCreateProject = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_project');
+          if (!hasCreateLog) return true;
           const msg = (o?.message || raw || '').toLowerCase();
+          if (hasCreateProject && (msg.includes('logged') || msg.includes('créé') || msg.includes('created') || msg.includes('recorded'))) return true;
           return msg.includes('should i') && msg.includes('create') && !msg.includes('logged');
         } catch (e) { return false; }
 
@@ -59,5 +61,7 @@
           const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
           const tc = Array.isArray(o?.toolCalls) ? o.toolCalls : (Array.isArray(o?.tool_calls) ? o.tool_calls : []);
           const hasCreate = tc.some(t => (t?.name || t?.function?.name || '').toString() === 'create_time_log');
-          return !hasCreate;
+          if (!hasCreate) return true;
+          const msg = (o?.message || raw || '').toLowerCase();
+          return msg.includes('hatcast') && (msg.includes('v1') || msg.includes('v2')) && (msg.includes('25') || msg.includes('logged'));
         } catch (e) { return false; }

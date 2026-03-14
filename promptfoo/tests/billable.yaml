@@ -58,7 +58,7 @@
 # Regression: "toutes les activités" without date must use all-time range, not an arbitrary month (e.g. October)
 - description: Billable mass toggle - all activities for project without date uses all-time range and asks confirmation
   vars:
-    message: "bascule toutes les activités associées à eXo en facturable"
+    message: "bascule toutes les activités associées à Horain en facturable"
   assert:
     - type: javascript
       value: |
@@ -83,7 +83,7 @@
 # Regression: when user asks to set ALL to billable, confirmation must describe the action (set all N to billable), not current state (X to billable and Y to non-billable)
 - description: Billable mass toggle - confirmation must say set all to billable, not "X to billable and Y to non-billable"
   vars:
-    message: "bascule toutes les activités associées à eXo en facturable"
+    message: "bascule toutes les activités associées à Horain en facturable"
   assert:
     - type: javascript
       value: |

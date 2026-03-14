@@ -26,7 +26,21 @@ if [ -f "$ROOT/backend/.env" ]; then
 fi
 API_KEY="${API_KEY:-${HORAIN_API_KEY:-HORAIN_DEV_KEY}}"
 
+# Teardown: reset+seed so the DB is left in a clean state (no eval leftovers).
+teardown_phase() {
+  if curl -s -o /dev/null -w "%{http_code}" "$API_BASE/health" 2>/dev/null | grep -q 200; then
+    echo ""
+    echo "Teardown: resetting database to clean state..."
+    curl -s -o /dev/null -X POST "$API_BASE/dev/seed/reset" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $API_KEY" \
+      -d '{"fixedToday":"2025-03-10"}' || true
+    echo "Teardown done."
+  fi
+}
+
 cleanup() {
+  teardown_phase
   echo ""
   echo "Stopping backend..."
   if [ -n "$BACKEND_PID" ]; then
@@ -60,18 +74,18 @@ else
   done
 fi
 
-# Seed the database (projects + time logs for evals)
-echo "Seeding database..."
-SEED_RES=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/dev/seed" \
+# Reset DB then seed (clean state so evals are idempotent; no leftover projects/time logs from previous runs)
+echo "Resetting and seeding database..."
+SEED_RES=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/dev/seed/reset" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $API_KEY" \
   -d '{"fixedToday":"2025-03-10"}')
 SEED_HTTP=$(echo "$SEED_RES" | tail -n1)
 if [ "$SEED_HTTP" != "200" ]; then
-  echo "Warning: Seed request failed (HTTP $SEED_HTTP). Some evals may fail."
+  echo "Warning: Seed reset failed (HTTP $SEED_HTTP). Some evals may fail."
   echo "Ensure horain.dev.seed-enabled=true and API key matches backend."
 else
-  echo "Seed complete."
+  echo "Seed complete (reset + load)."
 fi
 
 # Load judge vars from promptfoo/.env (for scored evals with Mistral)
@@ -113,12 +127,18 @@ done
 export EVAL_RUN_ID="${EVAL_RUN_ID:-$(date +%s)}"
 EVAL_PROPOSAL_PROJECT="EvalProposal_${EVAL_RUN_ID}"
 
-# Run Promptfoo evals
+# Run Promptfoo evals; always write results to promptfoo/output/ for inspection (eval-results.json, eval-results.html).
 echo ""
-echo "Running Promptfoo evals..."
+echo "Running Promptfoo evals (results → promptfoo/output/)..."
 cd "$ROOT/promptfoo"
 mkdir -p output
 export HORAIN_API_KEY="$API_KEY"
 export PROMPTFOO_API_URL="$API_BASE"
 export PROMPTFOO_DISABLE_WAL_MODE="${PROMPTFOO_DISABLE_WAL_MODE:-true}"
-npx promptfoo eval -c "$CONFIG_FILE" --var "evalProposalProject=${EVAL_PROPOSAL_PROJECT}" "${PROMPTFOO_ARGS[@]}"
+EVAL_EXIT=0
+npx promptfoo eval -c "$CONFIG_FILE" --var "evalProposalProject=${EVAL_PROPOSAL_PROJECT}" \
+  --output output/eval-results.json \
+  --output output/eval-results.html \
+  "${PROMPTFOO_ARGS[@]}" || EVAL_EXIT=$?
+teardown_phase
+exit $EVAL_EXIT

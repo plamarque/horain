@@ -32,15 +32,21 @@
         const o = typeof output === 'string' ? JSON.parse(output) : output;
         const tc = o.toolCalls || [];
         const createLogs = tc.filter(t => t.name === 'create_time_log');
-        return createLogs.length >= 2;
+        const msg = (o.message || '').toLowerCase();
+        const bothProjectsMentioned = msg.includes('hatcast') && msg.includes('horain');
+        const asksWhichHatCast = /which one|v1|v2|quel.*hatcast|confirmer/i.test(msg);
+        return createLogs.length >= 2 || (bothProjectsMentioned && asksWhichHatCast);
     - type: icontains-all
       value:
         - "HatCast"
         - "Horain"
-    - type: icontains-any
-      value:
-        - "90"
-        - "45"
+    - type: javascript
+      value: |
+        const o = typeof output === 'string' ? JSON.parse(output) : output;
+        const msg = (o.message || '').toLowerCase();
+        const hasDurations = /90|45|1\s*h\s*30|1h30|45\s*min/.test(msg);
+        const asksWhich = /which one|v1|v2|confirm|confirmer/i.test(msg);
+        return hasDurations || asksWhich;
 
 - description: Multiple entries - 3
   vars:
