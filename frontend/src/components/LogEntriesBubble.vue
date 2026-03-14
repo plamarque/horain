@@ -270,7 +270,7 @@ const moreCount = computed(
               <path d="m15 5 4 4" />
             </svg>
           </button>
-          <!-- Collapsed: stacked layout. Expanded: two rows, full width -->
+          <!-- Collapsed: one column (date, tag, duration). Expanded: meta row, project+amount row, note fills rest -->
           <div class="card-row card-row--meta">
             <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
             <span
@@ -281,7 +281,8 @@ const moreCount = computed(
               {{ entry.activityTypeCode }}
             </span>
             <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
-            <span v-if="isExpanded(entry)" class="card-sep" aria-hidden="true">·</span>
+          </div>
+          <div class="card-row card-row--project">
             <span
               class="card-project"
               title="Double-click to edit project"
@@ -348,27 +349,26 @@ const moreCount = computed(
 }
 
 .log-cards {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: minmax(180px, auto);
+  grid-auto-flow: row;
   gap: 0.75rem;
   padding: 0.5rem;
 }
 
 .card-wrapper {
-  flex: 1 1 140px;
-  min-width: 120px;
-  max-width: 200px;
+  min-width: 0;
+  min-height: 0;
   aspect-ratio: 3 / 4;
   cursor: pointer;
-  transition: flex-basis 0.3s ease, max-width 0.3s ease, aspect-ratio 0.3s ease;
+  transition: grid-column 0.3s ease, grid-row 0.3s ease;
 }
 
-/* Expanded card: full width on its own row, pushes others down (no overlay) */
+/* Expanded card: 2 columns × 2 rows, pushes other cards (no overlay) */
 .card-wrapper--expanded {
-  flex: 1 1 100%;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
+  grid-column: span 2;
+  grid-row: span 2;
   aspect-ratio: auto;
   min-height: 4.5rem;
 }
@@ -390,12 +390,32 @@ const moreCount = computed(
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+/* Expanded: grid layout so note fills remaining space; meta and project+amount on separate lines */
 .card-wrapper--expanded .card-face {
-  justify-content: flex-start;
-  padding: 0.6rem 0.85rem 0.6rem 0.85rem;
-  padding-right: 2.5rem;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 0.35rem 0;
+  justify-content: stretch;
+  align-content: start;
+  justify-items: start;
   text-align: left;
-  align-items: stretch;
+  padding: 0.65rem 0.85rem 0.65rem 0.85rem;
+  padding-right: 2.5rem;
+}
+
+.card-wrapper--expanded .card-row--meta {
+  margin-bottom: 0;
+}
+
+/* Project + amount on one line (no wrap), project ellipsis if needed */
+.card-wrapper--expanded .card-row--project {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  width: 100%;
+  margin-bottom: 0;
 }
 
 .card-edit {
@@ -436,6 +456,10 @@ const moreCount = computed(
   flex-direction: column;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
+}
+
+.card-wrapper:not(.card-wrapper--expanded) .card-row--project {
+  display: none;
 }
 
 .card-date {
@@ -486,6 +510,10 @@ const moreCount = computed(
 
 .card-wrapper--expanded .card-project {
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .card-amount {
@@ -501,11 +529,6 @@ const moreCount = computed(
   color: rgba(255, 255, 255, 0.95);
 }
 
-.card-wrapper:not(.card-wrapper--expanded) .card-project,
-.card-wrapper:not(.card-wrapper--expanded) .card-amount-value,
-.card-wrapper:not(.card-wrapper--expanded) .card-amount-icon {
-  display: none;
-}
 
 .card-amount-icon {
   font-size: 1.25rem;
@@ -529,11 +552,13 @@ const moreCount = computed(
 }
 
 .card-wrapper--expanded .card-note {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
   font-size: 1rem;
   line-height: 1.4;
-  margin-top: 0.25rem;
+  margin: 0;
+  align-self: stretch;
+  min-height: 0;
 }
 
 .show-more {
@@ -584,22 +609,16 @@ const moreCount = computed(
 
 @media (max-width: 520px) {
   .log-cards {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-auto-rows: minmax(140px, auto);
     gap: 0.5rem;
     padding: 0.4rem;
   }
 
-  .card-wrapper {
-    flex: 1 1 100px;
-    min-width: 100px;
-    max-width: none;
-  }
-
-  /* Keep expanded card full width on mobile (media query overrides base .card-wrapper) */
+  /* Expanded card still 2 cols × 2 rows on mobile */
   .card-wrapper--expanded {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
+    grid-column: span 2;
+    grid-row: span 2;
   }
 
   .card-face {
