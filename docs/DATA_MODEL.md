@@ -42,7 +42,7 @@ Activity natures with daily rate (TJM, 8h). Optional per time_log. Managed by th
 | daily_rate_cents | INTEGER | NOT NULL, CHECK > 0 |
 | description | VARCHAR(2000) | nullable |
 
-Seed: DEV (Développement, 400 €), AI (Expertise IA, 1000 €), MARK (Marketing, 7000 €). The optional `description` helps the assistant match user wording (synonyms, typical phrases) when inferring activity type.
+Canonical set (after V9): DEV (600 €), PROJ (300 €), PROD (500 €), MARK (700 €), PROSPECT (500 €), WEB3 (1000 €), AI (1000 €), INNO (700 €). The optional `description` helps the assistant match user wording (synonyms, typical phrases) when inferring activity type.
 
 ## Table: agent_turn
 
