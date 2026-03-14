@@ -100,6 +100,16 @@ export interface ProjectDto {
   userId?: string
   /** Total revenue in cents from billable time logs with activity type. Set when listing projects. */
   revenueCents?: number | null
+  /** Number of time log entries (activities) for this project. Set when listing projects. */
+  timeLogCount?: number | null
+  /** Top activity types by count for this project (code, label, count). Set when listing projects. */
+  topActivityTypes?: ProjectActivityTypeSummaryDto[] | null
+}
+
+export interface ProjectActivityTypeSummaryDto {
+  code: string
+  label: string
+  count: number
 }
 
 export interface TimeLogDto {

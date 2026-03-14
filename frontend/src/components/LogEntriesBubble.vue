@@ -259,6 +259,7 @@ const moreCount = computed(
           :style="{ backgroundColor: projectColor(entry) }"
         >
           <button
+            v-if="isExpanded(entry)"
             type="button"
             class="card-edit"
             aria-label="Edit entry"

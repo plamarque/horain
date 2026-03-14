@@ -142,6 +142,7 @@ test('edit project via Projects view (cards + pen icon)', async ({ page, request
 
   const projectCard = page.locator('.project-card').filter({ hasText: projectName }).first()
   await expect(projectCard).toBeVisible({ timeout: 5000 })
+  await projectCard.click()
   await projectCard.getByRole('button', { name: 'Edit project' }).click()
 
   const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })

@@ -2,6 +2,7 @@ package com.horain.dev;
 
 import com.horain.dto.ProjectDto;
 import com.horain.dto.TimeLogDto;
+import com.horain.repository.ActivityTypeRepository;
 import com.horain.repository.ProjectRepository;
 import com.horain.repository.TimeLogRepository;
 import com.horain.service.ProjectService;
@@ -17,6 +18,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Generates and loads fictional seed data for development.
@@ -59,13 +61,16 @@ public class DevSeedService {
     private final TimeLogService timeLogService;
     private final TimeLogRepository timeLogRepository;
     private final ProjectRepository projectRepository;
+    private final ActivityTypeRepository activityTypeRepository;
 
     public DevSeedService(ProjectService projectService, TimeLogService timeLogService,
-                          TimeLogRepository timeLogRepository, ProjectRepository projectRepository) {
+                         TimeLogRepository timeLogRepository, ProjectRepository projectRepository,
+                         ActivityTypeRepository activityTypeRepository) {
         this.projectService = projectService;
         this.timeLogService = timeLogService;
         this.timeLogRepository = timeLogRepository;
         this.projectRepository = projectRepository;
+        this.activityTypeRepository = activityTypeRepository;
     }
 
     /** Clears all time logs and projects, then loads seed data. Dev only. */
@@ -97,6 +102,10 @@ public class DevSeedService {
             projectService.createOrSkip(p.getId().toString(), p);
         }
 
+        List<String> activityTypeCodes = activityTypeRepository.findAllByOrderByCodeAsc().stream()
+                .map(com.horain.model.ActivityType::getCode)
+                .collect(Collectors.toList());
+
         int logsCreated = 0;
         LocalDate today = fixedToday != null ? fixedToday : LocalDate.now(ZONE);
         LocalDate start = today.minusMonths(4);
@@ -120,17 +129,22 @@ public class DevSeedService {
                 boolean projectBillable = PROJECT_BILLABLE.getOrDefault(projectId, true);
                 // ~10% of entries override: billable entry on non-billable project or vice versa
                 Boolean entryBillableOverride = rand.nextInt(10) == 0 ? !projectBillable : null;
+                boolean billable = entryBillableOverride != null ? entryBillableOverride : projectBillable;
 
                 ZonedDateTime loggedAt = d.atTime(hour, minute).atZone(ZONE);
                 Instant instant = loggedAt.toInstant();
 
-                TimeLogDto log = TimeLogDto.builder()
+                TimeLogDto b = TimeLogDto.builder()
                         .projectId(projectId)
                         .durationMinutes(duration)
                         .note(note)
                         .billable(entryBillableOverride)
-                        .loggedAt(instant)
-                        .build();
+                        .loggedAt(instant);
+                // ~75% of billable entries get an activity type so project revenue is non-zero in seed
+                if (billable && !activityTypeCodes.isEmpty() && rand.nextInt(4) != 0) {
+                    b.activityTypeCode(activityTypeCodes.get(rand.nextInt(activityTypeCodes.size())));
+                }
+                TimeLogDto log = b.build();
 
                 String seedId = UUID.nameUUIDFromBytes(
                         ("seed-v1" + d + projectId + globalSeq).getBytes()).toString();

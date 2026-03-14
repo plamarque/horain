@@ -44,6 +44,7 @@ const error = ref('')
 const scrollEl = ref<HTMLDivElement | null>(null)
 const pullDistance = ref(0)
 const touchStartY = ref<number | null>(null)
+const expandedIds = ref<Set<string>>(new Set())
 
 async function loadProjects() {
   loading.value = true
@@ -97,10 +98,24 @@ function onEdit(p: ProjectDto, e: Event) {
   if (openProjectEdit) openProjectEdit(p.id)
 }
 
+function toggleExpand(p: ProjectDto) {
+  const id = p.id ?? ''
+  if (!id) return
+  const next = new Set(expandedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedIds.value = next
+}
+
+function isExpanded(p: ProjectDto): boolean {
+  return p.id ? expandedIds.value.has(p.id) : false
+}
+
 function onCardClick(p: ProjectDto) {
-  if (selectedProjects.value.some((sp) => sp.id === p.id)) return
-  if (selectedProjects.value.length >= maxContextProjects) return
-  addProjectToContext(p)
+  if (!selectedProjects.value.some((sp) => sp.id === p.id) && selectedProjects.value.length < maxContextProjects) {
+    addProjectToContext(p)
+  }
+  toggleExpand(p)
 }
 
 function isInContext(project: ProjectDto): boolean {
@@ -117,6 +132,11 @@ function formatRevenue(revenueCents: number | null | undefined): string {
   if (revenueCents == null || revenueCents === 0) return '0 €'
   const euros = Math.round(revenueCents / 100)
   return `${euros.toLocaleString('fr-FR', { useGrouping: true, minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`
+}
+
+function activityCountLabel(count: number | null | undefined): string {
+  const n = count ?? 0
+  return n <= 1 ? `${n} activité loggée` : `${n} activités loggées`
 }
 
 // Refetch when a project is saved (e.g. from edit modal)
@@ -171,38 +191,64 @@ onUnmounted(() => {
       <p v-if="error" class="projects-error">{{ error }}</p>
       <div v-else-if="loading && projects.length === 0" class="projects-loading">Loading…</div>
       <div v-else class="project-cards">
-      <div
-        v-for="p in projects"
-        :key="p.id"
-        class="project-card"
-        :class="{ 'project-card--in-context': isInContext(p) }"
-        :style="{ backgroundColor: projectColor(p) }"
-        role="button"
-        tabindex="0"
-        aria-label="Add to conversation context"
-        @click="onCardClick(p)"
-        @keydown.enter="onCardClick(p)"
-        @keydown.space.prevent="onCardClick(p)"
-      >
-        <div class="project-card-body">
-          <span class="project-card-name">{{ p.name }}</span>
-          <p v-if="p.description" class="project-card-desc">{{ truncate(p.description, 60) }}</p>
-          <span v-else class="project-card-desc project-card-desc--empty">—</span>
-          <span v-if="p.billable !== false" class="project-card-billable" :aria-label="`Revenue: ${formatRevenue(p.revenueCents)}`">{{ formatRevenue(p.revenueCents) }}</span>
-        </div>
-        <button
-          type="button"
-          class="project-card-edit"
-          aria-label="Edit project"
-          title="Edit project"
-          @click="onEdit(p, $event)"
+        <div
+          v-for="p in projects"
+          :key="p.id"
+          class="project-card"
+          :class="{
+            'project-card--in-context': isInContext(p),
+            'project-card--expanded': isExpanded(p),
+          }"
+          :style="{ backgroundColor: projectColor(p) }"
+          role="button"
+          tabindex="0"
+          :aria-expanded="isExpanded(p)"
+          aria-label="Add to conversation context"
+          @click="onCardClick(p)"
+          @keydown.enter="onCardClick(p)"
+          @keydown.space.prevent="onCardClick(p)"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
-          </svg>
-        </button>
-      </div>
+          <div class="project-card-body">
+            <span class="project-card-name">{{ p.name }}</span>
+            <div class="project-card-meta">
+              <span v-if="p.billable !== false" class="project-card-billable" :aria-label="`Revenue: ${formatRevenue(p.revenueCents)}`">{{ formatRevenue(p.revenueCents) }}</span>
+              <template v-if="isExpanded(p)">
+                <span v-if="p.billable !== false" class="project-card-meta-sep" aria-hidden="true">·</span>
+                <span class="project-card-activity-badge" :title="activityCountLabel(p.timeLogCount)">
+                  <svg class="project-card-activity-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
+                  </svg>
+                  <span class="project-card-activity-count">{{ p.timeLogCount ?? 0 }}</span>
+                </span>
+              </template>
+            </div>
+            <div v-if="isExpanded(p) && (p.topActivityTypes?.length ?? 0) > 0" class="project-card-tags">
+              <span
+                v-for="at in p.topActivityTypes"
+                :key="at.code"
+                class="project-card-tag"
+                :title="`${at.label}: ${at.count} activité(s)`"
+              >
+                {{ at.code }} <span class="project-card-tag-count">{{ at.count }}</span>
+              </span>
+            </div>
+            <p v-if="p.description" class="project-card-desc">{{ isExpanded(p) ? p.description : truncate(p.description, 60) }}</p>
+            <span v-else class="project-card-desc project-card-desc--empty">—</span>
+          </div>
+          <button
+            v-if="isExpanded(p)"
+            type="button"
+            class="project-card-edit"
+            aria-label="Edit project"
+            title="Edit project"
+            @click="onEdit(p, $event)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
+          </button>
+        </div>
       </div>
       <p v-if="!loading && !error && projects.length === 0" class="projects-empty">No projects yet.</p>
     </div>
@@ -294,22 +340,22 @@ onUnmounted(() => {
   margin: 0;
 }
 
+/* Same grid logic as LogEntriesBubble for a consistent experience */
 .project-cards {
   flex: 1;
   overflow: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-content: flex-start;
-  padding: 0.25rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: minmax(180px, auto);
+  grid-auto-flow: row;
+  gap: 0.75rem;
+  padding: 0.5rem;
 }
 
-/* 3 cards per row: (100% - 2 gaps) / 3 */
 .project-card {
-  flex: 1 1 calc((100% - 1rem) / 3);
   min-width: 0;
-  max-width: calc((100% - 1rem) / 3);
-  aspect-ratio: 4 / 3;
+  min-height: 0;
+  aspect-ratio: 3 / 4;
   border-radius: 8px;
   padding: 0.5rem;
   display: flex;
@@ -319,36 +365,100 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   cursor: pointer;
+  transition: grid-column 0.3s ease, grid-row 0.3s ease;
+  overflow: hidden;
 }
 
+/* Expanded: 2 columns × 2 rows, same as activity cards (no overlay) */
+.project-card--expanded {
+  grid-column: span 2;
+  grid-row: span 2;
+  aspect-ratio: auto;
+  min-height: 4.5rem;
+  padding-right: 2.25rem;
+}
+
+/* Selection state: subtle indicator only (no strong border) */
 .project-card--in-context {
-  outline: 2px solid rgba(255, 255, 255, 0.9);
-  outline-offset: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
 .project-card-body {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
 }
 
+/* Expanded: grid layout; name, meta, tags, description fills remaining space */
+.project-card--expanded .project-card-body {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 0.4rem 0;
+  align-content: space-between;
+  padding-bottom: 0.25rem;
+}
+
+.project-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.project-card:not(.project-card--expanded) .project-card-meta-sep,
+.project-card:not(.project-card--expanded) .project-card-activity-badge {
+  display: none;
+}
+
 .project-card-name {
   font-weight: 600;
-  font-size: 1.0625rem;
+  font-size: 1.2rem;
   color: inherit;
   word-break: break-word;
   margin-bottom: 0.35rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.project-card--expanded .project-card-name {
+  font-size: 1.25rem;
+  margin-bottom: 0;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 .project-card-desc {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.85);
-  line-height: 1.25;
+  line-height: 1.3;
   word-break: break-word;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.project-card--expanded .project-card-desc {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  min-height: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
 }
 
 .project-card-desc--empty {
@@ -356,10 +466,70 @@ onUnmounted(() => {
 }
 
 .project-card-billable {
-  font-size: 1.125rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #b8e086;
   margin-top: 0.15rem;
+}
+
+.project-card--expanded .project-card-billable {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.project-card-meta-sep {
+  opacity: 0.8;
+  user-select: none;
+}
+
+/* Distinctive badge for activity count (volume) in expanded mode */
+.project-card-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.project-card-activity-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.project-card-activity-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Activity type tags (nature of work) in expanded mode */
+.project-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.project-card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.98);
+}
+
+.project-card-tag-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+  font-size: 0.75rem;
 }
 
 .project-card-edit {
@@ -382,5 +552,19 @@ onUnmounted(() => {
 .project-card-edit:hover {
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
+}
+
+@media (max-width: 520px) {
+  .project-cards {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-auto-rows: minmax(140px, auto);
+    gap: 0.5rem;
+    padding: 0.4rem;
+  }
+
+  .project-card--expanded {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
 }
 </style>

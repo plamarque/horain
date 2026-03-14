@@ -1,5 +1,6 @@
 package com.horain.service;
 
+import com.horain.dto.ProjectActivityTypeSummaryDto;
 import com.horain.dto.ProjectDto;
 import com.horain.model.Project;
 import com.horain.repository.ProjectRepository;
@@ -9,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,9 +70,42 @@ public class ProjectService {
     public List<ProjectDto> findAll() {
         List<Project> all = projectRepository.findAll();
         Map<UUID, Long> revenueByProject = sumRevenueCentsByProjectMap();
+        Map<UUID, Long> countByProject = countByProjectIdMap();
+        Map<UUID, List<ProjectActivityTypeSummaryDto>> topActivityTypesByProject = topActivityTypesByProjectMap();
         return all.stream()
-                .map(p -> toDto(p, revenueByProject.get(p.getId())))
+                .map(p -> toDto(p, revenueByProject.get(p.getId()), countByProject.get(p.getId()),
+                        topActivityTypesByProject.get(p.getId())))
                 .collect(Collectors.toList());
+    }
+
+    /** Builds projectId -> number of time log entries. Projects with zero logs are not in the result (default 0). */
+    private Map<UUID, Long> countByProjectIdMap() {
+        List<Object[]> rows = timeLogRepository.countByProjectId();
+        return rows.stream()
+                .collect(Collectors.toMap(
+                        row -> toUuid(row[0]),
+                        row -> ((Number) row[1]).longValue()));
+    }
+
+    private static final int TOP_ACTIVITY_TYPES_MAX = 5;
+
+    /** Builds projectId -> list of top activity types (code, label, count) sorted by count desc, max 5. */
+    private Map<UUID, List<ProjectActivityTypeSummaryDto>> topActivityTypesByProjectMap() {
+        List<Object[]> rows = timeLogRepository.countByProjectIdAndActivityType();
+        Map<UUID, List<ProjectActivityTypeSummaryDto>> byProject = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            UUID projectId = toUuid(row[0]);
+            String code = row[1] != null ? row[1].toString() : "";
+            String label = row[2] != null ? row[2].toString() : "";
+            long count = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+            byProject.computeIfAbsent(projectId, k -> new ArrayList<>())
+                    .add(new ProjectActivityTypeSummaryDto(code, label, count));
+        }
+        byProject.replaceAll((k, list) -> list.stream()
+                .sorted(Comparator.comparingLong(ProjectActivityTypeSummaryDto::count).reversed())
+                .limit(TOP_ACTIVITY_TYPES_MAX)
+                .collect(Collectors.toList()));
+        return byProject;
     }
 
     /** Builds projectId -> total revenue (cents) for billable entries with activity type. */
@@ -198,10 +234,11 @@ public class ProjectService {
     }
 
     private ProjectDto toDto(Project p) {
-        return toDto(p, null);
+        return toDto(p, null, null, null);
     }
 
-    private ProjectDto toDto(Project p, Long revenueCents) {
+    private ProjectDto toDto(Project p, Long revenueCents, Long timeLogCount,
+                             List<ProjectActivityTypeSummaryDto> topActivityTypes) {
         return ProjectDto.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -211,6 +248,8 @@ public class ProjectService {
                 .updatedAt(p.getUpdatedAt())
                 .userId(p.getUserId())
                 .revenueCents(revenueCents)
+                .timeLogCount(timeLogCount != null ? timeLogCount : 0L)
+                .topActivityTypes(topActivityTypes != null ? topActivityTypes : List.of())
                 .build();
     }
 }

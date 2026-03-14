@@ -50,4 +50,15 @@ public interface TimeLogRepository extends JpaRepository<TimeLog, UUID> {
      */
     @Query("SELECT t.projectId, SUM((t.durationMinutes * at.dailyRateCents) / 480.0) FROM TimeLog t JOIN t.activityType at WHERE t.billable = true AND t.activityTypeCode IS NOT NULL GROUP BY t.projectId")
     List<Object[]> sumRevenueCentsByProject();
+
+    /** Count time logs per project. Returns (projectId, count). Projects with zero logs are not in the result. */
+    @Query("SELECT t.projectId, COUNT(t) FROM TimeLog t GROUP BY t.projectId")
+    List<Object[]> countByProjectId();
+
+    /**
+     * Count time logs per project and activity type (only entries with a type).
+     * Returns (projectId, activityTypeCode, label, count) for building top-activity-types per project.
+     */
+    @Query("SELECT t.projectId, t.activityTypeCode, at.label, COUNT(t) FROM TimeLog t JOIN t.activityType at WHERE t.activityTypeCode IS NOT NULL GROUP BY t.projectId, t.activityTypeCode, at.label")
+    List<Object[]> countByProjectIdAndActivityType();
 }
