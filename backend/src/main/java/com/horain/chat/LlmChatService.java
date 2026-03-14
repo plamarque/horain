@@ -273,6 +273,7 @@ public class LlmChatService {
 
         List<ToolDefinition> tools = toolRegistry.getAllTools();
         List<ToolCallRecord> toolCallsExecuted = new ArrayList<>();
+        List<Integer> toolCallIterations = new ArrayList<>();
         boolean streamingClient = llmClient instanceof StreamingLlmClient;
 
         try {
@@ -299,7 +300,7 @@ public class LlmChatService {
                             : "I'm sorry, I couldn't generate a response.";
                     UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted,
                             data.isEmpty() ? null : data, history, contextEntries, startTime, false);
-                    writer.sendDone(assistantMessage, toolCallsExecuted, data.isEmpty() ? null : data, turnId);
+                    writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId);
                     return;
                 }
 
@@ -323,7 +324,10 @@ public class LlmChatService {
                     } else {
                         result = toolExecutor.execute(tc);
                     }
-                    toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
+                    ToolCallRecord record = new ToolCallRecord(tc.name(), tc.arguments(), result.content());
+                    toolCallsExecuted.add(record);
+                    toolCallIterations.add(iterations);
+                    writer.sendToolCall(record, iterations);
                     messages.add(ChatMessage.tool(result.content(), result.toolCallId()));
                 }
             }
@@ -338,7 +342,7 @@ public class LlmChatService {
             String maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request.";
             UUID turnId = persistTurn(userMessage, maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data,
                     history, contextEntries, startTime, true);
-            writer.sendDone(maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data, turnId);
+            writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId);
         } catch (Exception e) {
             log.error("chatStream error: {}", e.getMessage(), e);
             writer.sendError(e.getMessage());

@@ -7,7 +7,7 @@ import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
-import type { ChartSpec, Message, TimeLogEntry } from '../types'
+import type { AgentTrace, ChartSpec, Message, TimeLogEntry } from '../types'
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const versionDisplay = inject<string>('versionDisplay', '')
@@ -43,6 +43,38 @@ function isValidTimeLogEntries(v: unknown): v is TimeLogEntry[] {
       typeof (e as { durationMinutes?: unknown }).durationMinutes === 'number' &&
       typeof (e as { loggedAt?: unknown }).loggedAt === 'string'
   )
+}
+
+/** Detect if a tool result indicates an error (backend convention: {"error": "..."}). */
+function isToolResultError(result: string): boolean {
+  if (!result || typeof result !== 'string') return false
+  const trimmed = result.trim()
+  if (trimmed.startsWith('{"error":')) return true
+  try {
+    const obj = JSON.parse(trimmed) as Record<string, unknown>
+    return typeof obj?.error === 'string'
+  } catch {
+    return false
+  }
+}
+
+/** Build agent trace from backend toolCalls payload (done event or non-streaming response). */
+function buildAgentTrace(
+  toolCalls: Array<{ name: string; arguments: string; result: string; iterationIndex?: number }> | undefined
+): AgentTrace | undefined {
+  if (!toolCalls?.length) return undefined
+  return {
+    toolCalls: toolCalls.map((tc) => {
+      const result = tc.result ?? ''
+      return {
+        name: tc.name,
+        arguments: tc.arguments ?? '',
+        result,
+        success: !isToolResultError(result),
+        ...(typeof tc.iterationIndex === 'number' && { iterationIndex: tc.iterationIndex }),
+      }
+    }),
+  }
 }
 
 const messages = ref<Message[]>([])
@@ -210,7 +242,8 @@ function addAssistantMessage(
   text: string,
   chart?: ChartSpec,
   timeLogs?: TimeLogEntry[],
-  turnId?: string | null
+  turnId?: string | null,
+  agentTrace?: AgentTrace
 ) {
   const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
   messages.value.push({
@@ -221,6 +254,7 @@ function addAssistantMessage(
     ...(chart && { chart }),
     ...(timeLogs?.length && { timeLogs }),
     ...(turnId != null && { turnId }),
+    ...(agentTrace && { agentTrace }),
   })
   nextTick(() => {
     const timeline = timelineRef.value
@@ -288,6 +322,7 @@ async function handleSubmit(text: string) {
               text: chunk,
               timestamp: new Date(),
               isStreaming: true,
+              agentTrace: { toolCalls: [] },
             })
             nextTick(() => {
               if (wasAtBottom) timelineRef.value?.scrollToBottom()
@@ -296,6 +331,37 @@ async function handleSubmit(text: string) {
           } else {
             const msg = messages.value.find((m) => m.id === streamingMessageId.value)
             if (msg) msg.text += chunk
+          }
+        },
+        onToolCall(call) {
+          const display = {
+            name: call.name,
+            arguments: call.arguments,
+            result: call.result,
+            ...(typeof call.iterationIndex === 'number' && { iterationIndex: call.iterationIndex }),
+          }
+          let id = streamingMessageId.value
+          if (!id) {
+            id = crypto.randomUUID()
+            streamingMessageId.value = id
+            const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
+            messages.value.push({
+              id,
+              role: 'assistant',
+              text: '',
+              timestamp: new Date(),
+              isStreaming: true,
+              agentTrace: { toolCalls: [display] },
+            })
+            nextTick(() => {
+              if (wasAtBottom) timelineRef.value?.scrollToBottom()
+              else hasNewMessageBelow.value = true
+            })
+            return
+          }
+          const msg = messages.value.find((m) => m.id === id)
+          if (msg?.agentTrace) {
+            msg.agentTrace.toolCalls.push(display)
           }
         },
         onDone(payload) {
@@ -307,6 +373,7 @@ async function handleSubmit(text: string) {
             ? (payload.data as { timeLogs: unknown }).timeLogs
             : undefined
           const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
+          const agentTrace = buildAgentTrace(payload.toolCalls)
           if (streamingMessageId.value) {
             const msg = messages.value.find((m) => m.id === streamingMessageId.value)
             if (msg) {
@@ -315,9 +382,10 @@ async function handleSubmit(text: string) {
               if (chart) msg.chart = chart
               if (timeLogs?.length) msg.timeLogs = timeLogs
               if (payload.turnId != null) msg.turnId = payload.turnId
+              if (agentTrace) msg.agentTrace = agentTrace
             }
           } else {
-            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId)
+            addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId, agentTrace)
           }
           streamingMessageId.value = null
           getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
@@ -350,7 +418,8 @@ async function handleSubmit(text: string) {
           ? (response.data as { timeLogs: unknown }).timeLogs
           : undefined
         const timeLogs = isValidTimeLogEntries(rawTimeLogs) ? rawTimeLogs : undefined
-        addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId)
+        const agentTrace = buildAgentTrace(response.toolCalls)
+        addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId, agentTrace)
         getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {
         if ((fallbackErr as Error).name === 'AbortError') return

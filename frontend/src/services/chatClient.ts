@@ -8,7 +8,7 @@ import { apiPost, getStreamRequestConfig } from './apiClient'
 
 export interface ChatMessageResponse {
   assistantMessage: string
-  toolCalls?: Array<{ name: string; arguments: string; result: string }>
+  toolCalls?: Array<{ name: string; arguments: string; result: string; iterationIndex?: number }>
   data?: unknown
   /** Turn id for feedback API (thumb up/down). */
   turnId?: string | null
@@ -97,10 +97,21 @@ export async function sendFeedback(
   await apiPost<{ ok?: boolean }>('/chat/feedback', body)
 }
 
+/** Single tool call payload from SSE event (live during stream). */
+export interface ToolCallPayload {
+  name: string
+  arguments: string
+  result: string
+  /** 0-based iteration index (which LLM → tools round). */
+  iterationIndex?: number
+}
+
 export interface StreamCallbacks {
   onChunk: (text: string) => void
   onDone: (payload: ChatMessageResponse) => void
   onError?: (err: Error) => void
+  /** Called for each tool execution during stream (event: tool_call). */
+  onToolCall?: (call: ToolCallPayload) => void
 }
 
 /**
@@ -240,6 +251,16 @@ function dispatchEvent(
       const data = JSON.parse(dataStr) as { message?: string }
       const err = new Error(data.message ?? 'Stream error')
       callbacks.onError?.(err)
+    } else if (event === 'tool_call') {
+      const data = JSON.parse(dataStr) as ToolCallPayload
+      if (data && typeof data.name === 'string') {
+        callbacks.onToolCall?.({
+          name: data.name,
+          arguments: typeof data.arguments === 'string' ? data.arguments : '',
+          result: typeof data.result === 'string' ? data.result : '',
+          iterationIndex: typeof data.iterationIndex === 'number' ? data.iterationIndex : undefined,
+        })
+      }
     }
   } catch (e) {
     callbacks.onError?.(e as Error)

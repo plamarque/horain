@@ -17,15 +17,22 @@ public interface StreamEventWriter {
     /**
      * Send the final payload and close the stream.
      *
-     * @param assistantMessage Full assistant message text
-     * @param toolCalls         Tool calls executed (for debugging/display)
-     * @param data              Optional chart/timeLogs payload
-     * @param turnId            Optional turn id for feedback API
+     * @param assistantMessage   Full assistant message text
+     * @param toolCalls          Tool calls executed (for debugging/display)
+     * @param toolCallIterations Optional 0-based iteration index per tool (same order as toolCalls)
+     * @param data               Optional chart/timeLogs payload
+     * @param turnId             Optional turn id for feedback API
      */
-    void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, Object data, UUID turnId);
+    void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, List<Integer> toolCallIterations, Object data, UUID turnId);
 
     /**
      * Send an error event and close the stream.
      */
     void sendError(String message);
+
+    /**
+     * Send a tool call result event (for live trace during streaming).
+     * iterationIndex is the 0-based loop index (which "turn" of LLM → tools).
+     */
+    void sendToolCall(ToolCallRecord record, int iterationIndex);
 }

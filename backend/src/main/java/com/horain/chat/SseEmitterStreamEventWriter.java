@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * StreamEventWriter implementation that writes SSE events to an SseEmitter.
@@ -52,15 +53,22 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
     }
 
     @Override
-    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, Object data, UUID turnId) {
+    public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, List<Integer> toolCallIterations, Object data, UUID turnId) {
         if (completed) return;
         try {
-            List<Map<String, String>> toolCallsDto = toolCalls != null
-                    ? toolCalls.stream()
-                    .map(tc -> Map.<String, String>of(
-                            "name", tc.name(),
-                            "arguments", tc.arguments() != null ? tc.arguments() : "",
-                            "result", tc.result() != null ? tc.result() : ""))
+            List<Map<String, Object>> toolCallsDto = toolCalls != null
+                    ? IntStream.range(0, toolCalls.size())
+                    .mapToObj(i -> {
+                        ToolCallRecord tc = toolCalls.get(i);
+                        Map<String, Object> m = new java.util.HashMap<>(Map.of(
+                                "name", tc.name() != null ? tc.name() : "",
+                                "arguments", tc.arguments() != null ? tc.arguments() : "",
+                                "result", tc.result() != null ? tc.result() : ""));
+                        if (toolCallIterations != null && i < toolCallIterations.size()) {
+                            m.put("iterationIndex", toolCallIterations.get(i));
+                        }
+                        return m;
+                    })
                     .collect(Collectors.toList())
                     : List.of();
             Map<String, Object> payload = new java.util.HashMap<>(Map.of(
@@ -86,6 +94,24 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
     @Override
     public void sendError(String message) {
         completeWithError(message);
+    }
+
+    @Override
+    public void sendToolCall(ToolCallRecord record, int iterationIndex) {
+        if (completed || record == null) return;
+        try {
+            Map<String, Object> payload = new java.util.HashMap<>(Map.of(
+                    "name", record.name() != null ? record.name() : "",
+                    "arguments", record.arguments() != null ? record.arguments() : "",
+                    "result", record.result() != null ? record.result() : "",
+                    "iterationIndex", iterationIndex));
+            String json = objectMapper.writeValueAsString(payload);
+            emitter.send(SseEmitter.event().name("tool_call").data(json, MediaType.APPLICATION_JSON));
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize tool_call payload: {}", e.getMessage());
+        } catch (IOException e) {
+            log.warn("Failed to send tool_call: {}", e.getMessage());
+        }
     }
 
     private void completeWithError(String message) {

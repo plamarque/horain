@@ -2,9 +2,10 @@
 import { computed, ref } from 'vue'
 import ChartBubble from './ChartBubble.vue'
 import LogEntriesBlock from './LogEntriesBlock.vue'
+import AgentTraceBlock from './AgentTraceBlock.vue'
 import { renderMarkdown } from '../utils/markdown'
 import { sendFeedback } from '../services/chatClient'
-import type { ChartSpec, TimeLogEntry } from '../types'
+import type { AgentTrace, ChartSpec, TimeLogEntry } from '../types'
 
 const props = defineProps<{
   role: 'user' | 'assistant'
@@ -14,6 +15,8 @@ const props = defineProps<{
   isStreaming?: boolean
   /** Backend turn id for feedback (assistant only). */
   turnId?: string | null
+  /** Agent tool execution trace (assistant only). Session-only. */
+  agentTrace?: AgentTrace | null
 }>()
 
 const emit = defineEmits<{
@@ -61,6 +64,11 @@ const useHtml = computed(() => props.role === 'assistant')
         <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
       </div>
     </div>
+    <AgentTraceBlock
+      v-if="role === 'assistant'"
+      :agent-trace="agentTrace"
+      :is-streaming="isStreaming ?? false"
+    />
     <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
       v-if="timeLogs?.length"
