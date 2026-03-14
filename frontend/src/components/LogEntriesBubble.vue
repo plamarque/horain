@@ -593,6 +593,14 @@ const moreCount = computed(
     max-width: none;
   }
 
+  /* Keep expanded card full width on mobile (media query overrides base .card-wrapper) */
+  .card-wrapper--expanded {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
   .card-face {
     padding: 0.6rem;
     padding-top: 2rem;
