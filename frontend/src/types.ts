@@ -53,6 +53,8 @@ export interface ToolCallDisplay {
  */
 export interface AgentTrace {
   toolCalls: ToolCallDisplay[]
+  /** Optional reasoning text (Phase 2: filled by stream or done when model exposes it). */
+  reasoningText?: string
 }
 
 /**

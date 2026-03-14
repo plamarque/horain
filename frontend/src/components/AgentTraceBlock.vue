@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { AgentTrace, ToolCallDisplay } from '../types'
+import { getTaskType, type TaskTypeId } from '../agentTraceTaskTypes'
+import { getToolCallDescription } from '../agentTraceDescriptions'
 
 const TRUNCATE_LEN = 200
+const TASK_TYPE_ORDER: TaskTypeId[] = ['exploring', 'reading', 'writing', 'deleting', 'other']
 
 function truncate(str: string, maxLen: number): string {
   if (!str || str.length <= maxLen) return str
@@ -21,6 +24,25 @@ function extractErrorFromResult(result: string): string | null {
   }
 }
 
+/** Group tool calls by task type, preserving order within each group. */
+function groupCallsByTaskType(calls: ToolCallDisplay[]): { taskType: TaskTypeId; label: string; calls: ToolCallDisplay[] }[] {
+  const byType = new Map<TaskTypeId, ToolCallDisplay[]>()
+  for (const tc of calls) {
+    const { taskType } = getTaskType(tc.name)
+    const list = byType.get(taskType) ?? []
+    list.push(tc)
+    byType.set(taskType, list)
+  }
+  const result: { taskType: TaskTypeId; label: string; calls: ToolCallDisplay[] }[] = []
+  for (const taskType of TASK_TYPE_ORDER) {
+    const list = byType.get(taskType)
+    if (list?.length) {
+      result.push({ taskType, label: getTaskType(list[0].name).label, calls: list })
+    }
+  }
+  return result
+}
+
 const props = withDefaults(
   defineProps<{
     /** Trace of tool calls for this turn. When present and not streaming, show summary. */
@@ -35,23 +57,22 @@ const props = withDefaults(
 )
 
 const collapsed = ref(true)
+/** Accordion: id of the single open section (e.g. "0-exploring") or null. */
+const openedSectionKey = ref<string | null>(null)
+/** Which iteration (turn) is expanded when not streaming; null = all collapsed. During streaming, current turn is always expanded. */
+const expandedIterationIndex = ref<number | null>(null)
 
-const toolCallNames = computed(() => {
-  if (!props.agentTrace?.toolCalls?.length) return []
-  return props.agentTrace.toolCalls.map((tc) => tc.name)
-})
-
-const summaryLabel = computed(() => {
-  if (toolCallNames.value.length === 0) return ''
-  if (toolCallNames.value.length === 1) return toolCallNames.value[0]
-  return toolCallNames.value.join(', ')
-})
-
+/** Show the trace list (sections) when we have any tool calls (during streaming or after). */
 const showTraceContent = computed(() => {
-  return props.agentTrace?.toolCalls?.length && !props.isStreaming
+  return (props.agentTrace?.toolCalls?.length ?? 0) > 0
 })
 
-/** Group tool calls by iteration index for display (Tour 1, Tour 2, …). */
+/** Show "Thinking..." only when streaming and no tool calls yet. */
+const showThinkingOnly = computed(() => {
+  return (props.isStreaming ?? false) && !(props.agentTrace?.toolCalls?.length ?? 0)
+})
+
+/** Group tool calls by iteration index (Tour 1, Tour 2, …). */
 const toolCallsByIteration = computed(() => {
   const calls = props.agentTrace?.toolCalls ?? []
   if (!calls.length) return []
@@ -71,86 +92,208 @@ const toolCallsByIteration = computed(() => {
   }))
 })
 
+/** Per iteration: sections grouped by task type (Exploration, Lecture, etc.). */
+const sectionsByIteration = computed(() => {
+  return toolCallsByIteration.value.map((group, iterIndex) => ({
+    iterationLabel: group.iterationLabel,
+    sections: groupCallsByTaskType(group.calls).map((s) => ({
+      ...s,
+      sectionKey: `${iterIndex}-${s.taskType}`,
+    })),
+  }))
+})
+
+/** Index of the "current" turn during streaming (last iteration). */
+const currentIterationIndex = computed(() => {
+  if (!(props.isStreaming ?? false) || !sectionsByIteration.value.length) return -1
+  return sectionsByIteration.value.length - 1
+})
+
+/** One-line summary for a turn (e.g. "Lecture · 2 outils, Exploration · 1 outil"). */
+function iterationSummary(iter: { sections: { label: string; calls: ToolCallDisplay[] }[] }): string {
+  return iter.sections
+    .map((s) => `${s.label} · ${s.calls.length} ${s.calls.length === 1 ? 'outil' : 'outils'}`)
+    .join(', ')
+}
+
+/** Whether this iteration (turn) is expanded: during stream only current; when not streaming, only expandedIterationIndex. */
+function isIterationExpanded(gi: number): boolean {
+  if (props.isStreaming && gi === currentIterationIndex.value) return true
+  return expandedIterationIndex.value === gi
+}
+
+function toggleIteration(gi: number) {
+  if (props.isStreaming && gi === currentIterationIndex.value) return
+  expandedIterationIndex.value = expandedIterationIndex.value === gi ? null : gi
+}
+
+/** When stream ends, expand the last turn so user sees the final result. */
+watch(
+  () => props.isStreaming,
+  (streaming, wasStreaming) => {
+    if (wasStreaming === true && streaming === false && sectionsByIteration.value.length > 0) {
+      expandedIterationIndex.value = sectionsByIteration.value.length - 1
+    }
+  }
+)
+
+/** Summary for main toggle: unique type labels present (e.g. "Exploration, Lecture, Écriture"). */
+const summaryLabel = computed(() => {
+  if (!props.agentTrace?.toolCalls?.length) return ''
+  const labels = new Set<string>()
+  for (const tc of props.agentTrace.toolCalls) {
+    labels.add(getTaskType(tc.name).label)
+  }
+  return [...labels].join(', ')
+})
+
 function errorMessage(tc: ToolCallDisplay): string | null {
   return extractErrorFromResult(tc.result)
+}
+
+function toggleSection(key: string) {
+  openedSectionKey.value = openedSectionKey.value === key ? null : key
+}
+
+/** Section header: natural-language description when single call, else "Label · N outils". */
+function sectionSummary(section: { label: string; calls: ToolCallDisplay[] }): string {
+  if (section.calls.length === 1) {
+    return getToolCallDescription(section.calls[0])
+  }
+  return `${section.label} · ${section.calls.length} outils`
 }
 </script>
 
 <template>
   <div
-    v-if="isStreaming || showTraceContent"
+    v-if="showThinkingOnly || showTraceContent"
     class="agent-trace-block"
     role="region"
     aria-label="Agent execution trace"
   >
-    <!-- During reflection: minimal indicator -->
-    <div v-if="isStreaming" class="agent-trace-thinking">
-      <span class="agent-trace-thinking-text">Réflexion…</span>
+    <!-- Streaming and no tool calls yet: minimal indicator -->
+    <div v-if="showThinkingOnly" class="agent-trace-thinking">
+      <span class="agent-trace-thinking-text">Thinking...</span>
     </div>
-    <!-- After done: collapsible list of tools (Phase 1: names only) -->
+    <!-- Tool calls (during stream or after): collapsible block with sections by task type -->
     <template v-else-if="showTraceContent">
       <button
         type="button"
         class="agent-trace-toggle"
-        :aria-expanded="!collapsed"
+        :aria-expanded="!collapsed || isStreaming"
         @click="collapsed = !collapsed"
       >
         <span class="agent-trace-toggle-label">
           Outils utilisés : {{ summaryLabel }}
         </span>
-        <span class="agent-trace-toggle-icon" aria-hidden="true">{{ collapsed ? '▼' : '▲' }}</span>
+        <span class="agent-trace-toggle-icon" aria-hidden="true">{{ (collapsed && !isStreaming) ? '▼' : '▲' }}</span>
       </button>
-      <div v-show="!collapsed" class="agent-trace-detail">
-        <template v-for="(group, gi) in toolCallsByIteration" :key="gi">
-          <div v-if="group.iterationLabel" class="agent-trace-iteration-label">
-            {{ group.iterationLabel }}
+      <div v-show="!collapsed || isStreaming" class="agent-trace-detail">
+        <div
+          v-for="(iter, gi) in sectionsByIteration"
+          :key="gi"
+          class="agent-trace-turn"
+        >
+          <button
+            type="button"
+            class="agent-trace-turn-toggle"
+            :aria-expanded="isIterationExpanded(gi)"
+            :aria-controls="`trace-turn-${gi}`"
+            :id="`trace-turn-btn-${gi}`"
+            @click="toggleIteration(gi)"
+          >
+            <span class="agent-trace-turn-chevron" aria-hidden="true">
+              {{ isIterationExpanded(gi) ? '▼' : '▶' }}
+            </span>
+            <span class="agent-trace-turn-summary">{{ iterationSummary(iter) }}</span>
+          </button>
+          <div
+            v-show="isIterationExpanded(gi)"
+            :id="`trace-turn-${gi}`"
+            class="agent-trace-turn-content"
+            role="region"
+            :aria-labelledby="`trace-turn-btn-${gi}`"
+          >
+            <div class="agent-trace-sections">
+              <template v-for="section in iter.sections" :key="section.sectionKey">
+                <div class="agent-trace-section">
+                  <button
+                    type="button"
+                    class="agent-trace-section-toggle"
+                    :aria-expanded="openedSectionKey === section.sectionKey"
+                    :aria-controls="`trace-section-${section.sectionKey}`"
+                    :id="`trace-section-btn-${section.sectionKey}`"
+                    @click="toggleSection(section.sectionKey)"
+                  >
+                    <span class="agent-trace-section-chevron" aria-hidden="true">
+                      {{ openedSectionKey === section.sectionKey ? '▼' : '▶' }}
+                    </span>
+                    <span class="agent-trace-section-summary">
+                      {{ sectionSummary(section) }}
+                    </span>
+                  </button>
+                  <div
+                    v-show="openedSectionKey === section.sectionKey"
+                    :id="`trace-section-${section.sectionKey}`"
+                    class="agent-trace-section-content"
+                    role="region"
+                    :aria-labelledby="`trace-section-btn-${section.sectionKey}`"
+                  >
+                    <ul class="agent-trace-list">
+                      <li
+                        v-for="(tc, i) in section.calls"
+                        :key="`${section.sectionKey}-${i}`"
+                        class="agent-trace-item"
+                        :class="{ 'agent-trace-item--error': tc.success === false }"
+                      >
+                        <div class="agent-trace-item-header">
+                          <span class="agent-trace-description">
+                            {{ getToolCallDescription(tc) }}
+                          </span>
+                          <span
+                            class="agent-trace-status"
+                            :class="tc.success === false ? 'agent-trace-status--error' : 'agent-trace-status--ok'"
+                            :title="tc.success === false ? 'Erreur' : 'OK'"
+                          >
+                            {{ tc.success === false ? 'Erreur' : 'OK' }}
+                          </span>
+                        </div>
+                        <div class="agent-trace-item-tool-name" title="Tool name (debug)">
+                          {{ tc.name }}
+                        </div>
+                        <div v-if="tc.arguments" class="agent-trace-field">
+                          <span class="agent-trace-field-label">Arguments:</span>
+                          <pre class="agent-trace-field-value">{{ truncate(tc.arguments, TRUNCATE_LEN) }}</pre>
+                        </div>
+                        <div class="agent-trace-field">
+                          <span class="agent-trace-field-label">Résultat:</span>
+                          <pre v-if="errorMessage(tc)" class="agent-trace-field-value agent-trace-field-value--error">{{ errorMessage(tc) }}</pre>
+                          <pre v-else class="agent-trace-field-value">{{ truncate(tc.result, TRUNCATE_LEN) }}</pre>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </template>
+            </div>
           </div>
-          <ul class="agent-trace-list">
-            <li
-              v-for="(tc, i) in group.calls"
-              :key="`${gi}-${i}`"
-              class="agent-trace-item"
-              :class="{ 'agent-trace-item--error': tc.success === false }"
-            >
-              <div class="agent-trace-item-header">
-                <span class="agent-trace-name">{{ tc.name }}</span>
-                <span
-                  class="agent-trace-status"
-                  :class="tc.success === false ? 'agent-trace-status--error' : 'agent-trace-status--ok'"
-                  :title="tc.success === false ? 'Erreur' : 'OK'"
-                >
-                  {{ tc.success === false ? 'Erreur' : 'OK' }}
-                </span>
-              </div>
-              <div v-if="tc.arguments" class="agent-trace-field">
-                <span class="agent-trace-field-label">Arguments:</span>
-                <pre class="agent-trace-field-value">{{ truncate(tc.arguments, TRUNCATE_LEN) }}</pre>
-              </div>
-              <div class="agent-trace-field">
-                <span class="agent-trace-field-label">Résultat:</span>
-                <pre v-if="errorMessage(tc)" class="agent-trace-field-value agent-trace-field-value--error">{{ errorMessage(tc) }}</pre>
-                <pre v-else class="agent-trace-field-value">{{ truncate(tc.result, TRUNCATE_LEN) }}</pre>
-              </div>
-            </li>
-          </ul>
-        </template>
+        </div>
       </div>
     </template>
   </div>
 </template>
 
-
 <style scoped>
 .agent-trace-block {
   margin-top: 0.35rem;
-  padding: 0.4rem 0.6rem;
+  padding: 0.25rem 0.35rem 0;
   font-size: 0.8125rem;
-  color: #a0a0b8;
-  background: rgba(45, 38, 64, 0.6);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 10px;
+  color: #7a7a92;
+  background: none;
+  border: none;
   align-self: flex-start;
-  max-width: 85%;
+  max-width: 100%;
+  width: 100%;
 }
 
 .agent-trace-thinking {
@@ -161,6 +304,7 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 
 .agent-trace-thinking-text {
   font-style: italic;
+  color: #6e6e86;
 }
 
 .agent-trace-toggle {
@@ -179,7 +323,7 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 }
 
 .agent-trace-toggle:hover {
-  color: #c0c0d8;
+  color: #8a8aa0;
 }
 
 .agent-trace-toggle-label {
@@ -197,19 +341,106 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 
 .agent-trace-detail {
   margin-top: 0.35rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid rgba(139, 92, 246, 0.15);
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(120, 120, 140, 0.2);
+  max-height: 14rem;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-.agent-trace-iteration-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: rgba(139, 92, 246, 0.9);
-  margin: 0.5rem 0 0.25rem;
+.agent-trace-turn {
+  margin-bottom: 0.35rem;
 }
 
-.agent-trace-iteration-label:first-child {
-  margin-top: 0;
+.agent-trace-turn:last-child {
+  margin-bottom: 0;
+}
+
+.agent-trace-turn-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-trace-turn-toggle:hover {
+  color: #8a8aa0;
+}
+
+.agent-trace-turn-chevron {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  width: 1em;
+}
+
+.agent-trace-turn-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-trace-turn-content {
+  margin-left: 0.5em;
+  margin-top: 0.15rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid rgba(120, 120, 140, 0.2);
+}
+
+.agent-trace-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.agent-trace-section {
+  margin: 0.15rem 0;
+}
+
+.agent-trace-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-trace-section-toggle:hover {
+  color: #8a8aa0;
+}
+
+.agent-trace-section-chevron {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  width: 1em;
+}
+
+.agent-trace-section-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-trace-section-content {
+  margin-left: 0.5rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid rgba(120, 120, 140, 0.2);
 }
 
 .agent-trace-list {
@@ -221,7 +452,7 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 .agent-trace-item {
   margin: 0.5rem 0;
   padding: 0.4rem 0;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  border-bottom: 1px solid rgba(120, 120, 140, 0.15);
 }
 
 .agent-trace-item:last-child {
@@ -241,9 +472,22 @@ function errorMessage(tc: ToolCallDisplay): string | null {
   flex-wrap: wrap;
 }
 
+.agent-trace-description {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
 .agent-trace-name {
   font-family: ui-monospace, monospace;
   font-weight: 600;
+}
+
+.agent-trace-item-tool-name {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  color: #6a6a7e;
 }
 
 .agent-trace-status {
@@ -253,13 +497,13 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 }
 
 .agent-trace-status--ok {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  color: #6b9f7a;
 }
 
 .agent-trace-status--error {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  color: #c97a7a;
 }
 
 .agent-trace-field {
@@ -268,24 +512,25 @@ function errorMessage(tc: ToolCallDisplay): string | null {
 }
 
 .agent-trace-field-label {
-  color: #8888a0;
+  color: #6a6a7e;
   margin-right: 0.35rem;
 }
 
 .agent-trace-field-value {
   margin: 0.2rem 0 0 0;
   padding: 0.25rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: ui-monospace, monospace;
   font-size: 0.7rem;
   overflow-x: auto;
+  color: #6e6e82;
 }
 
 .agent-trace-field-value--error {
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #c97a7a;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 </style>

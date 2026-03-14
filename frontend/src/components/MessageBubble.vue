@@ -51,6 +51,14 @@ const useHtml = computed(() => props.role === 'assistant')
 
 <template>
   <div class="message-block">
+    <!-- Trace first (work in progress), then the reply (result); same row alignment as assistant bubble -->
+    <div v-if="role === 'assistant'" class="message-row assistant trace-row">
+      <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
+      <AgentTraceBlock
+        :agent-trace="agentTrace"
+        :is-streaming="isStreaming ?? false"
+      />
+    </div>
     <div class="message-row" :class="role">
       <img
         v-if="role === 'assistant'"
@@ -64,11 +72,6 @@ const useHtml = computed(() => props.role === 'assistant')
         <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
       </div>
     </div>
-    <AgentTraceBlock
-      v-if="role === 'assistant'"
-      :agent-trace="agentTrace"
-      :is-streaming="isStreaming ?? false"
-    />
     <ChartBubble v-if="chart" :spec="chart" class="chart-standalone" />
     <LogEntriesBlock
       v-if="timeLogs?.length"
@@ -165,6 +168,16 @@ const useHtml = computed(() => props.role === 'assistant')
   max-width: 85%;
 }
 
+.message-row.trace-row {
+  width: 100%;
+  max-width: 100%;
+}
+
+.trace-row :deep(.agent-trace-block) {
+  flex: 1;
+  min-width: 0;
+}
+
 .message-row.assistant .bubble {
   max-width: calc(100% - 36px);
 }
@@ -176,6 +189,11 @@ const useHtml = computed(() => props.role === 'assistant')
   border-radius: 50%;
   object-fit: contain;
   background: #2d2640;
+}
+
+.trace-row .avatar-spacer {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .bubble {
