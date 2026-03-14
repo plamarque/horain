@@ -4,6 +4,17 @@
 
 The MCP (Model Context Protocol) server exposes tools that allow the conversation agent to interact with the system. **These tools are the only way the agent can read or write data.** The agent never manipulates the database directly.
 
+## Design principles
+
+Tool design in this project follows context-engineering principles so that the LLM can use tools reliably within a limited context window.
+
+- **Tools are prompt extensions:** Descriptions are written for the LLM. Each tool should convey when to use it, when not to use it, and (where helpful) example usage. See the table and the backend `ToolRegistry` for the canonical descriptions.
+- **Outputs are LLM-oriented:** Tool responses should favour readability, structure, and short summaries. Avoid raw database-style dumps or large unstructured JSON. The goal is to improve the model’s reasoning reliability.
+- **Task-oriented tools:** Each tool represents a clear capability (e.g. `sum_time_by_project`, `search_project`). Prefer dedicated tools over a generic “query” API.
+- **Minimize model errors:** Use a small number of parameters, descriptive names, defaults where possible, and explicit warnings for invalid use. Design for robust tool calling, not API completeness.
+
+Full guidelines: [docs/AGENT_DESIGN.md](AGENT_DESIGN.md).
+
 ## Tools
 
 | Tool | Input | Output | Description |
@@ -29,6 +40,19 @@ The MCP (Model Context Protocol) server exposes tools that allow the conversatio
 | `sum_non_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums non-billable time in the period. |
 | `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project` (stacked bar by project per day), `day_and_billable` (stacked bar billable vs non-billable per day), `project_only` (pie), `billable_vs_non_billable` (pie for whole period). |
 | `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
+
+## When adding a new tool
+
+When documenting or implementing a new tool (in this spec and in `ToolRegistry`), follow this template so that descriptions stay LLM-oriented and consistent with [docs/AGENT_DESIGN.md](AGENT_DESIGN.md):
+
+- **Purpose** — What the tool does in one sentence.
+- **When to use** — Explicit guidance (e.g. “Use when the user asks…”, “Call after get_current_datetime when…”).
+- **When not to use** — Explicit guidance (e.g. “Do NOT use to list all projects; use list_projects instead.”).
+- **Example calls** — Optional but recommended; one or two valid invocations.
+- **Parameters** — Name, type, and a short description for each; indicate required vs optional and defaults.
+- **Expected output format** — What the tool returns (fields, structure) so the model can reason on the result.
+
+The table above is the contractual spec; this template describes how to write each row and the corresponding `ToolDefinition` in code.
 
 ## Constraints
 

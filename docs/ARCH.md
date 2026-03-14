@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Describes the high-level structure and technology choices of Horain. The system is designed as a **client application controlling an AI agent that uses MCP tools**.
+Describes the high-level structure and technology choices of Horain. The system is designed as a **client application controlling an AI agent that uses MCP tools**. The primary constraint for this design is **context management**: agent and tool architecture follows *context engineering* principles (see [AGENT_DESIGN.md](AGENT_DESIGN.md)).
 
 ## High-Level Overview
 
@@ -58,6 +58,8 @@ flowchart TB
 Horain n’utilise pas de serveur MCP externe. Les outils sont **intégrés au backend** et exposés via le *tool calling* de Spring AI / OpenAI. La sémantique est alignée sur [MCP_TOOLS.md](MCP_TOOLS.md) : `list_projects`, `search_project`, `create_project`, `create_time_log`, `get_recent_logs`, etc. Le LLM appelle ces outils par nom et arguments ; `ToolExecutorService` exécute les opérations (lecture/écriture via JPA sur PostgreSQL ou H2).
 
 Implémentation : `backend/.../tools/ToolRegistry.java`, `ToolExecutorService.java`.
+
+When agent capabilities grow (many tools or more complex workflows), consider a **sub-agent** architecture: a dedicated system prompt, a restricted tool set, and a focused objective. This reduces context pollution and improves reasoning reliability. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
 
 ## Technology Stack
 

@@ -12,6 +12,7 @@ Ne pas contredire ces documents. Le code et les changements doivent s'aligner su
 | **docs/DOMAIN.md** | Vocabulaire et règles du domaine |
 | **docs/ARCH.md** | Structure et technologies |
 | **docs/MCP_TOOLS.md** | Spécification des outils MCP |
+| **docs/AGENT_DESIGN.md** | Principes de conception des agents et des outils (context engineering, format des outils et des sorties) |
 | **docs/DATA_MODEL.md** | Schéma base de données |
 | **docs/UX.md** | Expérience utilisateur et interface |
 | **docs/WORKFLOW.md** | Quand mettre à jour quel document |
@@ -29,6 +30,8 @@ Ne pas contredire ces documents. Le code et les changements doivent s'aligner su
 ## Règle MCP
 
 L'agent conversationnel **ne modifie jamais la base de données directement**. Il ne peut accéder aux données que via les outils MCP (list_projects, search_project, create_project, update_project, delete_project, create_time_log, get_recent_logs, update_time_log, delete_time_log, etc.). Voir [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md).
+
+La conception des outils et du contexte suit [docs/AGENT_DESIGN.md](docs/AGENT_DESIGN.md). Les nouveaux outils et les évolutions de prompts doivent respecter ces principes. La documentation est structurée pour que les agents IA puissent s'y retrouver : quels outils existent, quand en ajouter, comment les concevoir et comment structurer leurs sorties.
 
 ## Workflow pour les agents
 
