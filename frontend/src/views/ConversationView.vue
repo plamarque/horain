@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, inject } from 'vue'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
 import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
+import type { ProjectDto } from '../services/apiClient'
 import type { ChartSpec, Message, TimeLogEntry } from '../types'
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const versionDisplay = inject<string>('versionDisplay', '')
 const refreshApp = inject<() => void>('refreshApp', () => {})
+const selectedProjects = inject<Ref<ProjectDto[]>>('selectedProjects', ref([]))
+const removeProjectFromContext = inject<(projectId: string) => void>('removeProjectFromContext', () => {})
+const clearSelectedProjectsAfterSend = inject<() => void>('clearSelectedProjectsAfterSend', () => {})
 
 const MAX_CONTEXT_ENTRIES = 5
 const MAX_AUTO_CONTEXT_ENTRIES = 10
@@ -253,7 +258,13 @@ async function handleSubmit(text: string) {
       }
     }
   }
+  const contextProjectsToSend = selectedProjects.value.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+  }))
   selectedEntries.value = []
+  clearSelectedProjectsAfterSend()
 
   isProcessing.value = true
   streamingMessageId.value = null
@@ -320,6 +331,7 @@ async function handleSubmit(text: string) {
       },
       history,
       contextToSend,
+      contextProjectsToSend,
       { signal: abortControllerRef.value?.signal }
     )
   } catch (err) {
@@ -327,7 +339,7 @@ async function handleSubmit(text: string) {
     const status = (err as Error & { status?: number }).status
     if (status === 404 || status === 405) {
       try {
-        const response = await sendChatMessage(text.trim(), history, contextToSend, {
+        const response = await sendChatMessage(text.trim(), history, contextToSend, contextProjectsToSend, {
           signal: abortControllerRef.value?.signal,
         })
         const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
@@ -400,7 +412,22 @@ async function handleResetSeed() {
     />
     <div class="input-area">
       <div class="input-col">
-        <div v-if="selectedEntries.length" class="context-chips">
+        <div v-if="selectedEntries.length || selectedProjects.length" class="context-chips">
+          <span
+            v-for="proj in selectedProjects"
+            :key="'proj-' + proj.id"
+            class="context-chip context-chip--project"
+          >
+            {{ proj.name }}
+            <button
+              type="button"
+              class="context-chip-remove"
+              aria-label="Remove project from context"
+              @click="removeProjectFromContext(proj.id)"
+            >
+              ×
+            </button>
+          </span>
           <span
             v-for="entry in selectedEntries"
             :key="entry.id"
@@ -516,6 +543,11 @@ async function handleResetSeed() {
   background: rgba(74, 110, 219, 0.2);
   color: #a0b8f0;
   border-radius: 8px;
+}
+
+.context-chip--project {
+  background: rgba(90, 138, 74, 0.25);
+  color: #a8d098;
 }
 
 .context-chip-remove {

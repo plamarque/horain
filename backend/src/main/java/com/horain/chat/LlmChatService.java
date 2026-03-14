@@ -91,7 +91,8 @@ public class LlmChatService {
     }
 
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history,
-                             List<Map<String, Object>> contextEntries) {
+                             List<Map<String, Object>> contextEntries,
+                             List<Map<String, Object>> contextProjects) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
         String systemPrompt = SYSTEM_PROMPT;
@@ -102,6 +103,15 @@ public class LlmChatService {
                         + contextJson;
             } catch (Exception e) {
                 log.debug("Failed to serialize context entries: {}", e.getMessage());
+            }
+        }
+        if (contextProjects != null && !contextProjects.isEmpty()) {
+            try {
+                String projectsJson = objectMapper.writeValueAsString(contextProjects);
+                systemPrompt += "\n\n[Context] The user has selected these projects. When they refer to 'these projects' or by name, use these ids: "
+                        + projectsJson;
+            } catch (Exception e) {
+                log.debug("Failed to serialize context projects: {}", e.getMessage());
             }
         }
         messages.add(ChatMessage.system(systemPrompt));
@@ -223,6 +233,7 @@ public class LlmChatService {
      */
     public void chatStream(String userMessage, List<ChatHistoryEntry> history,
                           List<Map<String, Object>> contextEntries,
+                          List<Map<String, Object>> contextProjects,
                           StreamEventWriter writer) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
@@ -234,6 +245,15 @@ public class LlmChatService {
                         + contextJson;
             } catch (Exception e) {
                 log.debug("Failed to serialize context entries: {}", e.getMessage());
+            }
+        }
+        if (contextProjects != null && !contextProjects.isEmpty()) {
+            try {
+                String projectsJson = objectMapper.writeValueAsString(contextProjects);
+                systemPrompt += "\n\n[Context] The user has selected these projects. When they refer to 'these projects' or by name, use these ids: "
+                        + projectsJson;
+            } catch (Exception e) {
+                log.debug("Failed to serialize context projects: {}", e.getMessage());
             }
         }
         messages.add(ChatMessage.system(systemPrompt));

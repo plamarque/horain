@@ -51,11 +51,14 @@ public class ChatController {
         List<Map<String, Object>> contextEntries = request != null && request.contextEntries() != null
                 ? request.contextEntries()
                 : List.of();
+        List<Map<String, Object>> contextProjects = request != null && request.contextProjects() != null
+                ? request.contextProjects()
+                : List.of();
         SseEmitter emitter = new SseEmitter(SSE_EMITTER_TIMEOUT_MS);
         StreamEventWriter writer = new SseEmitterStreamEventWriter(emitter, objectMapper);
         CompletableFuture.runAsync(() -> {
             try {
-                chatService.chatStream(userMessage, history, contextEntries, writer);
+                chatService.chatStream(userMessage, history, contextEntries, contextProjects, writer);
             } catch (Exception e) {
                 writer.sendError(e.getMessage());
             }
@@ -77,7 +80,10 @@ public class ChatController {
         List<Map<String, Object>> contextEntries = request != null && request.contextEntries() != null
                 ? request.contextEntries()
                 : List.of();
-        ChatResponse response = chatService.chat(userMessage, history, contextEntries);
+        List<Map<String, Object>> contextProjects = request != null && request.contextProjects() != null
+                ? request.contextProjects()
+                : List.of();
+        ChatResponse response = chatService.chat(userMessage, history, contextEntries, contextProjects);
         return ResponseEntity.ok(new ChatMessageResponse(
                 response.assistantMessage(),
                 response.toolCalls().stream()
@@ -90,7 +96,8 @@ public class ChatController {
     public record ChatMessageRequest(
             String message,
             List<ChatHistoryEntry> history,
-            List<Map<String, Object>> contextEntries) {
+            List<Map<String, Object>> contextEntries,
+            List<Map<String, Object>> contextProjects) {
     }
 
     public record ChatMessageResponse(String assistantMessage, java.util.List<ToolCallDto> toolCalls, Object data, UUID turnId) {

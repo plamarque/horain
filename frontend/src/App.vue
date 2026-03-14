@@ -3,6 +3,9 @@ import { ref, provide } from 'vue'
 import ConversationView from './views/ConversationView.vue'
 import ProjectsView from './views/ProjectsView.vue'
 import ProjectEditModal from './components/ProjectEditModal.vue'
+import type { ProjectDto } from './services/apiClient'
+
+const MAX_CONTEXT_PROJECTS = 5
 
 // Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__
@@ -19,12 +22,33 @@ function refreshApp(): void {
 type View = 'conversation' | 'projects'
 const view = ref<View>('conversation')
 const editingProjectId = ref<string | null>(null)
+const selectedProjects = ref<ProjectDto[]>([])
+
+function addProjectToContext(project: ProjectDto) {
+  if (!project.id) return
+  if (selectedProjects.value.some((p) => p.id === project.id)) return
+  if (selectedProjects.value.length >= MAX_CONTEXT_PROJECTS) return
+  selectedProjects.value = [...selectedProjects.value, project]
+}
+
+function removeProjectFromContext(projectId: string) {
+  selectedProjects.value = selectedProjects.value.filter((p) => p.id !== projectId)
+}
+
+function clearSelectedProjectsAfterSend() {
+  selectedProjects.value = []
+}
 
 function openProjectEdit(projectId: string) {
   editingProjectId.value = projectId
 }
 
 provide<((projectId: string) => void)>('openProjectEdit', openProjectEdit)
+provide('selectedProjects', selectedProjects)
+provide('addProjectToContext', addProjectToContext)
+provide('removeProjectFromContext', removeProjectFromContext)
+provide('clearSelectedProjectsAfterSend', clearSelectedProjectsAfterSend)
+provide('MAX_CONTEXT_PROJECTS', MAX_CONTEXT_PROJECTS)
 
 function onProjectModalClose() {
   editingProjectId.value = null

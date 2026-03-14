@@ -31,6 +31,12 @@ export interface ContextEntry {
   loggedAt: string
 }
 
+export interface ContextProject {
+  id: string
+  name: string
+  description?: string
+}
+
 /**
  * Send a message to the chat endpoint and get the assistant response.
  * Pass history for conversation context (e.g. corrections, follow-ups).
@@ -41,6 +47,7 @@ export async function sendChatMessage(
   message: string,
   history?: HistoryEntry[],
   contextEntries?: ContextEntry[],
+  contextProjects?: ContextProject[],
   init?: { signal?: AbortSignal }
 ): Promise<ChatMessageResponse> {
   const trimmed =
@@ -64,6 +71,13 @@ export async function sendChatMessage(
         loggedAt: e.loggedAt,
       }))
     }
+  }
+  if (contextProjects?.length) {
+    body.contextProjects = contextProjects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+    }))
   }
   return apiPost<ChatMessageResponse>('/chat/message', body, init)
 }
@@ -99,6 +113,7 @@ export async function sendChatMessageStream(
   callbacks: StreamCallbacks,
   history?: HistoryEntry[],
   contextEntries?: ContextEntry[],
+  contextProjects?: ContextProject[],
   init?: { signal?: AbortSignal }
 ): Promise<void> {
   const trimmed =
@@ -122,6 +137,13 @@ export async function sendChatMessageStream(
         loggedAt: e.loggedAt,
       }))
     }
+  }
+  if (contextProjects?.length) {
+    body.contextProjects = contextProjects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+    }))
   }
 
   const { url, headers } = getStreamRequestConfig('/chat/message/stream')

@@ -17,7 +17,7 @@ Defines the UX principles and UI structure for Horain. Voice-first, conversation
 ### Header
 
 - App name "Horain" and tagline on the left.
-- On the right: **Projects** link (opens the Projects view: project cards with a pen icon to edit each project; for billable projects, the total revenue from billable time logs with activity type is displayed in euros, e.g. "2 500 €", instead of a dollar symbol; **Back** in the header returns to the conversation). The **version** (e.g. v0.2.1 or v0.2.1-SNAPSHOT (sha)) is shown in very small text on the **same line as the seed icon** (below the input bar), without a border; it is clickable (**Refresh app**) to reload the application and pick up the latest PWA update.
+- On the right: **Projects** link (opens the Projects view: project cards with a pen icon to edit each project; for billable projects, the total revenue from billable time logs with activity type is displayed in euros, e.g. "2 500 €", instead of a dollar symbol; **Back** in the header returns to the conversation). **Project cards are clickable:** tapping or clicking a card (not the edit icon) adds that project to the conversation context; the user can add several projects. Selected projects are shown as chips above the input when back on the conversation view and are sent with the next message so the assistant knows which projects the user is referring to without having to type their names. The **version** (e.g. v0.2.1 or v0.2.1-SNAPSHOT (sha)) is shown in very small text on the **same line as the seed icon** (below the input bar), without a border; it is clickable (**Refresh app**) to reload the application and pick up the latest PWA update.
 
 ### Input bar
 

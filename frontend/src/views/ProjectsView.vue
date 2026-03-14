@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
 import { ref, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import { getProjects } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
@@ -33,6 +34,9 @@ function projectColor(project: ProjectDto): string {
 }
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
+const selectedProjects = inject<Ref<ProjectDto[]>>('selectedProjects', ref([]))
+const addProjectToContext = inject<(project: ProjectDto) => void>('addProjectToContext', () => {})
+const maxContextProjects = inject<number>('MAX_CONTEXT_PROJECTS', 5)
 
 const projects = ref<ProjectDto[]>([])
 const loading = ref(true)
@@ -91,6 +95,16 @@ function onTouchEnd() {
 function onEdit(p: ProjectDto, e: Event) {
   e.stopPropagation()
   if (openProjectEdit) openProjectEdit(p.id)
+}
+
+function onCardClick(p: ProjectDto) {
+  if (selectedProjects.value.some((sp) => sp.id === p.id)) return
+  if (selectedProjects.value.length >= maxContextProjects) return
+  addProjectToContext(p)
+}
+
+function isInContext(project: ProjectDto): boolean {
+  return selectedProjects.value.some((sp) => sp.id === project.id)
 }
 
 function truncate(s: string | undefined, maxLen: number): string {
@@ -161,7 +175,14 @@ onUnmounted(() => {
         v-for="p in projects"
         :key="p.id"
         class="project-card"
+        :class="{ 'project-card--in-context': isInContext(p) }"
         :style="{ backgroundColor: projectColor(p) }"
+        role="button"
+        tabindex="0"
+        aria-label="Add to conversation context"
+        @click="onCardClick(p)"
+        @keydown.enter="onCardClick(p)"
+        @keydown.space.prevent="onCardClick(p)"
       >
         <div class="project-card-body">
           <span class="project-card-name">{{ p.name }}</span>
@@ -297,6 +318,12 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.project-card--in-context {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
 }
 
 .project-card-body {
