@@ -108,8 +108,9 @@ test('edit project via double-click on project name on card', async ({ page, req
     .first()
   await expect(cardWithProject).toBeVisible({ timeout: 5000 })
   await cardWithProject.click()
+  await expect(cardWithProject).toHaveClass(/card-wrapper--expanded/, { timeout: 3000 })
   const projectNameEl = cardWithProject.locator('.card-project').filter({ hasText: projectName })
-  await expect(projectNameEl).toBeVisible()
+  await expect(projectNameEl).toBeVisible({ timeout: 2000 })
   await projectNameEl.dblclick({ delay: 80 })
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).toBeVisible({ timeout: 10000 })

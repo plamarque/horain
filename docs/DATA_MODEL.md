@@ -99,6 +99,26 @@ Eval candidates derived from turns (and optionally feedback). Triage status and 
 
 Indexes: `(status)`, `(turn_id)`.
 
+## Table: memories
+
+Long-term agent memory: facts per user (preferences, project disambiguation, typos, etc.). Consolidation is upsert on (user_id, kind, memory_key). Optional TTL via expires_at.
+
+| Column | Type | Constraints |
+|--------|------|--------------|
+| id | UUID | PRIMARY KEY, default gen_random_uuid() |
+| user_id | VARCHAR(255) | NOT NULL |
+| kind | VARCHAR(50) | NOT NULL (e.g. project_disambiguation, typo, default_project, preference, explicit_fact) |
+| memory_key | VARCHAR(255) | NOT NULL — logical key for consolidation |
+| memory_value | TEXT | nullable — JSON or structured string (e.g. project_id) |
+| fact_text | TEXT | NOT NULL — human-readable sentence for the LLM |
+| expires_at | TIMESTAMPTZ | nullable — memory ignored after this time |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+Constraint: UNIQUE (user_id, kind, memory_key).
+
+Indexes: `(user_id, kind)`, `(user_id, expires_at)`.
+
 ## Relationships
 
 - **projects** ↔ **time_logs**: One-to-many. One project has many time_logs; each time_log belongs to one project.
@@ -106,6 +126,7 @@ Indexes: `(status)`, `(turn_id)`.
 - **activity_types** ↔ **time_logs**: Optional. A time_log may reference one activity_type via `activity_type_code`. On activity_type delete, time_logs.activity_type_code is set to NULL (SET NULL).
 - **agent_turn** ↔ **agent_feedback**: One-to-one. Each turn can have at most one feedback row.
 - **agent_turn** ↔ **eval_backlog**: One-to-many. A turn can have multiple eval_backlog entries (e.g. different triage outcomes).
+- **memories**: Standalone; scoped by user_id. No FK to other tables.
 
 ## Indexes
 
@@ -113,6 +134,7 @@ Indexes: `(status)`, `(turn_id)`.
 - `time_logs(logged_at DESC)` — for list_recent_logs
 - `time_logs(activity_type_code)` — for lookups by activity type
 - `projects(name)` — for search_project; UNIQUE constraint enforces one project per name.
+- `memories(user_id, kind)` — for listing/filtering by kind; `memories(user_id, expires_at)` — for active-memory queries.
 
 ## Notes
 
@@ -123,3 +145,4 @@ Indexes: `(status)`, `(turn_id)`.
 - **activity_type_code** (time_logs): Optional. When set, the entry has a nature (e.g. DEV, AI) and its value in euros can be computed as (duration_minutes / 480) × daily_rate_cents / 100. Displayed on the card verso with € and amount.
 - **activity_types**: Daily rate is stored in cents (e.g. 40000 = 400 €). Optional `description` provides detection hints for the assistant (synonyms, typical phrases). Deletion of an activity type sets time_logs.activity_type_code to NULL for affected rows.
 - `user_id` supports future multi-tenant isolation (Supabase RLS).
+- **memories**: Used by the agent via MCP tools (store_memory, get_memories, forget_memory). Facts are injected into the system prompt each turn. MVP uses a fixed default user_id until multi-account exists.

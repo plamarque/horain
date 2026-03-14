@@ -54,6 +54,7 @@ tests:
   - file://tests/entry-mutations.yaml
   - file://tests/multi-entry-and-followups.yaml
   - file://tests/empty-and-errors.yaml
+  - file://tests/memory.yaml
   - file://tests/scored/weekly-summary.yaml
   - file://tests/scored/open-question.yaml
   - file://tests/scored/robustness-scored.yaml

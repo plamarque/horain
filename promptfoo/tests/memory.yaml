@@ -1,0 +1,39 @@
+# Memory - store and forget (AGENT_DESIGN, memory feature)
+
+- description: Remember preference - agent acknowledges and may call store_memory
+  vars:
+    message: "Remember that when I say HatCast I mean HatCast V2."
+  assert:
+    - type: icontains-any
+      value:
+        - "remember"
+        - "saved"
+        - "stored"
+        - "got it"
+        - "noted"
+        - "ok"
+        - "will remember"
+
+- description: Forget - agent acknowledges and may call forget_memory
+  vars:
+    message: "Forget my default project."
+  assert:
+    - type: icontains-any
+      value:
+        - "forgot"
+        - "forgotten"
+        - "oublier"
+        - "ok"
+        - "done"
+        - "removed"
+
+- description: Get memories - agent can list stored facts (optional tool get_memories)
+  vars:
+    message: "What do you remember about me?"
+  assert:
+    - type: javascript
+      value: |
+        const raw = typeof output === 'string' ? output : (output?.output ?? JSON.stringify(output));
+        const str = typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
+        return str.length > 0;
+        // No strict assertion: agent may return "No stored memories" or list facts

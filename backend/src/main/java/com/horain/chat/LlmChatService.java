@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.horain.agent.AgentTurnService;
 import com.horain.llm.*;
 import com.horain.model.AgentTurn;
+import com.horain.model.Memory;
+import com.horain.service.MemoryService;
 import com.horain.tools.ToolExecutorService;
 import com.horain.tools.ToolRegistry;
 import org.slf4j.Logger;
@@ -29,12 +31,14 @@ public class LlmChatService {
     private static final int MAX_TOOL_ITERATIONS = 10;
     private static final int CONTEXT_ENTRIES_MAX = 20;
     private static final int CONTEXT_PROJECTS_MAX = 10;
+    private static final int MEMORIES_INJECT_MAX = 30;
 
     private static final String SYSTEM_PROMPT = """
             You are Horain, a personal time logging assistant. You help users log time spent on projects and answer questions about their tracked time.
 
             ## Data and tools
             - Use the available tools to read and write data. You never guess data.
+            - The [Memories] section (when present) contains stored facts about the user (preferences, project disambiguation, typos). Use them to personalize responses and avoid re-asking; e.g. when the user says "HatCast" and a memory says they mean HatCast V2, log on that project directly. You can store new facts with store_memory after a confirmed disambiguation or explicit preference, and forget with forget_memory when the user asks.
             - projectId: sum_time_by_project, get_time_logs_for_period, create_time_log accept EITHER a project UUID OR a project name (e.g. "HatCast"). If you pass a name, the system resolves it automatically.
 
             ## Logging time (create_time_log, project matching)
@@ -86,12 +90,14 @@ public class LlmChatService {
     private final LlmClient llmClient;
     private final ToolRegistry toolRegistry;
     private final ToolExecutorService toolExecutor;
+    private final MemoryService memoryService;
     private final ObjectMapper objectMapper;
     private final int massDeleteLimit;
     private final AgentTurnService agentTurnService;
     private final LlmProperties llmProperties;
 
     public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor,
+                          MemoryService memoryService,
                           ObjectMapper objectMapper,
                           @Value("${horain.mass-delete-limit:5}") int massDeleteLimit,
                           AgentTurnService agentTurnService,
@@ -99,6 +105,7 @@ public class LlmChatService {
         this.llmClient = llmClient;
         this.toolRegistry = toolRegistry;
         this.toolExecutor = toolExecutor;
+        this.memoryService = memoryService;
         this.objectMapper = objectMapper;
         this.massDeleteLimit = massDeleteLimit;
         this.agentTurnService = agentTurnService;
@@ -110,7 +117,7 @@ public class LlmChatService {
                              List<Map<String, Object>> contextProjects) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects);
+        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
         messages.add(ChatMessage.system(systemPrompt));
         if (history != null && !history.isEmpty()) {
             for (ChatHistoryEntry e : history) {
@@ -231,6 +238,29 @@ public class LlmChatService {
     }
 
     /**
+     * Builds the [Memories] block for the system prompt: active memories for the default user, limited in count.
+     */
+    private String buildMemoriesBlock() {
+        String userId = memoryService.getDefaultUserId();
+        List<Memory> memories = memoryService.findActiveByUserId(userId);
+        int limit = Math.min(memories.size(), MEMORIES_INJECT_MAX);
+        if (limit == 0) {
+            return "\n\n[Memories]\nNo stored memories.";
+        }
+        StringBuilder sb = new StringBuilder("\n\n[Memories] Stored facts about the user (use these to personalize and avoid re-asking):\n");
+        for (int i = 0; i < limit; i++) {
+            String fact = memories.get(i).getFactText();
+            if (fact != null && !fact.isBlank()) {
+                sb.append("- ").append(fact).append("\n");
+            }
+        }
+        if (memories.size() > limit) {
+            sb.append("... and ").append(memories.size() - limit).append(" more.");
+        }
+        return sb.toString();
+    }
+
+    /**
      * Extracts the LLM-facing content from a tool result. If the result is dual format (has "llm" and "data"),
      * returns only the "llm" string for the model; otherwise returns the full content (backward compat).
      */
@@ -314,7 +344,7 @@ public class LlmChatService {
                           StreamEventWriter writer) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects);
+        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
         messages.add(ChatMessage.system(systemPrompt));
         if (history != null && !history.isEmpty()) {
             for (ChatHistoryEntry e : history) {

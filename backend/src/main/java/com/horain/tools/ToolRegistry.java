@@ -35,6 +35,9 @@ public class ToolRegistry {
     public static final String PROPOSE_ENTRIES = "propose_entries";
     public static final String UPDATE_TIME_LOG = "update_time_log";
     public static final String DELETE_TIME_LOG = "delete_time_log";
+    public static final String STORE_MEMORY = "store_memory";
+    public static final String GET_MEMORIES = "get_memories";
+    public static final String FORGET_MEMORY = "forget_memory";
 
     public List<ToolDefinition> getAllTools() {
         return List.of(
@@ -454,6 +457,68 @@ public class ToolRegistry {
                                         )
                                 ),
                                 "required", List.of("id")
+                        )
+                ),
+                new ToolDefinition(
+                        STORE_MEMORY,
+                        "Store or update a long-term memory about the user. Use after the user has confirmed a disambiguation (e.g. which project they meant) or stated an explicit preference (e.g. default project). Do NOT store every project name mentioned—only store when you have a clear fact to remember (disambiguation choice, typo correction, or user said 'remember that...'). kind: project_disambiguation, typo, default_project, preference, or explicit_fact. memoryKey: logical key for this fact (e.g. ambiguous name 'HatCast' for project_disambiguation, 'default' for default_project). factText: one short sentence for the LLM (e.g. 'When the user says HatCast without specifying, they mean HatCast V2.'). Optional ttlSeconds: memory expires after that many seconds; omit for no expiry. Returns: confirmation.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "kind", Map.of(
+                                                "type", "string",
+                                                "description", "Memory kind: project_disambiguation, typo, default_project, preference, explicit_fact"
+                                        ),
+                                        "memoryKey", Map.of(
+                                                "type", "string",
+                                                "description", "Logical key for consolidation (e.g. 'HatCast', 'default', 'Horian')"
+                                        ),
+                                        "value", Map.of(
+                                                "type", "string",
+                                                "description", "Optional structured value (e.g. project id as string)"
+                                        ),
+                                        "factText", Map.of(
+                                                "type", "string",
+                                                "description", "One short sentence describing the fact for the LLM"
+                                        ),
+                                        "ttlSeconds", Map.of(
+                                                "type", "integer",
+                                                "description", "Optional TTL in seconds; omit for no expiration"
+                                        )
+                                ),
+                                "required", List.of("kind", "memoryKey", "factText")
+                        )
+                ),
+                new ToolDefinition(
+                        GET_MEMORIES,
+                        "Retrieve stored memories for the user. Memories are already injected into your prompt each turn; use this only to refresh or re-check after you have just stored a memory. Optional kind: filter by kind (project_disambiguation, default_project, etc.). Returns: list of facts (kind, memoryKey, factText).",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "kind", Map.of(
+                                                "type", "string",
+                                                "description", "Optional: filter by kind"
+                                        )
+                                ),
+                                "required", List.of()
+                        )
+                ),
+                new ToolDefinition(
+                        FORGET_MEMORY,
+                        "Forget one or more memories. Use when the user explicitly asks to forget something (e.g. 'forget my default project', 'stop remembering HatCast'). kind is required. memoryKey: if provided, forget only that key; if omitted, forget ALL memories of that kind (ask for confirmation before forgetting a whole category). Returns: confirmation.",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "kind", Map.of(
+                                                "type", "string",
+                                                "description", "Memory kind to forget (project_disambiguation, default_project, etc.)"
+                                        ),
+                                        "memoryKey", Map.of(
+                                                "type", "string",
+                                                "description", "Optional: forget only this key; omit to forget all of this kind"
+                                        )
+                                ),
+                                "required", List.of("kind")
                         )
                 )
         );
