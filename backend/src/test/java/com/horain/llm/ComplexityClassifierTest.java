@@ -33,6 +33,14 @@ class ComplexityClassifierTest {
     }
 
     @Test
+    void simple_identityQuestionWithoutHistory() {
+        assertEquals(ComplexityLevel.SIMPLE,
+                classifier.classify("qui es tu ?", null));
+        assertEquals(ComplexityLevel.SIMPLE,
+                classifier.classify("who are you", ""));
+    }
+
+    @Test
     void notSimple_whenNoLastAssistant() {
         assertEquals(ComplexityLevel.COMPLEX,
                 classifier.classify("yes", null));

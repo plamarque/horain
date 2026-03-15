@@ -221,7 +221,7 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", model);
         body.put("stream", stream);
-        body.put("temperature", 0.2);
+        // Do not send temperature: reasoning models (o4-mini, gpt-5.4, etc.) do not support it (400 invalid_request_error).
 
         ObjectNode reasoning = objectMapper.createObjectNode();
         reasoning.put("effort", reasoningEffort);

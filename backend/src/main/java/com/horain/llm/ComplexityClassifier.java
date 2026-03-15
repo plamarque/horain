@@ -28,6 +28,12 @@ public class ComplexityClassifier {
             Pattern.compile("(the )?first one\\??\\s*$", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(the )?second one\\??\\s*$", Pattern.CASE_INSENSITIVE));
 
+    /** Short conversational / identity questions that need no tools → SIMPLE (Chat Completions, not Responses API). */
+    private static final List<String> SIMPLE_IDENTITY_GREETING_PHRASES = List.of(
+            "qui es tu", "who are you", "what are you", "c'est quoi", "what is horain",
+            "présente-toi", "introduce yourself", "what can you do", "que sais-tu faire",
+            "hello", "bonjour", "salut", "hi ", "hey ");
+
     /** Keywords that indicate very complex tasks (analytics, mass ops, formulas). */
     private static final List<String> VERY_COMPLEX_KEYWORDS = List.of(
             "toutes", "tous", "all entries", "delete all", "toutes les", "tous les",
@@ -58,6 +64,11 @@ public class ComplexityClassifier {
             return ComplexityLevel.VERY_COMPLEX;
         }
 
+        // SIMPLE: short identity/greeting/conversational (no tools; avoid Responses API 400 for these)
+        if (isSimpleIdentityOrGreeting(trimmed)) {
+            return ComplexityLevel.SIMPLE;
+        }
+
         // SIMPLE: very short message and last assistant asked a closed question (confirmation/correction)
         if (isSimple(trimmed, lastAssistant)) {
             return ComplexityLevel.SIMPLE;
@@ -74,6 +85,17 @@ public class ComplexityClassifier {
         }
         int wordCount = userMessage.split("\\s+").length;
         return wordCount >= VERY_COMPLEX_MIN_WORDS;
+    }
+
+    private boolean isSimpleIdentityOrGreeting(String userMessage) {
+        if (userMessage.isBlank()) return false;
+        int wordCount = userMessage.split("\\s+").length;
+        if (wordCount > SIMPLE_MAX_WORDS) return false;
+        String lower = userMessage.toLowerCase(Locale.ROOT);
+        for (String phrase : SIMPLE_IDENTITY_GREETING_PHRASES) {
+            if (lower.contains(phrase)) return true;
+        }
+        return false;
     }
 
     private boolean isSimple(String userMessage, String lastAssistantMessage) {
