@@ -1,5 +1,7 @@
 server:
   port: ${PORT:8080}
+  # Cloud Run requires listening on all interfaces (not 127.0.0.1)
+  address: 0.0.0.0
 
 # API key for frontend auth. Reads HORAIN_API_KEY from .env or env; falls back to HORAIN_DEV_KEY.
 horain:
@@ -9,10 +11,16 @@ horain:
     seed-enabled: true  # Enable POST /dev/seed for local dev; set false in postgres profile
 
 # LLM integration. Reads LLM_API_KEY or OPENAI_API_KEY from .env; enables assistant when set.
+# When model-simple, model-complex, model-very-complex are all set, multi-model routing is enabled.
 llm:
   base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
   model: ${LLM_MODEL:gpt-4o-mini}
+  model-simple: ${LLM_MODEL_SIMPLE:}
+  model-complex: ${LLM_MODEL_COMPLEX:}
+  model-very-complex: ${LLM_MODEL_VERY_COMPLEX:}
+  reasoning-effort-complex: ${LLM_REASONING_EFFORT_COMPLEX:medium}
+  reasoning-effort-very-complex: ${LLM_REASONING_EFFORT_VERY_COMPLEX:high}
   # client: openai-compatible (default, RestTemplate) | spring-ai (Spring AI ChatModel - known 404 issues)
   client: ${LLM_CLIENT:openai-compatible}
 
@@ -85,9 +93,14 @@ horain:
     seed-enabled: false  # Disable dev seed in production
 
 # LLM integration (optional). OPENAI_API_KEY or LLM_API_KEY enables assistant.
-# LLM_BASE_URL, LLM_MODEL override defaults when set.
+# LLM_BASE_URL, LLM_MODEL override defaults when set. Set model-simple, model-complex, model-very-complex for routing.
 llm:
   base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
   model: ${LLM_MODEL:gpt-4o-mini}
+  model-simple: ${LLM_MODEL_SIMPLE:}
+  model-complex: ${LLM_MODEL_COMPLEX:}
+  model-very-complex: ${LLM_MODEL_VERY_COMPLEX:}
+  reasoning-effort-complex: ${LLM_REASONING_EFFORT_COMPLEX:medium}
+  reasoning-effort-very-complex: ${LLM_REASONING_EFFORT_VERY_COMPLEX:high}
   client: ${LLM_CLIENT:openai-compatible}

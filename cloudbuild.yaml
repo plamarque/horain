@@ -34,6 +34,9 @@ steps:
       - '${_REGION}'
       - '--platform'
       - 'managed'
+      - '--port'
+      - '8080'
+      - '--cpu-boost'
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/horain-backend:${COMMIT_SHA}'

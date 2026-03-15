@@ -169,6 +169,22 @@ The chat stream endpoint (`POST /chat/message/stream`) keeps the connection open
 
 ---
 
+## 10. Troubleshooting: "Container failed to start and listen on PORT"
+
+If the revision fails with *"The user-provided container failed to start and listen on the port defined by the PORT=8080 environment variable"*:
+
+1. **Check Cloud Logging** (link in the error, or **Observability** → **Logs**): look for Java stack traces, Flyway errors, or database connection failures. The app may be crashing before binding to the port (e.g. missing `SPRING_PROFILES_ACTIVE=postgres`, wrong `SPRING_DATASOURCE_*`, or DB unreachable).
+
+2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup.
+
+3. **Port and binding**: The repo is configured so the backend listens on `0.0.0.0` and `PORT` (default 8080). The build uses `--port=8080` and `--cpu-boost` to speed startup. If you deploy with another method, ensure the container listens on all interfaces and on the port provided by Cloud Run.
+
+4. **Startup timeout**: Cloud Run allows up to 240 seconds for the container to listen on the port. If the app is slow (e.g. many Flyway migrations, slow DB), ensure the Supabase Session Pooler URL is used and consider increasing CPU/memory for the service so startup finishes in time.
+
+See [Cloud Run troubleshooting](https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start) for more.
+
+---
+
 ## Reference
 
 - [Continuous deployment from a repository (Cloud Run)](https://cloud.google.com/run/docs/continuous-deployment)
