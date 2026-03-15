@@ -90,20 +90,18 @@ test.describe('SPEC scenarios', () => {
     const projectName = `ZzzDurEst${Date.now()}`
     await input.fill(`15 minutes on ${projectName}`)
     await page.getByRole('button', { name: 'Send' }).click()
+    // Evidence: bubbleCountSpec 0 — wait for at least one assistant bubble before asserting content
+    await expect(page.locator('.bubble.assistant').first()).toBeVisible({ timeout: 10000 })
     // #region agent log
     const lastBubbleSpec = page.locator('.bubble.assistant').last()
     const bubbleCountSpec = await page.locator('.bubble.assistant').count()
     const lastBubbleTextSpec = await lastBubbleSpec.innerText().catch(() => '') ?? ''
-    DEBUG_LOG('spec missing duration: before first assert', {
-      projectName,
-      bubbleCountSpec,
-      lastBubbleTextSpec: typeof lastBubbleTextSpec === 'string' ? lastBubbleTextSpec.slice(0, 400) : String(lastBubbleTextSpec).slice(0, 400),
-    }, 'H1')
+    DEBUG_LOG('spec missing duration: after first bubble visible', { projectName, bubbleCountSpec, lastBubbleTextSpec: typeof lastBubbleTextSpec === 'string' ? lastBubbleTextSpec.slice(0, 400) : String(lastBubbleTextSpec).slice(0, 400) }, 'H1')
     // #endregion
     await expect(
       lastBubbleSpec
     ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), {
-      timeout: 10000,
+      timeout: 5000,
     })
 
     // Missing duration: no minutes specified (use exact project name)

@@ -92,21 +92,17 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
+    // Evidence: bubbleCountVoice 0 — wait for at least one assistant bubble before asserting confirmation text
+    await expect(page.locator('.bubble.assistant').first()).toBeVisible({ timeout: 15000 })
     // #region agent log
     const bubbleCountVoice = await page.locator('.bubble.assistant').count()
     const matchingCount = await page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).count()
-    const lastBubbleVoice = page.locator('.bubble.assistant').last()
-    const lastBubbleTextVoice = await lastBubbleVoice.innerText().catch(() => '') ?? ''
-    DEBUG_LOG('voice-input: before confirmation assert', {
-      bubbleCountVoice,
-      matchingCount,
-      lastBubbleTextVoice: typeof lastBubbleTextVoice === 'string' ? lastBubbleTextVoice.slice(0, 400) : String(lastBubbleTextVoice).slice(0, 400),
-    }, 'H4')
+    const lastBubbleTextVoice = await page.locator('.bubble.assistant').last().innerText().catch(() => '') ?? ''
+    DEBUG_LOG('voice-input: after first bubble visible', { bubbleCountVoice, matchingCount, lastBubbleTextVoice: typeof lastBubbleTextVoice === 'string' ? lastBubbleTextVoice.slice(0, 400) : String(lastBubbleTextVoice).slice(0, 400) }, 'H4')
     // #endregion
-    // Assert confirmation in the latest assistant bubble (align with log-time.spec wording; .last() = reply to this send)
     await expect(
       page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).last()
-    ).toBeVisible({ timeout: 10000 })
+    ).toBeVisible({ timeout: 5000 })
   })
 
   test('transcript is inserted at caret, appending to existing text', async ({ page }) => {
