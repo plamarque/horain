@@ -129,6 +129,18 @@ L'assistant nécessite un fournisseur LLM pour répondre aux questions ("combien
 | `LLM_MODEL` | Non | Modèle à utiliser. Défaut: `gpt-4o-mini`. OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-3-haiku`, etc. |
 | `LLM_CLIENT` | Non | Client à utiliser. Vide = détection auto (modèles o1/o3/o4-mini → Responses API avec repli sur Completions si échec). Valeurs: `openai-responses`, `openai-compatible`, `spring-ai`. |
 
+**Multi-model routing (3 niveaux)** — Si les trois variables suivantes sont renseignées, le backend route chaque requête vers un modèle selon la complexité (simple / complexe / très complexe) :
+
+| Variable | Description |
+|----------|-------------|
+| `LLM_MODEL_SIMPLE` | Modèle sans raisonnement (confirmations, listes). Ex. `gpt-4o-mini`. |
+| `LLM_MODEL_COMPLEX` | Modèle avec raisonnement (effort medium). Ex. `o4-mini`. |
+| `LLM_MODEL_VERY_COMPLEX` | Modèle avec raisonnement (effort high). Ex. `gpt-5.4`. |
+| `LLM_REASONING_EFFORT_COMPLEX` | (optionnel) Effort raisonnement pour le niveau complexe. Défaut: `medium`. |
+| `LLM_REASONING_EFFORT_VERY_COMPLEX` | (optionnel) Effort raisonnement pour le niveau très complexe. Défaut: `high`. |
+
+Si seul `LLM_MODEL` est défini, le comportement reste mono-modèle (pas de routeur).
+
 ### 2. Fournisseurs supportés
 
 - **OpenAI** – Clé sur [platform.openai.com](https://platform.openai.com/api-keys). Base URL par défaut.

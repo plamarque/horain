@@ -53,9 +53,27 @@ public class OpenAiCompatibleLlmClient implements StreamingLlmClient {
             RestTemplate restTemplate,
             WebClient webClient,
             ObjectMapper objectMapper) {
-        this.baseUrl = properties.baseUrl() != null ? properties.baseUrl().trim() : "https://api.openai.com/v1";
-        this.apiKey = properties.apiKey() != null ? properties.apiKey().trim() : "";
-        this.model = properties.model() != null && !properties.model().isBlank() ? properties.model() : "gpt-4o-mini";
+        this(properties.baseUrl() != null ? properties.baseUrl().trim() : "https://api.openai.com/v1",
+                properties.apiKey() != null ? properties.apiKey().trim() : "",
+                properties.model() != null && !properties.model().isBlank() ? properties.model() : "gpt-4o-mini",
+                restTemplate,
+                webClient,
+                objectMapper);
+    }
+
+    /**
+     * Constructor for multi-model routing: specify base URL, API key and model for the simple (no-reasoning) level.
+     */
+    public OpenAiCompatibleLlmClient(
+            String baseUrl,
+            String apiKey,
+            String model,
+            RestTemplate restTemplate,
+            WebClient webClient,
+            ObjectMapper objectMapper) {
+        this.baseUrl = baseUrl != null ? baseUrl : "https://api.openai.com/v1";
+        this.apiKey = apiKey != null ? apiKey : "";
+        this.model = model != null && !model.isBlank() ? model : "gpt-4o-mini";
         this.restTemplate = restTemplate;
         this.webClient = webClient;
         this.objectMapper = objectMapper;

@@ -61,7 +61,9 @@ Implémentation : `backend/.../tools/ToolRegistry.java`, `ToolExecutorService.ja
 
 When agent capabilities grow (many tools or more complex workflows), consider a **sub-agent** architecture: a dedicated system prompt, a restricted tool set, and a focused objective. This reduces context pollution and improves reasoning reliability. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
 
-The SSE stream supports **optional reasoning**: events `reasoning_chunk` (text deltas) and optional fields `reasoningText` / `reasoningDurationMs` in the `done` payload. When the selected LLM client exposes reasoning (e.g. OpenAI Responses API with a reasoning model), the backend forwards it; otherwise the stream is unchanged. Future **multi-model orchestration** (routing by task complexity) will use the same contract: one client per request, with or without reasoning emission.
+The SSE stream supports **optional reasoning**: events `reasoning_chunk` (text deltas) and optional fields `reasoningText` / `reasoningDurationMs` in the `done` payload. When the selected LLM client exposes reasoning (e.g. OpenAI Responses API with a reasoning model), the backend forwards it; otherwise the stream is unchanged.
+
+**Multi-model orchestration (3 levels):** When `LLM_MODEL_SIMPLE`, `LLM_MODEL_COMPLEX`, and `LLM_MODEL_VERY_COMPLEX` are all set, the backend uses a **ComplexityClassifier** (rule-based, 3 classes) and a **RoutingLlmClient** to select one of three clients per request: **simple** (no reasoning, e.g. Chat Completions), **complex** (reasoning model with medium effort), **very complex** (reasoning model with high effort). The same client is used for the whole tool loop; the selected model name is stored in `agent_turn.model`. If only `LLM_MODEL` is set, behaviour is unchanged (single client, no routing).
 
 ## Technology Stack
 

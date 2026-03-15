@@ -27,9 +27,12 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
 
     private static final int STREAM_TIMEOUT_SECONDS = 120;
 
+    private static final String DEFAULT_REASONING_EFFORT = "medium";
+
     private final String baseUrl;
     private final String apiKey;
     private final String model;
+    private final String reasoningEffort;
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
@@ -37,9 +40,28 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
             LlmProperties properties,
             WebClient webClient,
             ObjectMapper objectMapper) {
-        this.baseUrl = properties.baseUrl() != null ? properties.baseUrl().trim() : "https://api.openai.com/v1";
-        this.apiKey = properties.apiKey() != null ? properties.apiKey().trim() : "";
-        this.model = properties.model() != null && !properties.model().isBlank() ? properties.model() : "gpt-4o-mini";
+        this(properties.baseUrl() != null ? properties.baseUrl().trim() : "https://api.openai.com/v1",
+                properties.apiKey() != null ? properties.apiKey().trim() : "",
+                properties.model() != null && !properties.model().isBlank() ? properties.model() : "gpt-4o-mini",
+                null,
+                webClient,
+                objectMapper);
+    }
+
+    /**
+     * Constructor for multi-model routing: specify model and reasoning effort per level.
+     */
+    public OpenAiResponsesLlmClient(
+            String baseUrl,
+            String apiKey,
+            String model,
+            String reasoningEffort,
+            WebClient webClient,
+            ObjectMapper objectMapper) {
+        this.baseUrl = baseUrl != null ? baseUrl : "https://api.openai.com/v1";
+        this.apiKey = apiKey != null ? apiKey : "";
+        this.model = model != null && !model.isBlank() ? model : "gpt-4o-mini";
+        this.reasoningEffort = reasoningEffort != null && !reasoningEffort.isBlank() ? reasoningEffort : DEFAULT_REASONING_EFFORT;
         this.webClient = webClient;
         this.objectMapper = objectMapper;
     }
@@ -202,7 +224,7 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
         body.put("temperature", 0.2);
 
         ObjectNode reasoning = objectMapper.createObjectNode();
-        reasoning.put("effort", "medium");
+        reasoning.put("effort", reasoningEffort);
         reasoning.put("summary", "auto");
         body.set("reasoning", reasoning);
 

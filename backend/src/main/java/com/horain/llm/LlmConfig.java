@@ -47,6 +47,7 @@ public class LlmConfig {
     @Bean
     public LlmClient llmClient(
             LlmProperties llmProperties,
+            ComplexityClassifier complexityClassifier,
             RestTemplate restTemplate,
             WebClient webClient,
             ObjectMapper objectMapper,
@@ -54,6 +55,26 @@ public class LlmConfig {
             @org.springframework.beans.factory.annotation.Value("${llm.client:}") String clientChoice) {
         if (llmProperties.apiKey() == null || llmProperties.apiKey().isBlank()) {
             return new PlaceholderLlmClient();
+        }
+        // Multi-model routing: three distinct models for simple / complex / very complex
+        if (llmProperties.isMultiModelEnabled()) {
+            String baseUrl = llmProperties.baseUrl();
+            String apiKey = llmProperties.apiKey();
+            LlmClient clientSimple = new OpenAiCompatibleLlmClient(
+                    baseUrl, apiKey, llmProperties.modelSimple(),
+                    restTemplate, webClient, objectMapper);
+            LlmClient clientComplex = new OpenAiResponsesLlmClient(
+                    baseUrl, apiKey, llmProperties.modelComplex(),
+                    llmProperties.reasoningEffortComplex(),
+                    webClient, objectMapper);
+            LlmClient clientVeryComplex = new OpenAiResponsesLlmClient(
+                    baseUrl, apiKey, llmProperties.modelVeryComplex(),
+                    llmProperties.reasoningEffortVeryComplex(),
+                    webClient, objectMapper);
+            return new RoutingLlmClient(
+                    complexityClassifier,
+                    clientSimple, clientComplex, clientVeryComplex,
+                    llmProperties.modelSimple(), llmProperties.modelComplex(), llmProperties.modelVeryComplex());
         }
         String choice = (clientChoice != null) ? clientChoice.trim() : "";
         // Explicit: Responses API only (no fallback)

@@ -117,84 +117,90 @@ public class LlmChatService {
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history,
                              List<Map<String, Object>> contextEntries,
                              List<Map<String, Object>> contextProjects) {
-        long startTime = System.currentTimeMillis();
-        List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
-        messages.add(ChatMessage.system(systemPrompt));
-        if (history != null && !history.isEmpty()) {
-            for (ChatHistoryEntry e : history) {
-                if (e != null && e.role() != null && e.content() != null) {
-                    String role = e.role().toLowerCase();
-                    if ("user".equals(role)) {
-                        messages.add(ChatMessage.user(e.content()));
-                    } else if ("assistant".equals(role)) {
-                        messages.add(ChatMessage.assistant(e.content()));
+        try {
+            long startTime = System.currentTimeMillis();
+            List<ChatMessage> messages = new ArrayList<>();
+            String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
+            messages.add(ChatMessage.system(systemPrompt));
+            if (history != null && !history.isEmpty()) {
+                for (ChatHistoryEntry e : history) {
+                    if (e != null && e.role() != null && e.content() != null) {
+                        String role = e.role().toLowerCase();
+                        if ("user".equals(role)) {
+                            messages.add(ChatMessage.user(e.content()));
+                        } else if ("assistant".equals(role)) {
+                            messages.add(ChatMessage.assistant(e.content()));
+                        }
                     }
                 }
             }
-        }
-        messages.add(ChatMessage.user(userMessage));
+            messages.add(ChatMessage.user(userMessage));
 
-        List<ToolDefinition> tools = toolRegistry.getAllTools();
-        List<ToolCallRecord> toolCallsExecuted = new ArrayList<>();
+            List<ToolDefinition> tools = toolRegistry.getAllTools();
+            List<ToolCallRecord> toolCallsExecuted = new ArrayList<>();
 
-        for (int iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
-            LlmResponse response = llmClient.chat(messages, tools);
+            for (int iterations = 0; iterations < MAX_TOOL_ITERATIONS; iterations++) {
+                LlmResponse response = llmClient.chat(messages, tools);
 
-            if (iterations > 0) {
-                log.debug("Tool iteration {} for message: {}", iterations, userMessage);
-            }
+                if (iterations > 0) {
+                    log.debug("Tool iteration {} for message: {}", iterations, userMessage);
+                }
 
-            if (!response.hasToolCalls()) {
-                Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
-                Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
-                Map<String, Object> data = new HashMap<>();
-                if (chartData != null) data.put("chart", chartData);
-                if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-                String assistantMessage = response.content() != null && !response.content().isBlank()
-                        ? response.content()
-                        : "I'm sorry, I couldn't generate a response.";
-                return persistTurnAndBuildResponse(userMessage, assistantMessage, toolCallsExecuted,
-                        data.isEmpty() ? null : data, history, contextEntries, startTime, false);
-            }
+                if (!response.hasToolCalls()) {
+                    Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
+                    Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
+                    Map<String, Object> data = new HashMap<>();
+                    if (chartData != null) data.put("chart", chartData);
+                    if (timeLogsData != null) data.put("timeLogs", timeLogsData);
+                    String assistantMessage = response.content() != null && !response.content().isBlank()
+                            ? response.content()
+                            : "I'm sorry, I couldn't generate a response.";
+                    return persistTurnAndBuildResponse(userMessage, assistantMessage, toolCallsExecuted,
+                            data.isEmpty() ? null : data, history, contextEntries, startTime, false);
+                }
 
-            // Append assistant message with tool_calls
-            messages.add(ChatMessage.assistantWithToolCalls(
-                    response.content() != null ? response.content() : "",
-                    response.toolCalls()));
+                // Append assistant message with tool_calls
+                messages.add(ChatMessage.assistantWithToolCalls(
+                        response.content() != null ? response.content() : "",
+                        response.toolCalls()));
 
-            // Execute each tool and append tool result messages
-            for (ToolCallRequest tc : response.toolCalls()) {
-                ToolCallResult result;
-                if (ToolRegistry.DELETE_TIME_LOG.equals(tc.name())) {
-                    long deleteCount = toolCallsExecuted.stream()
-                            .filter(r -> ToolRegistry.DELETE_TIME_LOG.equals(r.name()))
-                            .count();
-                    if (deleteCount >= massDeleteLimit) {
-                        result = new ToolCallResult(tc.id(),
-                                "{\"error\":\"Mass deletion guard: max " + massDeleteLimit
-                                        + " entries per turn. Ask the user to confirm before deleting more, then proceed in a follow-up message.\"}");
+                // Execute each tool and append tool result messages
+                for (ToolCallRequest tc : response.toolCalls()) {
+                    ToolCallResult result;
+                    if (ToolRegistry.DELETE_TIME_LOG.equals(tc.name())) {
+                        long deleteCount = toolCallsExecuted.stream()
+                                .filter(r -> ToolRegistry.DELETE_TIME_LOG.equals(r.name()))
+                                .count();
+                        if (deleteCount >= massDeleteLimit) {
+                            result = new ToolCallResult(tc.id(),
+                                    "{\"error\":\"Mass deletion guard: max " + massDeleteLimit
+                                            + " entries per turn. Ask the user to confirm before deleting more, then proceed in a follow-up message.\"}");
+                        } else {
+                            result = toolExecutor.execute(tc);
+                        }
                     } else {
                         result = toolExecutor.execute(tc);
                     }
-                } else {
-                    result = toolExecutor.execute(tc);
+                    toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
+                    messages.add(ChatMessage.tool(contentForLlm(result.content()), result.toolCallId()));
                 }
-                toolCallsExecuted.add(new ToolCallRecord(tc.name(), tc.arguments(), result.content()));
-                messages.add(ChatMessage.tool(contentForLlm(result.content()), result.toolCallId()));
+            }
+
+            log.warn("Max tool iterations reached ({}): {} - tool calls so far: {}",
+                    MAX_TOOL_ITERATIONS, userMessage, toolCallsExecuted.stream().map(ToolCallRecord::name).toList());
+            Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
+            Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
+            Map<String, Object> data = new HashMap<>();
+            if (chartData != null) data.put("chart", chartData);
+            if (timeLogsData != null) data.put("timeLogs", timeLogsData);
+            return persistTurnAndBuildResponse(userMessage,
+                    "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
+                    toolCallsExecuted, data.isEmpty() ? null : data, history, contextEntries, startTime, true);
+        } finally {
+            if (llmClient instanceof RoutingLlmClient r) {
+                r.clearRequestScope();
             }
         }
-
-        log.warn("Max tool iterations reached ({}): {} - tool calls so far: {}",
-                MAX_TOOL_ITERATIONS, userMessage, toolCallsExecuted.stream().map(ToolCallRecord::name).toList());
-        Object chartData = extractChartDataFromToolCalls(toolCallsExecuted);
-        Object timeLogsData = extractTimeLogsFromToolCalls(toolCallsExecuted);
-        Map<String, Object> data = new HashMap<>();
-        if (chartData != null) data.put("chart", chartData);
-        if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-        return persistTurnAndBuildResponse(userMessage,
-                "I'm sorry, I reached the maximum number of steps. Please try a simpler request.",
-                toolCallsExecuted, data.isEmpty() ? null : data, history, contextEntries, startTime, true);
     }
 
     /**
@@ -317,14 +323,23 @@ public class LlmChatService {
         return "success";
     }
 
+    private String resolveModelName() {
+        if (llmClient instanceof RoutingLlmClient r) {
+            String m = r.getLastSelectedModel();
+            return m != null ? m : llmProperties.model();
+        }
+        return llmProperties.model();
+    }
+
     private UUID persistTurn(String userMessage, String assistantMessage, List<ToolCallRecord> toolCallsExecuted,
                               Object data, List<ChatHistoryEntry> history, List<Map<String, Object>> contextEntries,
-                              long startTime, boolean maxIterations) {
+                              long startTime, boolean maxIterations, String modelName) {
         UUID conversationId = UUID.randomUUID();
         String status = deriveStatus(assistantMessage, toolCallsExecuted, maxIterations);
         long latencyMs = System.currentTimeMillis() - startTime;
+        String modelToStore = modelName != null && !modelName.isBlank() ? modelName : llmProperties.model();
         AgentTurn turn = agentTurnService.saveTurn(conversationId, 0, userMessage, assistantMessage,
-                toolCallsExecuted, data, llmProperties.model(), status, history, contextEntries, latencyMs);
+                toolCallsExecuted, data, modelToStore, status, history, contextEntries, latencyMs);
         return turn.getId();
     }
 
@@ -332,7 +347,7 @@ public class LlmChatService {
                                                      List<ToolCallRecord> toolCallsExecuted, Object data,
                                                      List<ChatHistoryEntry> history, List<Map<String, Object>> contextEntries,
                                                      long startTime, boolean maxIterations) {
-        UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted, data, history, contextEntries, startTime, maxIterations);
+        UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted, data, history, contextEntries, startTime, maxIterations, resolveModelName());
         return new ChatResponse(assistantMessage, toolCallsExecuted, data, turnId);
     }
 
@@ -415,7 +430,7 @@ public class LlmChatService {
                     Long reasoningDurationMs = (reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0)
                             ? Long.valueOf(reasoningTimeMs[1] - reasoningTimeMs[0]) : null;
                     UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted,
-                            data.isEmpty() ? null : data, history, contextEntries, startTime, false);
+                            data.isEmpty() ? null : data, history, contextEntries, startTime, false, resolveModelName());
                     writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, reasoningText, reasoningDurationMs);
                     return;
                 }
@@ -460,11 +475,15 @@ public class LlmChatService {
             if (timeLogsData != null) data.put("timeLogs", timeLogsData);
             String maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request.";
             UUID turnId = persistTurn(userMessage, maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data,
-                    history, contextEntries, startTime, true);
+                    history, contextEntries, startTime, true, resolveModelName());
             writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, null, null);
         } catch (Exception e) {
             log.error("chatStream error: {}", e.getMessage(), e);
             writer.sendError(e.getMessage());
+        } finally {
+            if (llmClient instanceof RoutingLlmClient r) {
+                r.clearRequestScope();
+            }
         }
     }
 
