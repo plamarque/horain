@@ -55,6 +55,8 @@ En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets
 
 **Important:** Put your actual Supabase database password in `SPRING_DATASOURCE_PASSWORD`. Do not use a placeholder — Spring Boot needs the real password to connect. On Cloud Run, use Secret Manager or environment variables (see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md)).
 
+**Transaction pooler (port 6543):** If you hit "MaxClientsInSessionMode" with Session pooler, use **Transaction pooler** in Supabase (Method = Transaction pooler, port 6543). Append `?prepareThreshold=0` to the JDBC URL (e.g. `jdbc:postgresql://HOST:6543/postgres?prepareThreshold=0`), because Transaction mode does not support prepared statements. See [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md).
+
 ---
 
 ## B. Google Cloud Run (backend)

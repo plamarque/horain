@@ -114,7 +114,7 @@ If you created the service from the console (Option A), the first revision may r
 | Key | Value |
 |-----|-------|
 | `SPRING_PROFILES_ACTIVE` | `postgres` |
-| `SPRING_DATASOURCE_URL` | JDBC URL from Supabase **Session** pooler (port 5432). Session mode has a low connection limit; the app uses a pool size of 1 per instance. For higher concurrency, use **Transaction** pooler (port 6543) and you can increase pool size. |
+| `SPRING_DATASOURCE_URL` | **Session** pooler (port 5432): low connection limit, app uses pool size 1. **Transaction** pooler (port 6543): higher capacity; you **must** add `?prepareThreshold=0` to the URL (e.g. `jdbc:postgresql://HOST:6543/postgres?prepareThreshold=0`), or `&prepareThreshold=0` if the URL already has query params. Transaction mode does not support prepared statements; this parameter disables them for the JDBC driver. |
 | `SPRING_DATASOURCE_USERNAME` | From Supabase (e.g. `postgres.PROJECT_REF`) |
 | `SPRING_DATASOURCE_PASSWORD` | Supabase DB password (prefer Secret Manager, see below) |
 | `HORAIN_API_KEY` | e.g. `openssl rand -hex 32` (same value as `VITE_API_KEY` in GitHub secrets) |
@@ -175,13 +175,57 @@ If the revision fails with *"The user-provided container failed to start and lis
 
 1. **Check Cloud Logging** (link in the error, or **Observability** → **Logs**): look for Java stack traces, Flyway errors, or database connection failures. The app may be crashing before binding to the port (e.g. missing `SPRING_PROFILES_ACTIVE=postgres`, wrong `SPRING_DATASOURCE_*`, or DB unreachable).
 
-2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup. If you see **"MaxClientsInSessionMode: max clients reached"**, Supabase Session pooler is full: use one instance at a time during deploy, or switch to Supabase **Transaction** pooler (port 6543), or ensure the app pool size stays at 1 (default in this repo for postgres profile).
+2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup. If you see **"MaxClientsInSessionMode: max clients reached"**, switch to Supabase **Transaction** pooler (port 6543): in Supabase **Project Settings → Database**, choose **Transaction pooler**, copy the JDBC URL, and append `?prepareThreshold=0` (or `&prepareThreshold=0` if the URL already has params). Then set that full URL in `SPRING_DATASOURCE_URL`. You can then increase Hikari pool size if needed (default remains 1 for Session mode).
 
 3. **Port and binding**: The repo is configured so the backend listens on `0.0.0.0` and `PORT` (default 8080). The build uses `--port=8080` and `--cpu-boost` when deploying via the repo `cloudbuild.yaml`. If you use **Cloud Run "Connect repository"** (source deploy), configure the service with port 8080 and CPU boost in the Cloud Run console (Edit & deploy → Container → Port, and enable startup CPU boost). Ensure the container listens on all interfaces.
 
 4. **Startup timeout**: Cloud Run allows up to 240 seconds for the container to listen on the port. The app uses **lazy initialization** in the `postgres` profile so the HTTP server binds to the port before DataSource/Flyway run (they initialize on first request). If the container still fails, run the image locally to see the real error: `docker run --rm -e PORT=8080 -e SPRING_PROFILES_ACTIVE=postgres -e SPRING_DATASOURCE_URL=... -e SPRING_DATASOURCE_USERNAME=... -e SPRING_DATASOURCE_PASSWORD=... -p 8080:8080 YOUR_IMAGE` (use the same env as Cloud Run).
 
 See [Cloud Run troubleshooting](https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start) for more.
+
+---
+
+## 11. Troubleshooting: Cannot connect to Supabase
+
+If Cloud Run fails to connect to the database (connection timeout, auth failure, or "Connection is not available"):
+
+1. **Supabase status**  
+   Check [status.supabase.com](https://status.supabase.com). If **Connection Pooler** and **Database** are operational, the global pool is not down. Your project can still be paused or misconfigured.
+
+2. **Project not paused**  
+   In **Supabase Dashboard** → your project: if it was inactive (free tier), the project may be **paused**. Click **Restore project** and wait a few minutes, then redeploy or retry.
+
+3. **Test from your machine**  
+   From your laptop, test the same connection so we know if the problem is Cloud Run or Supabase:
+   - **Session pooler:** host `aws-1-eu-west-1.pooler.supabase.com`, port **5432** (replace with your project’s pooler host).
+   - With `psql`:  
+     `psql "postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"`  
+     (get the exact URI from Supabase **Project Settings** → **Database** → **Connection string** → Session pooler.)
+   - If this fails, the issue is credentials or Supabase (wrong password, project paused, or pooler URL). If it works, the issue is likely Cloud Run (env vars or Secret Manager).
+
+4. **Secret Manager and password change**  
+   If you changed the DB password and use a **secret** for `SPRING_DATASOURCE_PASSWORD`:
+   - Update the secret in **Secret Manager** with the **new** password (new version).
+   - Cloud Run references a secret by name (e.g. `projects/.../secrets/db-password/versions/latest`). Ensure **latest** points to the new version, or create a new version and redeploy so the new revision uses it.
+   - **Edit & deploy new revision** after updating the secret so the new revision gets the new value.
+
+5. **Exact env var names**  
+   Must be set on the Cloud Run service (Variables and secrets):
+   - `SPRING_PROFILES_ACTIVE` = `postgres`
+   - `SPRING_DATASOURCE_URL` = `jdbc:postgresql://HOST:5432/postgres` (Session; no `?user=` or `?password=` in URL)
+   - `SPRING_DATASOURCE_USERNAME` = from Supabase (e.g. `postgres.xxxxx`)
+   - `SPRING_DATASOURCE_PASSWORD` = the actual DB password (or reference to Secret Manager)
+
+   Typo or wrong case (e.g. `DATABASE_URL` instead of `SPRING_DATASOURCE_URL`) will prevent connection.
+
+6. **"Connection is not available, request timed out" (no auth error)**  
+   If logs show a **timeout** (e.g. HikariCP "request timed out after 15001ms") and not "password authentication failed", outbound traffic from Cloud Run to Supabase may be blocked:
+
+   - **Cloud Run** → your service → **Edit & deploy new revision** → open **Networking** (or **Connections**, **Security**, **Container** depending on console layout).
+   - Check **VPC / Egress**:
+     - If a **VPC connector** is set or **Direct VPC egress** is enabled with **"Private ranges only"**, all egress goes through the VPC. Without a route to the internet (e.g. Cloud NAT), traffic to Supabase (public host) will hang and time out.
+     - **Fix:** Either **remove the VPC connector** and use default egress (traffic goes to the internet directly), or set egress to **"All traffic"** so that only private IP ranges use the VPC and public IPs (Supabase) use the default internet path. Do not use "Private ranges only" if the only external service is Supabase on the public internet.
+   - Redeploy after changing the setting.
 
 ---
 
