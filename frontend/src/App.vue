@@ -10,10 +10,11 @@ const MAX_CONTEXT_PROJECTS = 5
 // Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__
 const gitSha = __GIT_SHA__
+const versionForDisplay = appVersion.replace(/-SNAPSHOT$/, '')
 const versionDisplay =
   appVersion.endsWith('-SNAPSHOT') && gitSha
-    ? `v${appVersion} (${gitSha})`
-    : `v${appVersion}`
+    ? `v${versionForDisplay} (${gitSha})`
+    : `v${versionForDisplay}`
 
 function refreshApp(): void {
   window.location.reload()
@@ -68,7 +69,15 @@ provide<() => void>('refreshApp', refreshApp)
     <header class="header">
       <div class="header-left">
         <h1>Horain</h1>
-        <span class="tagline">Voice-first time logging</span>
+        <button
+          type="button"
+          class="version-header"
+          title="Refresh app"
+          aria-label="Refresh app"
+          @click="refreshApp()"
+        >
+          {{ versionDisplay }}
+        </button>
       </div>
       <div class="header-right">
         <button
@@ -175,8 +184,19 @@ body {
   font-weight: 600;
 }
 
-.tagline {
-  font-size: 0.9375rem;
+.version-header {
+  padding: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #666680;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.version-header:hover {
   color: #8888a0;
 }
 

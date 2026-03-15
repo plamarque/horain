@@ -5,13 +5,11 @@ import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
 import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
-import { resetDevSeed, getRecentTimeLogs } from '../services/apiClient'
+import { getRecentTimeLogs } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
 import type { AgentTrace, AssistantMessageSegment, ChartSpec, Message, TimeLogEntry } from '../types'
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
-const versionDisplay = inject<string>('versionDisplay', '')
-const refreshApp = inject<() => void>('refreshApp', () => {})
 const selectedProjects = inject<Ref<ProjectDto[]>>('selectedProjects', ref([]))
 const removeProjectFromContext = inject<(projectId: string) => void>('removeProjectFromContext', () => {})
 const clearSelectedProjectsAfterSend = inject<() => void>('clearSelectedProjectsAfterSend', () => {})
@@ -525,25 +523,6 @@ async function handleSubmit(text: string) {
 function handleStop() {
   abortControllerRef.value?.abort()
 }
-
-const isDev = import.meta.env.DEV
-const isSeeding = ref(false)
-
-async function handleResetSeed() {
-  if (!isDev) return
-  isSeeding.value = true
-  try {
-    await resetDevSeed()
-    const logs = await getRecentTimeLogs(20)
-    recentLogs.value = logs
-    // Clear conversation so the default view shows "Dernières activités" like on app launch
-    messages.value = []
-  } catch {
-    addAssistantMessage('Seed reset failed. Is the backend running with dev seed enabled?')
-  } finally {
-    isSeeding.value = false
-  }
-}
 </script>
 
 <template>
@@ -604,31 +583,6 @@ async function handleResetSeed() {
           @stop="handleStop"
           @permission-error="handlePermissionError"
         />
-        <p class="input-footer">
-          <template v-if="isDev">
-            <button
-              class="seed-icon-btn"
-              :disabled="isProcessing || isSeeding"
-              title="Reset seed (dev): clear DB and reload seed"
-              aria-label="Reset seed"
-              @click="handleResetSeed"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22v-4" />
-                <path d="M12 4a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z" />
-              </svg>
-            </button>
-          </template>
-          <button
-            type="button"
-            class="version-inline"
-            title="Refresh app"
-            aria-label="Refresh app"
-            @click="refreshApp()"
-          >
-            {{ versionDisplay }}
-          </button>
-        </p>
       </div>
     </div>
     <EntryEditModal
@@ -718,49 +672,4 @@ async function handleResetSeed() {
   opacity: 1;
 }
 
-.input-footer {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #666680;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.version-inline {
-  padding: 0;
-  margin: 0;
-  font-size: 0.75rem;
-  color: #5a5a70;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-}
-
-.version-inline:hover {
-  color: #8888a0;
-}
-
-.seed-icon-btn {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  color: #666680;
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
-  display: inline-flex;
-  transition: color 0.15s;
-}
-
-.seed-icon-btn:hover:not(:disabled) {
-  color: #7cb342;
-}
-
-.seed-icon-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 </style>
