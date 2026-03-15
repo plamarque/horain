@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import { ref, onMounted, onUnmounted, inject, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import { getProjects } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
+import PushToTalkButton from '../components/PushToTalkButton.vue'
 
 const PULL_THRESHOLD = 72
 const PULL_MAX = 100
@@ -36,7 +37,16 @@ function projectColor(project: ProjectDto): string {
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const selectedProjects = inject<Ref<ProjectDto[]>>('selectedProjects', ref([]))
 const addProjectToContext = inject<(project: ProjectDto) => void>('addProjectToContext', () => {})
+const removeProjectFromContext = inject<(projectId: string) => void>('removeProjectFromContext', () => {})
 const maxContextProjects = inject<number>('MAX_CONTEXT_PROJECTS', 5)
+type ConversationApi = {
+  submit: (text: string, options?: { clearProjectsAfterSend?: boolean }) => void
+  stop: () => void
+  isProcessing: Ref<boolean>
+}
+const conversationApi = inject<Ref<ConversationApi | null>>('conversationApi', ref(null))
+const switchToConversationView = inject<() => void>('switchToConversationView', () => {})
+const isProcessing = computed(() => conversationApi.value?.isProcessing?.value ?? false)
 
 const projects = ref<ProjectDto[]>([])
 const loading = ref(true)
@@ -116,6 +126,15 @@ function onCardClick(p: ProjectDto) {
     addProjectToContext(p)
   }
   toggleExpand(p)
+}
+
+function onDiscussionSubmit(text: string) {
+  conversationApi.value?.submit(text, { clearProjectsAfterSend: false })
+  switchToConversationView()
+}
+
+function onDiscussionStop() {
+  conversationApi.value?.stop()
 }
 
 function isInContext(project: ProjectDto): boolean {
@@ -251,6 +270,35 @@ onUnmounted(() => {
         </div>
       </div>
       <p v-if="!loading && !error && projects.length === 0" class="projects-empty">No projects yet.</p>
+    </div>
+    <div v-if="selectedProjects.length > 0" class="discussion-bar">
+      <div class="discussion-bar-inner">
+        <p class="discussion-hint">Discussion sur ce projet — le message sera envoyé avec le projet en contexte.</p>
+        <div class="context-chips">
+          <span
+            v-for="proj in selectedProjects"
+            :key="'proj-' + proj.id"
+            class="context-chip context-chip--project"
+          >
+            {{ proj.name }}
+            <button
+              type="button"
+              class="context-chip-remove"
+              aria-label="Remove project from context"
+              @click="removeProjectFromContext(proj.id)"
+            >
+              ×
+            </button>
+          </span>
+        </div>
+        <PushToTalkButton
+          :disabled="isProcessing"
+          :processing="isProcessing"
+          @submit="onDiscussionSubmit"
+          @stop="onDiscussionStop"
+          @permission-error="() => {}"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -566,5 +614,71 @@ onUnmounted(() => {
     grid-column: span 2;
     grid-row: span 2;
   }
+}
+
+/* Discussion bar: project context chips + input (same look as ConversationView input area) */
+.discussion-bar {
+  flex-shrink: 0;
+  padding: 1rem max(0.75rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  border-top: 1px solid #2a2a3e;
+  background: #0f0f1a;
+}
+
+@media (max-width: 600px) {
+  .discussion-bar {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom), 16px);
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+}
+
+.discussion-bar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.discussion-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #8888a0;
+}
+
+.discussion-bar .context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.discussion-bar .context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9375rem;
+  background: rgba(74, 110, 219, 0.2);
+  color: #a0b8f0;
+  border-radius: 8px;
+}
+
+.discussion-bar .context-chip--project {
+  background: rgba(90, 138, 74, 0.25);
+  color: #a8d098;
+}
+
+.discussion-bar .context-chip-remove {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.discussion-bar .context-chip-remove:hover {
+  opacity: 1;
 }
 </style>

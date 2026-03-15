@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
 import { ref, provide } from 'vue'
 import ConversationView from './views/ConversationView.vue'
 import ProjectsView from './views/ProjectsView.vue'
@@ -6,6 +7,15 @@ import ProjectEditModal from './components/ProjectEditModal.vue'
 import type { ProjectDto } from './services/apiClient'
 
 const MAX_CONTEXT_PROJECTS = 5
+
+/** Conversation API (submit, stop, isProcessing) set by ConversationView so ProjectsView can send messages with project context. */
+export type ConversationApi = {
+  submit: (text: string, options?: { clearProjectsAfterSend?: boolean }) => void
+  stop: () => void
+  isProcessing: Ref<boolean>
+}
+const conversationApi = ref<ConversationApi | null>(null)
+provide<Ref<ConversationApi | null>>('conversationApi', conversationApi)
 
 // Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__
@@ -44,12 +54,17 @@ function openProjectEdit(projectId: string) {
   editingProjectId.value = projectId
 }
 
+function switchToConversationView() {
+  view.value = 'conversation'
+}
+
 provide<((projectId: string) => void)>('openProjectEdit', openProjectEdit)
 provide('selectedProjects', selectedProjects)
 provide('addProjectToContext', addProjectToContext)
 provide('removeProjectFromContext', removeProjectFromContext)
 provide('clearSelectedProjectsAfterSend', clearSelectedProjectsAfterSend)
 provide('MAX_CONTEXT_PROJECTS', MAX_CONTEXT_PROJECTS)
+provide<() => void>('switchToConversationView', switchToConversationView)
 
 function onProjectModalClose() {
   editingProjectId.value = null

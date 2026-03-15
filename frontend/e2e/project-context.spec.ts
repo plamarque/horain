@@ -40,6 +40,12 @@ test('clicking project card adds project to context and shows chip in conversati
   // Card should show in-context state
   await expect(horainCard).toHaveClass(/project-card--in-context/)
 
+  // Discussion bar should be visible on Projects view with project in context
+  const discussionBar = page.locator('.discussion-bar')
+  await expect(discussionBar).toBeVisible()
+  await expect(discussionBar.getByText('Horain')).toBeVisible()
+  await expect(discussionBar.getByText(/Discussion sur ce projet/)).toBeVisible()
+
   // Go back to conversation
   await page.getByRole('button', { name: 'Back' }).click()
 

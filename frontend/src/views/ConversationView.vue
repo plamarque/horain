@@ -13,6 +13,12 @@ const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
 const selectedProjects = inject<Ref<ProjectDto[]>>('selectedProjects', ref([]))
 const removeProjectFromContext = inject<(projectId: string) => void>('removeProjectFromContext', () => {})
 const clearSelectedProjectsAfterSend = inject<() => void>('clearSelectedProjectsAfterSend', () => {})
+type ConversationApi = {
+  submit: (text: string, options?: { clearProjectsAfterSend?: boolean }) => void
+  stop: () => void
+  isProcessing: Ref<boolean>
+}
+const conversationApi = inject<Ref<ConversationApi | null>>('conversationApi', ref(null))
 
 const MAX_CONTEXT_ENTRIES = 5
 const MAX_AUTO_CONTEXT_ENTRIES = 10
@@ -126,6 +132,14 @@ onMounted(async () => {
 
   window.addEventListener('horain:projectSaved', onProjectSaved)
 
+  if (conversationApi) {
+    conversationApi.value = {
+      submit: (text, opts) => handleSubmit(text, opts),
+      stop: handleStop,
+      isProcessing,
+    }
+  }
+
   if (messages.value.length > 0) return
   try {
     const logs = await getRecentTimeLogs(20)
@@ -135,6 +149,7 @@ onMounted(async () => {
   }
 })
 onUnmounted(() => {
+  if (conversationApi) conversationApi.value = null
   if (mediaQuery && mediaListener) mediaQuery.removeEventListener('change', mediaListener)
   window.removeEventListener('horain:projectSaved', onProjectSaved)
 })
@@ -271,7 +286,7 @@ function handleIndicatorClicked() {
   hasNewMessageBelow.value = false
 }
 
-async function handleSubmit(text: string) {
+async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: boolean }) {
   if (!text.trim()) return
   messages.value.push({
     id: crypto.randomUUID(),
@@ -298,7 +313,9 @@ async function handleSubmit(text: string) {
     description: p.description,
   }))
   selectedEntries.value = []
-  clearSelectedProjectsAfterSend()
+  if (options?.clearProjectsAfterSend !== false) {
+    clearSelectedProjectsAfterSend()
+  }
 
   isProcessing.value = true
   streamingMessageId.value = null
