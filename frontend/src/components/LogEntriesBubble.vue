@@ -369,12 +369,13 @@ const moreCount = computed(
   transition: grid-column 0.3s ease, grid-row 0.3s ease;
 }
 
-/* Expanded card: 2 columns × 2 rows, pushes other cards (no overlay) */
+/* Expanded card: 2 columns × 1 row; height follows content (fits 1–2 sentences), long notes scroll */
 .card-wrapper--expanded {
   grid-column: span 2;
-  grid-row: span 2;
+  grid-row: span 1;
   aspect-ratio: auto;
-  min-height: 4.5rem;
+  min-height: 0;
+  align-self: start;
 }
 
 .card-face {
@@ -393,37 +394,65 @@ const moreCount = computed(
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-/* Expanded: grid layout so note fills remaining space; meta and project+amount on separate lines */
+/* Expanded: compact grid; note row auto-sized so short notes don’t leave empty space */
 .card-wrapper--expanded .card-face {
   display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 0.35rem 0;
+  grid-template-rows: auto auto auto auto auto;
+  grid-template-columns: auto 1fr;
+  row-gap: 0.6rem;
+  column-gap: 0.75rem;
   justify-content: stretch;
   align-content: start;
   justify-items: start;
+  align-items: start;
   text-align: left;
-  padding: 0.65rem 0.85rem 0.65rem 0.85rem;
+  padding: 0.75rem 0.85rem 0.85rem;
   padding-right: 2.5rem;
 }
 
-.card-wrapper--expanded .card-row--meta {
-  flex-direction: row;
-  flex-wrap: wrap;
-  margin-bottom: 0;
-}
-
-.card-wrapper--expanded .card-meta-top {
-  width: auto;
-}
-
-/* Project + amount on one line (no wrap), project ellipsis if needed */
+/* Flatten structure so date, tag, duration, project, amount, note become direct grid children */
+.card-wrapper--expanded .card-row--meta,
+.card-wrapper--expanded .card-meta-top,
 .card-wrapper--expanded .card-row--project {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: nowrap;
-  min-width: 0;
-  width: 100%;
+  display: contents;
+}
+
+.card-wrapper--expanded .card-date {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  margin-bottom: 0.1rem;
+}
+
+.card-wrapper--expanded .card-project {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.card-wrapper--expanded .card-duration {
+  grid-row: 3;
+  grid-column: 1;
+  margin-right: 0.35rem;
+}
+
+.card-wrapper--expanded .card-amount {
+  grid-row: 3;
+  grid-column: 2;
+  align-self: center;
+}
+
+/* Tag and note full width so no empty column left of text */
+.card-wrapper--expanded .card-tag {
+  grid-row: 4;
+  grid-column: 1 / -1;
+  align-self: start;
+}
+
+.card-wrapper--expanded .card-note {
+  grid-row: 5;
+  grid-column: 1 / -1;
+  margin-top: 0.1rem;
   margin-bottom: 0;
 }
 
@@ -536,7 +565,8 @@ const moreCount = computed(
 }
 
 .card-wrapper--expanded .card-project {
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -579,13 +609,16 @@ const moreCount = computed(
 }
 
 .card-wrapper--expanded .card-note {
-  -webkit-line-clamp: 6;
-  line-clamp: 6;
-  font-size: 1rem;
-  line-height: 1.4;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  font-size: 1.25rem;
+  line-height: 1.5;
   margin: 0;
+  margin-top: 0.25rem;
   align-self: stretch;
   min-height: 0;
+  max-height: 14em;
+  overflow-y: auto;
 }
 
 .show-more {
@@ -642,10 +675,10 @@ const moreCount = computed(
     padding: 0.4rem;
   }
 
-  /* Expanded card still 2 cols × 2 rows on mobile */
+  /* Expanded card 2 cols × 1 row on mobile too */
   .card-wrapper--expanded {
     grid-column: span 2;
-    grid-row: span 2;
+    grid-row: span 1;
   }
 
   .card-face {
