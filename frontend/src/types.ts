@@ -51,14 +51,26 @@ export interface ToolCallDisplay {
  * Agent trace for one turn: tools executed, optionally grouped by iteration.
  * Session-only (not persisted); used to show "what the agent did" under the bubble.
  */
+/** One completed reasoning phase (one "Thought" box per LLM turn). */
+export interface ReasoningPhase {
+  text: string
+  durationMs?: number
+  /** Cursor-style one-line summary (from lightweight LLM); when set, shown in white below "Thought for Xs". */
+  summary?: string
+}
+
 export interface AgentTrace {
   toolCalls: ToolCallDisplay[]
-  /** Optional reasoning text (filled by stream or done when model exposes it). */
+  /** Completed reasoning phases (one per LLM turn); tool calls are shown between phases. */
+  reasoningPhases?: ReasoningPhase[]
+  /** Current reasoning text streaming (next phase not yet closed). */
   reasoningText?: string
-  /** Optional duration of reasoning phase in ms (for "Thought for Xs" header). */
+  /** Optional duration of last reasoning phase in ms (for "Thought for Xs" header); also set in done payload. */
   reasoningDurationMs?: number
   /** Optional one-line summary (Cursor-style: shown in white below grey detail). When absent, derived from reasoningText. */
   reasoningSummary?: string
+  /** Model name used for this turn (e.g. "o4-mini"); displayed in trace. */
+  modelName?: string
 }
 
 /**

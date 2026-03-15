@@ -28,13 +28,16 @@ public class ChatController {
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
     private final AgentFeedbackService agentFeedbackService;
+    private final ReasoningSummarizerService reasoningSummarizerService;
 
     public ChatController(LlmChatService chatService, LlmClient llmClient, ObjectMapper objectMapper,
-                          AgentFeedbackService agentFeedbackService) {
+                          AgentFeedbackService agentFeedbackService,
+                          ReasoningSummarizerService reasoningSummarizerService) {
         this.chatService = chatService;
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
         this.agentFeedbackService = agentFeedbackService;
+        this.reasoningSummarizerService = reasoningSummarizerService;
     }
 
     @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -126,5 +129,22 @@ public class ChatController {
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of("llmConfigured", llmClient.isConfigured());
+    }
+
+    /**
+     * Cursor-style: summarize a reasoning phase in one short sentence (lightweight LLM).
+     * POST body: { "text": "..." }. Response: { "summary": "..." } or 400 when text too short / missing.
+     */
+    @PostMapping("/summarize-reasoning")
+    public ResponseEntity<Map<String, String>> summarizeReasoning(@RequestBody SummarizeReasoningRequest request) {
+        String text = request != null ? request.text() : null;
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+        String summary = reasoningSummarizerService.summarize(text.trim());
+        return ResponseEntity.ok(Map.of("summary", summary != null ? summary : ""));
+    }
+
+    public record SummarizeReasoningRequest(String text) {
     }
 }

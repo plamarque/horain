@@ -14,8 +14,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -408,6 +413,14 @@ public class LlmChatService {
                 if (iterations > 0) {
                     log.debug("Tool iteration {} for message: {}", iterations, userMessage);
                 }
+                // Send model name as soon as known (first LLM call) so the client can display it in the trace
+                if (iterations == 0) {
+                    writer.sendModelName(resolveModelName());
+                }
+                // End current reasoning phase so the client can show one "Thought" box per phase with tool calls between
+                if (streamingClient && reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0) {
+                    writer.sendReasoningPhaseDone(Long.valueOf(reasoningTimeMs[1] - reasoningTimeMs[0]));
+                }
 
                 String turnContent = response.content() != null ? response.content() : "";
                 if (!turnContent.isBlank()) {
@@ -427,6 +440,22 @@ public class LlmChatService {
                     if (accumulatedAssistantMessage.length() > 0) {
                         assistantMessage = accumulatedAssistantMessage.toString();
                     } else {
+                        // #region agent log
+                        try {
+                            Map<String, Object> debugData = new LinkedHashMap<>();
+                            debugData.put("responseContentEmpty", true);
+                            debugData.put("hasToolCalls", response.hasToolCalls());
+                            Map<String, Object> entry = new LinkedHashMap<>();
+                            entry.put("sessionId", "57e58b");
+                            entry.put("location", "LlmChatService.java:emptyContent");
+                            entry.put("message", "Setting fallback message: empty LLM content");
+                            entry.put("data", debugData);
+                            entry.put("hypothesisId", "H4");
+                            entry.put("timestamp", System.currentTimeMillis());
+                            String line = objectMapper.writeValueAsString(entry) + "\n";
+                            Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (Exception ignored) { }
+                        // #endregion
                         log.warn("LLM returned empty content (check backend logs for Responses API or model errors)");
                         assistantMessage = "I'm sorry, I couldn't generate a response.";
                     }
@@ -437,7 +466,7 @@ public class LlmChatService {
                             ? Long.valueOf(reasoningTimeMs[1] - reasoningTimeMs[0]) : null;
                     UUID turnId = persistTurn(userMessage, assistantMessage, toolCallsExecuted,
                             data.isEmpty() ? null : data, history, contextEntries, startTime, false, resolveModelName());
-                    writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, reasoningText, reasoningDurationMs);
+                    writer.sendDone(assistantMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, reasoningText, reasoningDurationMs, resolveModelName());
                     return;
                 }
 
@@ -482,8 +511,24 @@ public class LlmChatService {
             String maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request.";
             UUID turnId = persistTurn(userMessage, maxStepsMessage, toolCallsExecuted, data.isEmpty() ? null : data,
                     history, contextEntries, startTime, true, resolveModelName());
-            writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, null, null);
+            writer.sendDone(maxStepsMessage, toolCallsExecuted, toolCallIterations, data.isEmpty() ? null : data, turnId, null, null, resolveModelName());
         } catch (Exception e) {
+            // #region agent log
+            try {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("exceptionClass", e.getClass().getSimpleName());
+                data.put("exceptionMessage", e.getMessage());
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("sessionId", "57e58b");
+                entry.put("location", "LlmChatService.java:catch");
+                entry.put("message", "chatStream exception");
+                entry.put("data", data);
+                entry.put("hypothesisId", "H3");
+                entry.put("timestamp", System.currentTimeMillis());
+                String line = objectMapper.writeValueAsString(entry) + "\n";
+                Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (Exception ignored) { }
+            // #endregion
             log.error("chatStream error: {}", e.getMessage(), e);
             writer.sendError(e.getMessage());
         } finally {

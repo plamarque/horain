@@ -16,6 +16,7 @@ public record LlmProperties(
         String modelSimple,
         String modelComplex,
         String modelVeryComplex,
+        String modelSummary,
         String reasoningEffortComplex,
         String reasoningEffortVeryComplex) {
 
@@ -25,6 +26,11 @@ public record LlmProperties(
 
     public String model() {
         return model != null && !model.isBlank() ? model : "gpt-4o-mini";
+    }
+
+    /** Model used for one-shot reasoning summaries (Cursor-style). When empty, uses model(). */
+    public String modelSummary() {
+        return modelSummary != null && !modelSummary.isBlank() ? modelSummary : model();
     }
 
     public String reasoningEffortComplex() {

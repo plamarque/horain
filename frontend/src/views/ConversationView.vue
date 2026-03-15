@@ -4,7 +4,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, inject } from '
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
-import { sendChatMessage, sendChatMessageStream } from '../services/chatClient'
+import { sendChatMessage, sendChatMessageStream, summarizeReasoning } from '../services/chatClient'
 import { getRecentTimeLogs } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
 import type { AgentTrace, AssistantMessageSegment, ChartSpec, Message, TimeLogEntry } from '../types'
@@ -377,6 +377,29 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
             msg.agentTrace.reasoningText = (msg.agentTrace.reasoningText ?? '') + reasoningDelta
           }
         },
+        onReasoningPhaseDone(reasoningDurationMs) {
+          const id = streamingMessageId.value
+          const msg = id ? messages.value.find((m) => m.id === id) : null
+          if (msg?.agentTrace) {
+            if (!msg.agentTrace.reasoningPhases) msg.agentTrace.reasoningPhases = []
+            const phaseText = msg.agentTrace.reasoningText ?? ''
+            msg.agentTrace.reasoningPhases.push({
+              text: phaseText,
+              durationMs: reasoningDurationMs,
+            })
+            msg.agentTrace.reasoningText = ''
+            if (phaseText.trim().length >= 150) {
+              const phaseIndex = msg.agentTrace.reasoningPhases.length - 1
+              summarizeReasoning(phaseText)
+                .then((summary) => {
+                  if (summary && msg?.agentTrace?.reasoningPhases?.[phaseIndex]) {
+                    msg.agentTrace.reasoningPhases[phaseIndex].summary = summary
+                  }
+                })
+                .catch(() => {})
+            }
+          }
+        },
         onAssistantSegment(text) {
           streamingSegments.value.push({ type: 'text', text })
           const id = streamingMessageId.value
@@ -387,6 +410,34 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
               msg.segments = [...streamingSegments.value]
             }
           }
+        },
+        onModelName(modelName) {
+          let id = streamingMessageId.value
+          if (id) {
+            const msg = messages.value.find((m) => m.id === id)
+            if (msg?.agentTrace) {
+              msg.agentTrace.modelName = modelName
+            }
+            return
+          }
+          // Model event often arrives before first chunk/tool_call; create message so "Modèle" shows from the start
+          streamingSegments.value = []
+          id = crypto.randomUUID()
+          streamingMessageId.value = id
+          const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
+          messages.value.push({
+            id,
+            role: 'assistant',
+            text: '',
+            timestamp: new Date(),
+            isStreaming: true,
+            agentTrace: { toolCalls: [], modelName },
+            segments: [],
+          })
+          nextTick(() => {
+            if (wasAtBottom) timelineRef.value?.scrollToBottom()
+            else hasNewMessageBelow.value = true
+          })
         },
         onToolCall(call) {
           const display = {
@@ -462,19 +513,58 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
               if (chart) msg.chart = chart
               if (timeLogs?.length) msg.timeLogs = timeLogs
               if (payload.turnId != null) msg.turnId = payload.turnId
-              msg.agentTrace = agentTrace ?? msg.agentTrace ?? { toolCalls: [] }
-              if (payload.reasoningText != null) msg.agentTrace.reasoningText = payload.reasoningText
-              if (payload.reasoningDurationMs != null) msg.agentTrace.reasoningDurationMs = payload.reasoningDurationMs
-              if (payload.reasoningSummary != null) msg.agentTrace.reasoningSummary = payload.reasoningSummary
+              // Preserve streamed reasoning: phases, toolCalls, or current reasoningText (so we never drop "Thinking" content)
+              const hasStreamedReasoning =
+                (msg.agentTrace?.reasoningPhases?.length ?? 0) > 0 ||
+                (msg.agentTrace?.toolCalls?.length ?? 0) > 0 ||
+                (typeof msg.agentTrace?.reasoningText === 'string' && msg.agentTrace.reasoningText.length > 0)
+              if (!hasStreamedReasoning) {
+                msg.agentTrace = agentTrace ?? msg.agentTrace ?? { toolCalls: [] }
+              } else if (agentTrace?.toolCalls?.length && msg.agentTrace && !msg.agentTrace.toolCalls?.length) {
+                msg.agentTrace.toolCalls = agentTrace.toolCalls
+              }
+              const trace = msg.agentTrace ?? { toolCalls: [] }
+              msg.agentTrace = trace
+              // Push any remaining streaming reasoning into a final phase so "Thought for Xs" is not lost
+              const remainingReasoning = trace.reasoningText?.trim() ?? ''
+              if (remainingReasoning.length > 0) {
+                if (!trace.reasoningPhases) trace.reasoningPhases = []
+                trace.reasoningPhases.push({
+                  text: remainingReasoning,
+                  durationMs: payload.reasoningDurationMs ?? undefined,
+                })
+                trace.reasoningText = ''
+                if (remainingReasoning.length >= 150) {
+                  const phases = trace.reasoningPhases
+                  const idx = phases.length - 1
+                  summarizeReasoning(remainingReasoning)
+                    .then((summary) => {
+                      if (summary && phases[idx]) phases[idx].summary = summary
+                    })
+                    .catch(() => {})
+                }
+              }
+              if (payload.reasoningText != null && !(trace.reasoningPhases?.length)) {
+                trace.reasoningText = payload.reasoningText
+              }
+              if (payload.reasoningDurationMs != null) {
+                trace.reasoningDurationMs = payload.reasoningDurationMs
+                const phases = trace.reasoningPhases
+                if (phases?.length) {
+                  phases[phases.length - 1].durationMs = payload.reasoningDurationMs
+                }
+              }
+              if (payload.reasoningSummary != null) trace.reasoningSummary = payload.reasoningSummary
+              if (payload.modelName != null) trace.modelName = payload.modelName
               if (streamingSegments.value.length > 0) {
                 msg.segments = [...streamingSegments.value]
               }
             }
           } else {
             const mergedTrace: AgentTrace | undefined = agentTrace
-              ? { ...agentTrace, reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary }
-              : (payload.reasoningText != null || payload.reasoningDurationMs != null || payload.reasoningSummary != null)
-                ? { toolCalls: [], reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary }
+              ? { ...agentTrace, reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary, modelName: payload.modelName }
+              : (payload.reasoningText != null || payload.reasoningDurationMs != null || payload.reasoningSummary != null || payload.modelName != null)
+                ? { toolCalls: [], reasoningText: payload.reasoningText, reasoningDurationMs: payload.reasoningDurationMs, reasoningSummary: payload.reasoningSummary, modelName: payload.modelName }
                 : undefined
             addAssistantMessage(payload.assistantMessage ?? '', chart, timeLogs, payload.turnId, mergedTrace)
           }

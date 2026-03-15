@@ -18,6 +18,8 @@ export interface ChatMessageResponse {
   reasoningDurationMs?: number
   /** Optional one-line summary (Cursor-style); when absent, UI derives from reasoningText. */
   reasoningSummary?: string
+  /** Model name used for this turn (e.g. "o4-mini"); sent in stream or in done payload. */
+  modelName?: string
 }
 
 /** Maximum number of history messages to send (keeps context window manageable). */
@@ -89,6 +91,16 @@ export async function sendChatMessage(
 }
 
 /**
+ * Cursor-style: summarize reasoning text in one short sentence (lightweight LLM).
+ * Returns empty string when summarization is not available or text is too short.
+ */
+export async function summarizeReasoning(text: string): Promise<string> {
+  if (!text?.trim() || text.trim().length < 150) return ''
+  const res = await apiPost<{ summary?: string }>('/chat/summarize-reasoning', { text: text.trim() })
+  return typeof res?.summary === 'string' ? res.summary : ''
+}
+
+/**
  * Submit user feedback (thumb up/down) for a turn.
  */
 export async function sendFeedback(
@@ -120,8 +132,12 @@ export interface StreamCallbacks {
   onToolCall?: (call: ToolCallPayload) => void
   /** Called for each reasoning text delta (event: reasoning_chunk). */
   onReasoningChunk?: (text: string) => void
+  /** Called when the current reasoning phase ends (event: reasoning_phase_done); client should push accumulated reasoning as a phase. */
+  onReasoningPhaseDone?: (reasoningDurationMs?: number) => void
   /** Called when a text segment is sent before tool calls for a turn (event: assistant_segment). */
   onAssistantSegment?: (text: string, iterationIndex: number) => void
+  /** Called when the model name is known (event: model); also provided in onDone payload. */
+  onModelName?: (modelName: string) => void
 }
 
 /**
@@ -276,10 +292,19 @@ function dispatchEvent(
       if (typeof data.text === 'string') {
         callbacks.onReasoningChunk?.(data.text)
       }
+    } else if (event === 'reasoning_phase_done') {
+      const data = JSON.parse(dataStr) as { reasoningDurationMs?: number }
+      callbacks.onReasoningPhaseDone?.(data.reasoningDurationMs)
     } else if (event === 'assistant_segment') {
       const data = JSON.parse(dataStr) as { text?: string; iterationIndex?: number }
       if (typeof data.text === 'string') {
         callbacks.onAssistantSegment?.(data.text, typeof data.iterationIndex === 'number' ? data.iterationIndex : 0)
+      }
+    } else if (event === 'model') {
+      const data = JSON.parse(dataStr) as { model?: string }
+      const modelName = typeof data.model === 'string' ? data.model.trim() : ''
+      if (modelName) {
+        callbacks.onModelName?.(modelName)
       }
     }
   } catch (e) {

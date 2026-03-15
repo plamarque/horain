@@ -54,7 +54,7 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
 
     @Override
     public void sendDone(String assistantMessage, List<ToolCallRecord> toolCalls, List<Integer> toolCallIterations,
-                         Object data, UUID turnId, String reasoningText, Long reasoningDurationMs) {
+                         Object data, UUID turnId, String reasoningText, Long reasoningDurationMs, String modelName) {
         if (completed) return;
         try {
             List<Map<String, Object>> toolCallsDto = toolCalls != null
@@ -85,6 +85,9 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
             if (reasoningDurationMs != null && reasoningDurationMs >= 0) {
                 payload.put("reasoningDurationMs", reasoningDurationMs);
             }
+            if (modelName != null && !modelName.isBlank()) {
+                payload.put("modelName", modelName);
+            }
             String json = objectMapper.writeValueAsString(payload);
             emitter.send(SseEmitter.event().name("done").data(json, MediaType.APPLICATION_JSON));
             emitter.complete();
@@ -107,6 +110,33 @@ public class SseEmitterStreamEventWriter implements StreamEventWriter {
         } catch (IOException e) {
             log.warn("Failed to send reasoning_chunk: {}", e.getMessage());
             completeWithError(e.getMessage());
+        }
+    }
+
+    @Override
+    public void sendReasoningPhaseDone(Long reasoningDurationMs) {
+        if (completed) return;
+        try {
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            if (reasoningDurationMs != null && reasoningDurationMs >= 0) {
+                data.put("reasoningDurationMs", reasoningDurationMs);
+            }
+            String json = objectMapper.writeValueAsString(data);
+            emitter.send(SseEmitter.event().name("reasoning_phase_done").data(json, MediaType.APPLICATION_JSON));
+        } catch (IOException e) {
+            log.warn("Failed to send reasoning_phase_done: {}", e.getMessage());
+            completeWithError(e.getMessage());
+        }
+    }
+
+    @Override
+    public void sendModelName(String modelName) {
+        if (completed || modelName == null || modelName.isBlank()) return;
+        try {
+            String data = objectMapper.writeValueAsString(Map.of("model", modelName));
+            emitter.send(SseEmitter.event().name("model").data(data, MediaType.APPLICATION_JSON));
+        } catch (IOException e) {
+            log.warn("Failed to send model event: {}", e.getMessage());
         }
     }
 

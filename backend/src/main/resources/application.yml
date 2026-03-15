@@ -19,6 +19,7 @@ llm:
   model-simple: ${LLM_MODEL_SIMPLE:}
   model-complex: ${LLM_MODEL_COMPLEX:}
   model-very-complex: ${LLM_MODEL_VERY_COMPLEX:}
+  model-summary: ${LLM_MODEL_SUMMARY:}
   reasoning-effort-complex: ${LLM_REASONING_EFFORT_COMPLEX:medium}
   reasoning-effort-very-complex: ${LLM_REASONING_EFFORT_VERY_COMPLEX:high}
   # client: openai-compatible (default, RestTemplate) | spring-ai (Spring AI ChatModel - known 404 issues)
@@ -107,6 +108,7 @@ llm:
   model-simple: ${LLM_MODEL_SIMPLE:}
   model-complex: ${LLM_MODEL_COMPLEX:}
   model-very-complex: ${LLM_MODEL_VERY_COMPLEX:}
+  model-summary: ${LLM_MODEL_SUMMARY:}
   reasoning-effort-complex: ${LLM_REASONING_EFFORT_COMPLEX:medium}
   reasoning-effort-very-complex: ${LLM_REASONING_EFFORT_VERY_COMPLEX:high}
   client: ${LLM_CLIENT:openai-compatible}

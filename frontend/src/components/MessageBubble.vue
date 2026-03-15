@@ -61,11 +61,12 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
   <div class="message-block">
     <!-- Interleaved: reasoning + (text then tools per turn) + final bubble when segments from stream -->
     <template v-if="role === 'assistant' && segments?.length">
-      <div v-if="agentTrace?.reasoningText" class="message-row assistant trace-row">
+      <!-- Full trace in one block so Thought and tool calls are interleaved (phase 0, tools 0, phase 1, tools 1) -->
+      <div v-if="agentTrace?.modelName || (agentTrace?.reasoningPhases?.length ?? 0) > 0 || agentTrace?.reasoningText || (agentTrace?.toolCalls?.length ?? 0) > 0" class="message-row assistant trace-row">
         <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
         <AgentTraceBlock
-          :agent-trace="{ toolCalls: [], reasoningText: agentTrace.reasoningText, reasoningDurationMs: agentTrace.reasoningDurationMs, reasoningSummary: agentTrace.reasoningSummary }"
-          :is-streaming="false"
+          :agent-trace="agentTrace"
+          :is-streaming="isStreaming ?? false"
         />
       </div>
       <template v-for="(seg, idx) in segments" :key="idx">
@@ -75,21 +76,14 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
             <div class="content content--markdown" v-html="segmentTextHtml(seg)" />
           </div>
         </div>
-        <div v-else class="message-row assistant trace-row">
-          <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
-          <AgentTraceBlock
-            :agent-trace="{ toolCalls: seg.toolCalls }"
-            :is-streaming="false"
-          />
-        </div>
       </template>
-      <!-- Current turn streaming or final reply (only when we have segments: text is the last turn only) -->
-      <div v-if="text || (isStreaming ?? false)" class="message-row assistant">
+      <!-- Current turn streaming or final reply: show bubble only when there is text (not during reasoning) -->
+      <div v-if="text" class="message-row assistant">
         <img src="/favicon.svg" alt="" class="avatar" aria-hidden="true" />
         <div class="bubble assistant">
           <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
           <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
-          <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+          <span v-if="isStreaming && text" class="streaming-cursor" aria-hidden="true" />
         </div>
       </div>
     </template>
@@ -102,7 +96,7 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
           :is-streaming="isStreaming ?? false"
         />
       </div>
-      <div class="message-row" :class="role">
+      <div v-if="role === 'user' || text" class="message-row" :class="role">
         <img
           v-if="role === 'assistant'"
           src="/favicon.svg"
@@ -112,7 +106,7 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
         <div class="bubble" :class="role">
           <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
           <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
-          <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+          <span v-if="isStreaming && text" class="streaming-cursor" aria-hidden="true" />
         </div>
       </div>
     </template>

@@ -14,8 +14,13 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -102,6 +107,7 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
         StringBuilder contentAccumulator = new StringBuilder();
         StringBuilder reasoningAccumulator = new StringBuilder();
         List<ToolCallRequest> toolCallsAccumulator = new ArrayList<>();
+        Map<String, String> itemIdToName = new java.util.HashMap<>();
         AtomicReference<LlmResponse> resultRef = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
         StringBuilder lineBuffer = new StringBuilder();
@@ -123,6 +129,11 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                         String line = lineBuffer.substring(0, idx).trim();
                         lineBuffer.delete(0, idx + 1);
                         if (line.isEmpty()) continue;
+                        // SSE format: "data: {...}" or "data: [DONE]"
+                        if (line.startsWith("data:")) {
+                            line = line.substring(5).trim();
+                            if (line.isEmpty() || "[DONE]".equals(line)) continue;
+                        }
                         try {
                             JsonNode event = objectMapper.readTree(line);
                             String type = event.has("type") ? event.get("type").asText("") : "";
@@ -165,14 +176,23 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                                         }
                                     }
                                 }
+                                case "response.output_item.added" -> {
+                                    JsonNode item = event.has("item") ? event.get("item") : null;
+                                    if (item != null && "function_call".equals(item.has("type") ? item.get("type").asText("") : "")) {
+                                        String itemId = item.has("id") ? item.get("id").asText("") : (item.has("call_id") ? item.get("call_id").asText("") : "");
+                                        String itemName = item.has("name") ? item.get("name").asText("") : "";
+                                        if (!itemId.isEmpty()) itemIdToName.put(itemId, itemName != null ? itemName : "");
+                                    }
+                                }
                                 case "response.function_call_arguments.delta" -> {
                                     // Accumulate per item_id; we only need final args from .done
                                 }
                                 case "response.function_call_arguments.done" -> {
                                     String id = event.has("item_id") ? event.get("item_id").asText("") : "";
                                     String name = event.has("name") ? event.get("name").asText("") : "";
+                                    if (name == null || name.isBlank()) name = itemIdToName.getOrDefault(id, "");
                                     String args = event.has("arguments") ? event.get("arguments").asText("{}") : "{}";
-                                    toolCallsAccumulator.add(new ToolCallRequest(id, name, args));
+                                    toolCallsAccumulator.add(new ToolCallRequest(id, name != null ? name : "", args));
                                 }
                                 default -> { /* ignore other events */ }
                             }
@@ -182,13 +202,31 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                     }
                 },
                 err -> {
-                    if (err instanceof WebClientResponseException e) {
-                        String errorBody = e.getResponseBodyAsString();
-                        log.warn("Responses API stream failed: model={} status={} body={}",
-                                model, e.getStatusCode(), errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) + "..." : errorBody);
-                    } else {
-                        log.warn("Responses API stream failed: model={} error={}", model, err.getMessage(), err);
-                    }
+                    // #region agent log
+                    try {
+                        Map<String, Object> data = new LinkedHashMap<>();
+                        data.put("model", model);
+                        if (err instanceof WebClientResponseException e) {
+                            String errorBody = e.getResponseBodyAsString();
+                            data.put("status", e.getStatusCode().value());
+                            data.put("bodyPreview", errorBody != null && errorBody.length() > 300 ? errorBody.substring(0, 300) + "..." : errorBody);
+                            log.warn("Responses API stream failed: model={} status={} body={}",
+                                    model, e.getStatusCode(), errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) + "..." : errorBody);
+                        } else {
+                            data.put("errorMessage", err.getMessage());
+                            log.warn("Responses API stream failed: model={} error={}", model, err.getMessage(), err);
+                        }
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("sessionId", "57e58b");
+                        entry.put("location", "OpenAiResponsesLlmClient.java:err");
+                        entry.put("message", "Responses API stream failed");
+                        entry.put("data", data);
+                        entry.put("hypothesisId", "H1");
+                        entry.put("timestamp", System.currentTimeMillis());
+                        String line = objectMapper.writeValueAsString(entry) + "\n";
+                        Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (Exception ignored) { }
+                    // #endregion
                     resultRef.set(new LlmResponse(contentAccumulator.toString(),
                             toolCallsAccumulator.isEmpty() ? null : toolCallsAccumulator,
                             "error",
@@ -196,6 +234,24 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                     latch.countDown();
                 },
                 () -> {
+                    // #region agent log
+                    if (contentAccumulator.isEmpty()) {
+                        try {
+                            Map<String, Object> data = new LinkedHashMap<>();
+                            data.put("model", model);
+                            data.put("contentEmpty", true);
+                            Map<String, Object> entry = new LinkedHashMap<>();
+                            entry.put("sessionId", "57e58b");
+                            entry.put("location", "OpenAiResponsesLlmClient.java:complete");
+                            entry.put("message", "Stream completed with empty content");
+                            entry.put("data", data);
+                            entry.put("hypothesisId", "H2");
+                            entry.put("timestamp", System.currentTimeMillis());
+                            String line = objectMapper.writeValueAsString(entry) + "\n";
+                            Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (Exception ignored) { }
+                    }
+                    // #endregion
                     resultRef.set(new LlmResponse(contentAccumulator.toString(),
                             toolCallsAccumulator.isEmpty() ? null : toolCallsAccumulator,
                             "stop",
@@ -263,6 +319,9 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                 }
                 inputArray.add(userMsg);
             } else if ("assistant".equals(role)) {
+                // Responses API does not accept "tool_calls" on the assistant message object (400 unknown_parameter).
+                // Send assistant content only, then each tool call as a separate input item (type "function_call")
+                // so that subsequent function_call_output items have a matching call_id.
                 ObjectNode asstMsg = objectMapper.createObjectNode();
                 asstMsg.put("role", "assistant");
                 if (msg.content() != null && !msg.content().isBlank()) {
@@ -275,19 +334,17 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                 } else {
                     asstMsg.putArray("content");
                 }
-                if (msg.toolCalls() != null && !msg.toolCalls().isEmpty()) {
-                    ArrayNode toolCallsArray = objectMapper.createArrayNode();
-                    for (ToolCallRequest tc : msg.toolCalls()) {
-                        ObjectNode tcNode = objectMapper.createObjectNode();
-                        tcNode.put("type", "function_call");
-                        tcNode.put("id", tc.id());
-                        tcNode.put("name", tc.name());
-                        tcNode.put("arguments", tc.arguments());
-                        toolCallsArray.add(tcNode);
-                    }
-                    asstMsg.set("tool_calls", toolCallsArray);
-                }
                 inputArray.add(asstMsg);
+                if (msg.toolCalls() != null && !msg.toolCalls().isEmpty()) {
+                    for (ToolCallRequest tc : msg.toolCalls()) {
+                        ObjectNode fcNode = objectMapper.createObjectNode();
+                        fcNode.put("type", "function_call");
+                        fcNode.put("call_id", tc.id());
+                        fcNode.put("name", tc.name());
+                        fcNode.put("arguments", tc.arguments() != null ? tc.arguments() : "{}");
+                        inputArray.add(fcNode);
+                    }
+                }
             } else if ("tool".equals(role) && msg.toolCallId() != null) {
                 ObjectNode toolOutput = objectMapper.createObjectNode();
                 toolOutput.put("type", "function_call_output");

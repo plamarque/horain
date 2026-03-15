@@ -16,11 +16,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -89,7 +94,28 @@ public class ToolExecutorService {
                 case ToolRegistry.STORE_MEMORY -> executeStoreMemory(args);
                 case ToolRegistry.GET_MEMORIES -> executeGetMemories(args);
                 case ToolRegistry.FORGET_MEMORY -> executeForgetMemory(args);
-                default -> toDualResult("Error: Unknown tool " + request.name(), Map.of("error", "Unknown tool: " + request.name()));
+                default -> {
+                    // #region agent log
+                    try {
+                        String argsPreview = request.arguments();
+                        if (argsPreview != null && argsPreview.length() > 200) argsPreview = argsPreview.substring(0, 200) + "...";
+                        Map<String, Object> data = new LinkedHashMap<>();
+                        data.put("toolName", request.name());
+                        data.put("toolId", request.id());
+                        data.put("argumentsPreview", argsPreview);
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("sessionId", "57e58b");
+                        entry.put("location", "ToolExecutorService.java:execute");
+                        entry.put("message", "Unknown tool - first call debug");
+                        entry.put("data", data);
+                        entry.put("hypothesisId", "H_unknown_tool");
+                        entry.put("timestamp", System.currentTimeMillis());
+                        String line = objectMapper.writeValueAsString(entry) + "\n";
+                        Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (Exception ignored) { }
+                    // #endregion
+                    yield toDualResult("Error: Unknown tool " + request.name(), Map.of("error", "Unknown tool: " + request.name()));
+                }
             };
             return new ToolCallResult(request.id(), result);
         } catch (Exception e) {
