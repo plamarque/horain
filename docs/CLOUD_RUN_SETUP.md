@@ -177,9 +177,9 @@ If the revision fails with *"The user-provided container failed to start and lis
 
 2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup.
 
-3. **Port and binding**: The repo is configured so the backend listens on `0.0.0.0` and `PORT` (default 8080). The build uses `--port=8080` and `--cpu-boost` to speed startup. If you deploy with another method, ensure the container listens on all interfaces and on the port provided by Cloud Run.
+3. **Port and binding**: The repo is configured so the backend listens on `0.0.0.0` and `PORT` (default 8080). The build uses `--port=8080` and `--cpu-boost` when deploying via the repo `cloudbuild.yaml`. If you use **Cloud Run "Connect repository"** (source deploy), configure the service with port 8080 and CPU boost in the Cloud Run console (Edit & deploy → Container → Port, and enable startup CPU boost). Ensure the container listens on all interfaces.
 
-4. **Startup timeout**: Cloud Run allows up to 240 seconds for the container to listen on the port. If the app is slow (e.g. many Flyway migrations, slow DB), ensure the Supabase Session Pooler URL is used and consider increasing CPU/memory for the service so startup finishes in time.
+4. **Startup timeout**: Cloud Run allows up to 240 seconds for the container to listen on the port. The app uses **lazy initialization** in the `postgres` profile so the HTTP server binds to the port before DataSource/Flyway run (they initialize on first request). If the container still fails, run the image locally to see the real error: `docker run --rm -e PORT=8080 -e SPRING_PROFILES_ACTIVE=postgres -e SPRING_DATASOURCE_URL=... -e SPRING_DATASOURCE_USERNAME=... -e SPRING_DATASOURCE_PASSWORD=... -p 8080:8080 YOUR_IMAGE` (use the same env as Cloud Run).
 
 See [Cloud Run troubleshooting](https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start) for more.
 
