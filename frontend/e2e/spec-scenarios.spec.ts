@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+// #region agent log
+const DEBUG_LOG = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
+  fetch('http://127.0.0.1:7511/ingest/cb0e9a9d-fd58-4c4c-a176-9369ea09a8a5', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c843fd' },
+    body: JSON.stringify({ sessionId: 'c843fd', location: 'spec-scenarios.spec.ts', message, data, hypothesisId, timestamp: Date.now() }),
+  }).catch(() => {})
+}
+// #endregion
+
 /**
  * E2E: SPEC expected behaviors — ambiguous project, unknown project, missing duration.
  * See docs/SPEC.md "Expected Behaviors".
@@ -80,8 +90,18 @@ test.describe('SPEC scenarios', () => {
     const projectName = `ZzzDurEst${Date.now()}`
     await input.fill(`15 minutes on ${projectName}`)
     await page.getByRole('button', { name: 'Send' }).click()
+    // #region agent log
+    const lastBubbleSpec = page.locator('.bubble.assistant').last()
+    const bubbleCountSpec = await page.locator('.bubble.assistant').count()
+    const lastBubbleTextSpec = await lastBubbleSpec.innerText().catch(() => '') ?? ''
+    DEBUG_LOG('spec missing duration: before first assert', {
+      projectName,
+      bubbleCountSpec,
+      lastBubbleTextSpec: typeof lastBubbleTextSpec === 'string' ? lastBubbleTextSpec.slice(0, 400) : String(lastBubbleTextSpec).slice(0, 400),
+    }, 'H1')
+    // #endregion
     await expect(
-      page.locator('.bubble.assistant').last()
+      lastBubbleSpec
     ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), {
       timeout: 10000,
     })

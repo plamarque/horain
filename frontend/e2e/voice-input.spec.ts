@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+// #region agent log
+const DEBUG_LOG = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
+  fetch('http://127.0.0.1:7511/ingest/cb0e9a9d-fd58-4c4c-a176-9369ea09a8a5', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c843fd' },
+    body: JSON.stringify({ sessionId: 'c843fd', location: 'voice-input.spec.ts', message, data, hypothesisId, timestamp: Date.now() }),
+  }).catch(() => {})
+}
+// #endregion
+
 /**
  * Mock Web Speech API so voice tests run without real microphone/speech.
  * Injects before page load. Simulates: start() -> (user clicks Confirm) -> stop() -> onTranscript with canned text.
@@ -82,6 +92,17 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
+    // #region agent log
+    const bubbleCountVoice = await page.locator('.bubble.assistant').count()
+    const matchingCount = await page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).count()
+    const lastBubbleVoice = page.locator('.bubble.assistant').last()
+    const lastBubbleTextVoice = await lastBubbleVoice.innerText().catch(() => '') ?? ''
+    DEBUG_LOG('voice-input: before confirmation assert', {
+      bubbleCountVoice,
+      matchingCount,
+      lastBubbleTextVoice: typeof lastBubbleTextVoice === 'string' ? lastBubbleTextVoice.slice(0, 400) : String(lastBubbleTextVoice).slice(0, 400),
+    }, 'H4')
+    // #endregion
     // Assert confirmation in the latest assistant bubble (align with log-time.spec wording; .last() = reply to this send)
     await expect(
       page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).last()
