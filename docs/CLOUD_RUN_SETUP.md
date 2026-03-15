@@ -216,7 +216,7 @@ If Cloud Run fails to connect to the database (connection timeout, auth failure,
    - `SPRING_DATASOURCE_USERNAME` = from Supabase (e.g. `postgres.xxxxx`)
    - `SPRING_DATASOURCE_PASSWORD` = the actual DB password (or reference to Secret Manager)
 
-   Typo or wrong case (e.g. `DATABASE_URL` instead of `SPRING_DATASOURCE_URL`) will prevent connection.
+   Names must be exactly **`SPRING_DATASOURCE_URL`** (with the `SPRING_` prefix). A typo or wrong name (e.g. `DATABASE_URL`) means the app falls back to the default in code, which is **localhost**. In the container there is no Postgres on localhost, so you get a connection timeout instead of an auth error. Check the revision’s **Variables and secrets** and fix the names if needed.
 
 6. **"Connection is not available, request timed out" (no auth error)**  
    If logs show a **timeout** (e.g. HikariCP "request timed out after 15001ms") and not "password authentication failed", outbound traffic from Cloud Run to Supabase may be blocked:
