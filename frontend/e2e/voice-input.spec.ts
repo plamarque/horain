@@ -82,9 +82,9 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
-    // Assert confirmation in an assistant bubble (evidence: assistantBlockCount 0 when using message-block; use .bubble.assistant + text)
+    // Assert confirmation in the latest assistant bubble (align with log-time.spec wording; .last() = reply to this send)
     await expect(
-      page.locator('.bubble.assistant').filter({ hasText: /logged|created|minutes|HatCast/i })
+      page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).last()
     ).toBeVisible({ timeout: 10000 })
   })
 
