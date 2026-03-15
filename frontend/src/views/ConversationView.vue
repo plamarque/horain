@@ -364,6 +364,14 @@ async function handleSubmit(text: string) {
         },
         onAssistantSegment(text) {
           streamingSegments.value.push({ type: 'text', text })
+          const id = streamingMessageId.value
+          if (id) {
+            const msg = messages.value.find((m) => m.id === id)
+            if (msg) {
+              msg.text = ''
+              msg.segments = [...streamingSegments.value]
+            }
+          }
         },
         onToolCall(call) {
           const display = {
@@ -386,6 +394,13 @@ async function handleSubmit(text: string) {
               timestamp: new Date(),
               isStreaming: true,
               agentTrace: { toolCalls: [display] },
+              segments: [
+                {
+                  type: 'tools',
+                  iterationIndex: typeof call.iterationIndex === 'number' ? call.iterationIndex : 0,
+                  toolCalls: [display],
+                },
+              ],
             })
             streamingSegments.value.push({
               type: 'tools',
@@ -410,6 +425,7 @@ async function handleSubmit(text: string) {
           } else {
             streamingSegments.value.push({ type: 'tools', iterationIndex: iter, toolCalls: [display] })
           }
+          if (msg) msg.segments = [...streamingSegments.value]
         },
         onDone(payload) {
           const rawChart = payload.data && typeof payload.data === 'object' && 'chart' in payload.data

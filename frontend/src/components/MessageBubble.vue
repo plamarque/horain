@@ -59,7 +59,7 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
 
 <template>
   <div class="message-block">
-    <!-- Interleaved: text then tools per turn (assistant with segments from stream) -->
+    <!-- Interleaved: reasoning + (text then tools per turn) + final bubble when segments from stream -->
     <template v-if="role === 'assistant' && segments?.length">
       <div v-if="agentTrace?.reasoningText" class="message-row assistant trace-row">
         <img src="/favicon.svg" alt="" class="avatar avatar-spacer" aria-hidden="true" />
@@ -83,6 +83,15 @@ function segmentTextHtml(seg: { type: 'text'; text: string }) {
           />
         </div>
       </template>
+      <!-- Current turn streaming or final reply (only when we have segments: text is the last turn only) -->
+      <div v-if="text || (isStreaming ?? false)" class="message-row assistant">
+        <img src="/favicon.svg" alt="" class="avatar" aria-hidden="true" />
+        <div class="bubble assistant">
+          <div v-if="text && useHtml && !isStreaming" class="content content--markdown" v-html="formattedContent" />
+          <div v-else-if="text" class="content">{{ isStreaming ? text : formattedContent }}</div>
+          <span v-if="isStreaming" class="streaming-cursor" aria-hidden="true" />
+        </div>
+      </div>
     </template>
     <!-- Default: trace above, then one bubble -->
     <template v-else>

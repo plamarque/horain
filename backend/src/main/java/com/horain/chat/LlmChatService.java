@@ -422,9 +422,7 @@ public class LlmChatService {
                     String assistantMessage = accumulatedAssistantMessage.length() > 0
                             ? accumulatedAssistantMessage.toString()
                             : "I'm sorry, I couldn't generate a response.";
-                    if (!turnContent.isBlank()) {
-                        writer.sendAssistantSegment(turnContent.trim(), iterations);
-                    }
+                    // Do not send assistant_segment for the final turn so the client shows only this reply in the bubble.
                     String reasoningText = response.reasoningSummary() != null && !response.reasoningSummary().isBlank()
                             ? response.reasoningSummary() : null;
                     Long reasoningDurationMs = (reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0)
