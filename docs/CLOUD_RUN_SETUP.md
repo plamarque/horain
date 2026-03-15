@@ -114,7 +114,7 @@ If you created the service from the console (Option A), the first revision may r
 | Key | Value |
 |-----|-------|
 | `SPRING_PROFILES_ACTIVE` | `postgres` |
-| `SPRING_DATASOURCE_URL` | JDBC URL from Supabase (Session Pooler), e.g. `jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres` |
+| `SPRING_DATASOURCE_URL` | JDBC URL from Supabase **Session** pooler (port 5432). Session mode has a low connection limit; the app uses a pool size of 1 per instance. For higher concurrency, use **Transaction** pooler (port 6543) and you can increase pool size. |
 | `SPRING_DATASOURCE_USERNAME` | From Supabase (e.g. `postgres.PROJECT_REF`) |
 | `SPRING_DATASOURCE_PASSWORD` | Supabase DB password (prefer Secret Manager, see below) |
 | `HORAIN_API_KEY` | e.g. `openssl rand -hex 32` (same value as `VITE_API_KEY` in GitHub secrets) |
@@ -175,7 +175,7 @@ If the revision fails with *"The user-provided container failed to start and lis
 
 1. **Check Cloud Logging** (link in the error, or **Observability** → **Logs**): look for Java stack traces, Flyway errors, or database connection failures. The app may be crashing before binding to the port (e.g. missing `SPRING_PROFILES_ACTIVE=postgres`, wrong `SPRING_DATASOURCE_*`, or DB unreachable).
 
-2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup.
+2. **Verify service env vars** (Cloud Run → your service → **Edit & deploy** → **Variables and secrets**): at least `SPRING_PROFILES_ACTIVE=postgres`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`. Without these, the app can fail on startup. If you see **"MaxClientsInSessionMode: max clients reached"**, Supabase Session pooler is full: use one instance at a time during deploy, or switch to Supabase **Transaction** pooler (port 6543), or ensure the app pool size stays at 1 (default in this repo for postgres profile).
 
 3. **Port and binding**: The repo is configured so the backend listens on `0.0.0.0` and `PORT` (default 8080). The build uses `--port=8080` and `--cpu-boost` when deploying via the repo `cloudbuild.yaml`. If you use **Cloud Run "Connect repository"** (source deploy), configure the service with port 8080 and CPU boost in the Cloud Run console (Edit & deploy → Container → Port, and enable startup CPU boost). Ensure the container listens on all interfaces.
 

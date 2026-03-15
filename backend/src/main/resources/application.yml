@@ -71,7 +71,8 @@ spring:
     password: postgres
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 3  # Stay under Supabase Session Pooler connection limit
+      # Supabase Session mode has a low connection limit; use 1 per instance to avoid "MaxClientsInSessionMode" at startup
+      maximum-pool-size: 1
       connection-timeout: 15000  # 15s; fail fast in logs if DB unreachable (e.g. wrong env on Cloud Run)
   jpa:
     open-in-view: false  # REST API: load data in services; no view rendering
