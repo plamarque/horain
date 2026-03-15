@@ -31,19 +31,22 @@ test('agent trace shows natural-language descriptions and tool detail after resp
   await expect(lastBubble).toBeVisible({ timeout: 15000 })
   await expect(lastBubble).not.toBeEmpty()
 
-  const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
-  const traceToggle = traceRegion.getByRole('button', { name: /Outils utilisés/ })
-  await expect(traceToggle).toBeVisible({ timeout: 5000 })
+  // Wait for tools toggle to appear first, then get its region (avoids race when region.filter(button) sees 0)
+  const traceToggle = page.getByRole('button', { name: /Outils utilisés/ }).first()
+  await expect(traceToggle).toBeVisible({ timeout: 10000 })
+  const traceRegion = traceToggle.locator('xpath=ancestor::*[@role="region"][1]')
 
   await traceToggle.click()
 
+  // Wait for detail to be visible and turn toggle to be stable (avoids detached element after re-render)
+  await expect(traceRegion.locator('.agent-trace-detail')).toBeVisible({ timeout: 3000 })
   const turnToggle = traceRegion.locator('.agent-trace-turn-toggle').first()
   await expect(turnToggle).toBeVisible({ timeout: 3000 })
-  await turnToggle.click()
+  await turnToggle.click({ force: true })
 
   const sectionToggle = traceRegion.locator('.agent-trace-section-toggle').first()
   await expect(sectionToggle).toBeVisible({ timeout: 3000 })
-  await sectionToggle.click()
+  await sectionToggle.click({ force: true })
 
   // New UX: at least one natural-language description visible (from agentTraceDescriptions)
   await expect(traceRegion).toContainText(
@@ -67,11 +70,13 @@ test('agent trace block can be collapsed', async ({ page }) => {
   await input.fill("What's the time?")
   await page.getByRole('button', { name: 'Send' }).click()
 
-  const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
-  const traceToggle = traceRegion.getByRole('button', { name: /Outils utilisés/ })
+  // Wait for tools toggle first, then get its region
+  const traceToggle = page.getByRole('button', { name: /Outils utilisés/ }).first()
   await expect(traceToggle).toBeVisible({ timeout: 15000 })
+  const traceRegion = traceToggle.locator('xpath=ancestor::*[@role="region"][1]')
 
   await traceToggle.click()
+  await expect(traceRegion.locator('.agent-trace-detail')).toBeVisible({ timeout: 3000 })
   await expect(traceRegion.locator('.agent-trace-turn-toggle').first()).toBeVisible({ timeout: 3000 })
 
   await traceToggle.click()

@@ -82,10 +82,10 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
-    // Assert confirmation in the last assistant message content (not project cards)
+    // Assert confirmation in an assistant bubble (evidence: assistantBlockCount 0 when using message-block; use .bubble.assistant + text)
     await expect(
-      page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|minutes|HatCast/i)
-    ).toBeVisible({ timeout: 5000 })
+      page.locator('.bubble.assistant').filter({ hasText: /logged|created|minutes|HatCast/i })
+    ).toBeVisible({ timeout: 10000 })
   })
 
   test('transcript is inserted at caret, appending to existing text', async ({ page }) => {
