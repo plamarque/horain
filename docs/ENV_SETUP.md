@@ -49,7 +49,7 @@ En production, le build GitHub Actions injecte `VITE_API_URL` depuis les secrets
 
 | Variable | Value |
 |----------|-------|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres` (no `?user=` or `?password=`) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require` (Supabase requires SSL; no `?user=` or `?password=`) |
 | `SPRING_DATASOURCE_USERNAME` | `postgres.zganzlhymnrdrmryungy` (from Supabase) |
 | `SPRING_DATASOURCE_PASSWORD` | **Your real database password** (replace `[YOUR-PASSWORD]`) |
 

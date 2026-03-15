@@ -114,7 +114,7 @@ If you created the service from the console (Option A), the first revision may r
 | Key | Value |
 |-----|-------|
 | `SPRING_PROFILES_ACTIVE` | `postgres` |
-| `SPRING_DATASOURCE_URL` | **Session** pooler (port 5432): low connection limit, app uses pool size 1. **Transaction** pooler (port 6543): higher capacity; you **must** add `?prepareThreshold=0` to the URL (e.g. `jdbc:postgresql://HOST:6543/postgres?prepareThreshold=0`), or `&prepareThreshold=0` if the URL already has query params. Transaction mode does not support prepared statements; this parameter disables them for the JDBC driver. |
+| `SPRING_DATASOURCE_URL` | **Session** pooler (port 5432): use `jdbc:postgresql://HOST:5432/postgres?sslmode=require` (Supabase requires SSL; without it you get EOFException during auth). **Transaction** pooler (port 6543): add `?sslmode=require&prepareThreshold=0` or `&sslmode=require&prepareThreshold=0` if the URL already has params. |
 | `SPRING_DATASOURCE_USERNAME` | From Supabase (e.g. `postgres.PROJECT_REF`) |
 | `SPRING_DATASOURCE_PASSWORD` | Supabase DB password (prefer Secret Manager, see below) |
 | `HORAIN_API_KEY` | e.g. `openssl rand -hex 32` (same value as `VITE_API_KEY` in GitHub secrets) |
@@ -216,9 +216,15 @@ If Cloud Run fails to connect to the database (connection timeout, auth failure,
    - `SPRING_DATASOURCE_USERNAME` = from Supabase (e.g. `postgres.xxxxx`)
    - `SPRING_DATASOURCE_PASSWORD` = the actual DB password (or reference to Secret Manager)
 
-   Names must be exactly **`SPRING_DATASOURCE_URL`** (with the `SPRING_` prefix). A typo or wrong name (e.g. `DATABASE_URL`) means the app falls back to the default in code, which is **localhost**. In the container there is no Postgres on localhost, so you get a connection timeout instead of an auth error. Check the revision’s **Variables and secrets** and fix the names if needed.
+   Names must be exactly **`SPRING_DATASOURCE_URL`** (with the `SPRING_` prefix). A typo or wrong name (e.g. `DATABASE_URL`) means the app falls back to the default in code, which is **localhost**. In the container there is no Postgres on localhost, so you get a connection timeout instead of an auth error. Check the revision’s **Variables and secrets** and fix the names if needed. If you see **EOFException** or "Pool is empty, failed to create/setup connection" during auth, add **`?sslmode=require`** to the JDBC URL (Supabase pooler requires SSL).
 
-6. **"Connection is not available, request timed out" (no auth error)**  
+6. **See which URL is actually used**  
+   The app logs the resolved datasource URL at startup (password redacted), e.g. `Datasource URL (postgres profile): jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require`. In Cloud Run → **Observability** → **Logs**, check the first lines of a new revision: if you see `localhost:5432`, the env var `SPRING_DATASOURCE_URL` is not set or not applied. If you see the Supabase host but still get EOFException or connection errors, the issue is SSL, credentials, or Supabase-side.
+
+7. **Enable debug for one deploy**  
+   To get the full "condition evaluation report" and stack trace when the context fails to start, add a variable **`DEBUG`** = **`true`** to the Cloud Run revision (Variables and secrets). Redeploy, then check the logs for the detailed report. Remove `DEBUG` after troubleshooting.
+
+8. **"Connection is not available, request timed out" (no auth error)**  
    If logs show a **timeout** (e.g. HikariCP "request timed out after 15001ms") and not "password authentication failed", outbound traffic from Cloud Run to Supabase may be blocked:
 
    - **Cloud Run** → your service → **Edit & deploy new revision** → open **Networking** (or **Connections**, **Security**, **Container** depending on console layout).
