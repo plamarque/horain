@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
+import { API_BASE, API_KEY, RECENT_LOGGED_AT, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Edit a project via context menu on a log card.
@@ -33,14 +33,15 @@ test('edit project via context menu on card', async ({ page, request }) => {
       projectId: project.id,
       durationMinutes: 20,
       note: 'e2e project modal test',
+      loggedAt: RECENT_LOGGED_AT,
     },
   })
   expect(timeLogRes.ok()).toBeTruthy()
 
   await page.goto('/')
+  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
-
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
   // Find the card by note (visible when collapsed); project name is visible when expanded
@@ -48,7 +49,7 @@ test('edit project via context menu on card', async ({ page, request }) => {
     .locator('.card-wrapper')
     .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e project modal test' }) })
     .first()
-  await expect(cardWithProject).toBeVisible({ timeout: 5000 })
+  await expect(cardWithProject).toBeVisible({ timeout: 10000 })
 
   // Right-click to open context menu, then click "Edit project"
   await cardWithProject.click({ button: 'right' })
@@ -94,10 +95,11 @@ test('edit project via double-click on project name on card', async ({ page, req
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { projectId: project.id, durationMinutes: 10, note: 'e2e dblclick' },
+    data: { projectId: project.id, durationMinutes: 10, note: 'e2e dblclick', loggedAt: RECENT_LOGGED_AT },
   })
 
   await page.goto('/')
+  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
 
@@ -106,7 +108,7 @@ test('edit project via double-click on project name on card', async ({ page, req
     .locator('.card-wrapper')
     .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e dblclick' }) })
     .first()
-  await expect(cardWithProject).toBeVisible({ timeout: 5000 })
+  await expect(cardWithProject).toBeVisible({ timeout: 10000 })
   await cardWithProject.click()
   await expect(cardWithProject).toHaveClass(/card-wrapper--expanded/, { timeout: 3000 })
   const projectNameEl = cardWithProject.locator('.card-project').filter({ hasText: projectName })

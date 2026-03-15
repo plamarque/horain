@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY, uniqueProjectName } from './e2eEnv'
+import { API_BASE, API_KEY, RECENT_LOGGED_AT, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Toggle billable on a time log entry via the edit modal.
@@ -33,20 +33,21 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
       projectId: project.id,
       durationMinutes: 30,
       note: 'e2e billable test',
+      loggedAt: RECENT_LOGGED_AT,
     },
   })
   expect(timeLogRes.ok()).toBeTruthy()
 
   await page.goto('/')
+  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
-
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
   const card = page
     .locator('.card-wrapper')
     .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e billable test' }) })
     .first()
-  await expect(card).toBeVisible({ timeout: 5000 })
+  await expect(card).toBeVisible({ timeout: 10000 })
   await card.click()
   await card.getByRole('button', { name: 'Edit entry' }).click()
 

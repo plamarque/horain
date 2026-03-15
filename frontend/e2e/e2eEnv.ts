@@ -24,6 +24,12 @@ function loadApiKey(): string {
 export const API_BASE = process.env.PLAYWRIGHT_API_URL || 'http://localhost:8080'
 export const API_KEY = loadApiKey()
 
+/**
+ * ISO instant for time log creation in e2e so the entry appears in "Dernières activités".
+ * Seed data is for year 2026; /time-logs/recent returns top N by loggedAt DESC, so we use end of 2026.
+ */
+export const RECENT_LOGGED_AT = '2026-12-31T12:00:00Z'
+
 /** Unique project name for e2e to avoid 500 on duplicate name (backend enforces unique). */
 export function uniqueProjectName(prefix: string): string {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
