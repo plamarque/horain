@@ -217,9 +217,10 @@ function formatLoggedAt(iso: string): string {
 }
 
 // Chronological: oldest first (top), most recent last (bottom)
+// Reverse chronological: most recent first (top-left), then descending
 const sortedEntries = computed(() =>
   [...props.entries].sort(
-    (a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime()
+    (a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
   )
 )
 
@@ -271,16 +272,18 @@ const moreCount = computed(
               <path d="m15 5 4 4" />
             </svg>
           </button>
-          <!-- Collapsed: one column (date, tag, duration). Expanded: meta row, project+amount row, note fills rest -->
+          <!-- Collapsed: top row = date (left) + activity code (right); then duration. Expanded: meta row, project+amount row, note fills rest -->
           <div class="card-row card-row--meta">
-            <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
-            <span
-              v-if="entry.activityTypeCode"
-              class="card-tag"
-              :title="entry.activityTypeLabel || entry.activityTypeCode"
-            >
-              {{ entry.activityTypeCode }}
-            </span>
+            <div class="card-meta-top">
+              <span class="card-date">{{ formatLoggedAt(entry.loggedAt) }}</span>
+              <span
+                v-if="entry.activityTypeCode"
+                class="card-tag"
+                :title="entry.activityTypeLabel || entry.activityTypeCode"
+              >
+                {{ entry.activityTypeCode }}
+              </span>
+            </div>
             <span class="card-duration">{{ formatDuration(entry.durationMinutes) }}</span>
           </div>
           <div class="card-row card-row--project">
@@ -381,10 +384,9 @@ const moreCount = computed(
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  padding: 0.85rem;
-  padding-top: 2.25rem;
+  padding: 0.65rem 0.85rem 0.85rem;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   color: rgba(255, 255, 255, 0.95);
@@ -405,7 +407,13 @@ const moreCount = computed(
 }
 
 .card-wrapper--expanded .card-row--meta {
+  flex-direction: row;
+  flex-wrap: wrap;
   margin-bottom: 0;
+}
+
+.card-wrapper--expanded .card-meta-top {
+  width: auto;
 }
 
 /* Project + amount on one line (no wrap), project ellipsis if needed */
@@ -441,7 +449,7 @@ const moreCount = computed(
   color: #fff;
 }
 
-/* Collapsed: vertical stack (date+tag, duration, note) */
+/* Collapsed: vertical stack (meta top row, duration, note) */
 .card-row {
   display: flex;
   flex-wrap: wrap;
@@ -453,9 +461,22 @@ const moreCount = computed(
   margin-bottom: 0.4rem;
 }
 
+/* Top line: date top-left, activity code top-right */
+.card-meta-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .card-wrapper:not(.card-wrapper--expanded) .card-row--meta {
   flex-direction: column;
-  gap: 0.25rem;
+  align-items: stretch;
+  align-self: stretch;
+  width: 100%;
+  gap: 0.35rem;
   margin-bottom: 0.5rem;
 }
 
@@ -487,6 +508,11 @@ const moreCount = computed(
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+.card-wrapper:not(.card-wrapper--expanded) .card-duration {
+  margin-top: 0.65rem;
+  margin-bottom: 0.35rem;
 }
 
 .card-wrapper--expanded .card-duration {
