@@ -49,8 +49,8 @@ test('clicking project card adds project to context and shows chip in conversati
   // Go back to conversation
   await page.getByRole('button', { name: 'Back' }).click()
 
-  // Project chip should be visible above the input
-  const contextChips = page.locator('.context-chips')
+  // Project chip should be visible above the input (scope to conversation input area to avoid strict mode: two .context-chips in DOM)
+  const contextChips = page.locator('.input-area .context-chips')
   await expect(contextChips).toBeVisible()
   await expect(contextChips.getByText('Horain')).toBeVisible()
 })

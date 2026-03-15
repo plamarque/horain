@@ -133,11 +133,12 @@ onMounted(async () => {
   window.addEventListener('horain:projectSaved', onProjectSaved)
 
   if (conversationApi) {
-    conversationApi.value = {
+    const api: ConversationApi = {
       submit: (text, opts) => handleSubmit(text, opts),
       stop: handleStop,
       isProcessing,
     }
+    conversationApi.value = api
   }
 
   if (messages.value.length > 0) return

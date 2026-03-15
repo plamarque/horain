@@ -15,10 +15,10 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run build && npx serve -s dist -l 4173',
+    command: 'npx serve -s dist -l 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: true,
-    timeout: 120000,
+    timeout: 30000,
     env: {
       VITE_API_URL: API_BASE,
       VITE_API_KEY: API_KEY,

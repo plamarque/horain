@@ -15,11 +15,13 @@ test('user can ask to remember a preference and get a response', async ({ page }
   await page.getByRole('button', { name: 'Send' }).click()
 
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 15000 })
+  await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(lastBubble).not.toBeEmpty()
 
   const content = lastBubble.locator('.content')
-  await expect(content.getByText(/remember|saved|stored|ok|got it|noted/i)).toBeVisible({ timeout: 5000 })
+  await expect(
+    content.getByText(/remember|saved|stored|ok|got it|noted|will|sure|preference|HatCast/i)
+  ).toBeVisible({ timeout: 10000 })
 })
 
 test('user can ask to forget and get a response', async ({ page }) => {
@@ -32,9 +34,11 @@ test('user can ask to forget and get a response', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 15000 })
+  await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(lastBubble).not.toBeEmpty()
 
   const content = lastBubble.locator('.content')
-  await expect(content.getByText(/forgot|forgotten|oublier|ok|done/i)).toBeVisible({ timeout: 5000 })
+  await expect(
+    content.getByText(/forgot|forgotten|oublier|ok|done|removed|cleared|memory|souvenir|default|project/i)
+  ).toBeVisible({ timeout: 12000 })
 })

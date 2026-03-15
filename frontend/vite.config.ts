@@ -23,7 +23,10 @@ export default defineConfig({
   plugins: [
     vue(),
     mkcert(),
-    VitePWA({
+    // Skip PWA for e2e build to avoid flaky workbox/terser "Unexpected early exit" in subprocess.
+    ...(process.env.BUILD_E2E === '1'
+      ? []
+      : [VitePWA({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
@@ -42,7 +45,7 @@ export default defineConfig({
           { src: '/maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-    }),
+    })]),
   ],
   server: {
     port: 5173,

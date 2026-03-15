@@ -143,11 +143,54 @@ case "$MODE" in
       exit 1
     fi
 
+    # Build and serve frontend so Playwright's webServer can reuse it (avoids flaky "npm run build" in subprocess).
+    frontend_ready() {
+      curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 2>/dev/null | grep -q 200
+    }
+    SERVE_PID=""
+    cleanup_serve() {
+      if [ -n "$SERVE_PID" ]; then
+        kill $SERVE_PID 2>/dev/null || true
+        wait $SERVE_PID 2>/dev/null || true
+      fi
+    }
+    if frontend_ready; then
+      echo "Frontend already serving on 4173."
+    else
+      echo "Building frontend for e2e..."
+      cd "$ROOT_DIR/frontend"
+      export BUILD_E2E=1
+      export VITE_API_URL="http://localhost:8080"
+      if [ -f "$ROOT_DIR/backend/.env" ]; then
+        key=$(grep -E '^HORAIN_API_KEY=' "$ROOT_DIR/backend/.env" | head -1 | cut -d= -f2- | sed "s/^[\"' \t]*//;s/[\"' \t]*\$//")
+        [ -n "$key" ] && export VITE_API_KEY="$key"
+      fi
+      [ -z "${VITE_API_KEY:-}" ] && export VITE_API_KEY="HORAIN_DEV_KEY"
+      npm run build
+      echo "Starting frontend server on 4173..."
+      npx serve -s dist -l 4173 &
+      SERVE_PID=$!
+      trap "cleanup_serve; cleanup_backend" EXIT
+      cd "$ROOT_DIR"
+      for i in $(seq 1 30); do
+        if frontend_ready; then
+          echo "Frontend ready."
+          break
+        fi
+        sleep 1
+      done
+      if ! frontend_ready; then
+        echo "Error: Frontend did not become ready on 4173."
+        exit 1
+      fi
+    fi
+
     cd "$ROOT_DIR/frontend"
     echo "Running e2e tests..."
     npm run test:e2e
     EXIT_CODE=$?
 
+    cleanup_serve 2>/dev/null || true
     cleanup_backend 2>/dev/null || true
     trap - EXIT 2>/dev/null || true
     exit $EXIT_CODE

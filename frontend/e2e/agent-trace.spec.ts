@@ -4,11 +4,10 @@ import { test, expect } from '@playwright/test'
  * E2E: Agent trace UX.
  *
  * What we test (deterministic enough):
- * - Trace block appears after a response that used tools; main toggle "Outils utilisés" works.
- * - Turn/section hierarchy: we can expand a turn then a section.
+ * - Trace block appears after a response that used tools; we can expand tool detail.
  * - Natural-language descriptions are shown (e.g. "Récupération de la date", "Chargement...").
  * - Tool names remain visible in the detail (debug).
- * - Trace block can be collapsed (detail hidden).
+ * - Trace block tool row can be expanded then collapsed.
  *
  * What we do not test (non-deterministic or brittle):
  * - "Thinking..." during streaming (timing and visibility depend on LLM latency).
@@ -31,24 +30,25 @@ test('agent trace shows natural-language descriptions and tool detail after resp
   await expect(lastBubble).toBeVisible({ timeout: 15000 })
   await expect(lastBubble).not.toBeEmpty()
 
-  // Wait for tools toggle to appear first, then get its region (avoids race when region.filter(button) sees 0)
-  const traceToggle = page.getByRole('button', { name: /Outils utilisés/ }).first()
-  await expect(traceToggle).toBeVisible({ timeout: 10000 })
-  const traceRegion = traceToggle.locator('xpath=ancestor::*[@role="region"][1]')
-
+  // Trace region (aria-label "Agent execution trace"); then tool row button (single call or "N appels")
+  const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
+  await expect(traceRegion).toBeVisible({ timeout: 10000 })
+  const traceToggle = traceRegion.getByRole('button', {
+    name: /Récupération de la date|1 appel|\d+ appels/,
+  }).first()
+  await expect(traceToggle).toBeVisible({ timeout: 5000 })
   await traceToggle.click()
 
-  // Wait for detail to be visible and turn toggle to be stable (avoids detached element after re-render)
-  await expect(traceRegion.locator('.agent-trace-detail')).toBeVisible({ timeout: 3000 })
+  // Detail (per-call expand) becomes visible
+  await expect(traceRegion.locator('.agent-trace-item-detail').first()).toBeVisible({ timeout: 3000 })
+
+  // Optional: expand turn if multiple calls (no-op for single call)
   const turnToggle = traceRegion.locator('.agent-trace-turn-toggle').first()
-  await expect(turnToggle).toBeVisible({ timeout: 3000 })
-  await turnToggle.click({ force: true })
+  if (await turnToggle.isVisible()) {
+    await turnToggle.click({ force: true })
+  }
 
-  const sectionToggle = traceRegion.locator('.agent-trace-section-toggle').first()
-  await expect(sectionToggle).toBeVisible({ timeout: 3000 })
-  await sectionToggle.click({ force: true })
-
-  // New UX: at least one natural-language description visible (from agentTraceDescriptions)
+  // Natural-language description visible (from agentTraceDescriptions)
   await expect(traceRegion).toContainText(
     /Récupération de la date|Chargement|Enregistrement|Préparation|Lecture|Écriture|Exploration|Suppression/i,
     { timeout: 3000 }
@@ -70,15 +70,16 @@ test('agent trace block can be collapsed', async ({ page }) => {
   await input.fill("What's the time?")
   await page.getByRole('button', { name: 'Send' }).click()
 
-  // Wait for tools toggle first, then get its region
-  const traceToggle = page.getByRole('button', { name: /Outils utilisés/ }).first()
-  await expect(traceToggle).toBeVisible({ timeout: 15000 })
-  const traceRegion = traceToggle.locator('xpath=ancestor::*[@role="region"][1]')
+  const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
+  await expect(traceRegion).toBeVisible({ timeout: 15000 })
+  const traceToggle = traceRegion.getByRole('button', {
+    name: /Récupération de la date|1 appel|\d+ appels/,
+  }).first()
+  await expect(traceToggle).toBeVisible({ timeout: 5000 })
 
   await traceToggle.click()
-  await expect(traceRegion.locator('.agent-trace-detail')).toBeVisible({ timeout: 3000 })
-  await expect(traceRegion.locator('.agent-trace-turn-toggle').first()).toBeVisible({ timeout: 3000 })
+  await expect(traceRegion.locator('.agent-trace-item-detail').first()).toBeVisible({ timeout: 3000 })
 
   await traceToggle.click()
-  await expect(traceRegion.locator('.agent-trace-detail')).toBeHidden()
+  await expect(traceRegion.locator('.agent-trace-item-detail').first()).toBeHidden()
 })

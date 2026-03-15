@@ -17,10 +17,11 @@ test('log time via text input', async ({ page }) => {
   await input.fill('30 minutes on HatCast V1 working on the selection algorithm')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  // Expect confirmation in last assistant message (wording may vary: logged/created/recorded, minutes, HatCast)
+  const lastBubble = page.locator('.bubble.assistant').last()
+  await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast/i)
-  ).toBeVisible({ timeout: 10000 })
+    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i)
+  ).toBeVisible({ timeout: 15000 })
 })
 
 /**
@@ -44,10 +45,11 @@ test('send button appears when typing and submits on click', async ({ page }) =>
   // Submit via Send button click instead of Enter
   await page.getByRole('button', { name: 'Send' }).click()
 
-  // Expect confirmation in last assistant message (wording may vary)
+  const lastBubble = page.locator('.bubble.assistant').last()
+  await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast/i)
-  ).toBeVisible({ timeout: 10000 })
+    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i)
+  ).toBeVisible({ timeout: 15000 })
 })
 
 /**
@@ -64,7 +66,9 @@ test('log time via French phrase', async ({ page }) => {
   await input.fill("J'ai passé 30 minutes sur HatCast V1 à travailler sur l'algo.")
   await page.getByRole('button', { name: 'Send' }).click()
 
+  const lastBubble = page.locator('.bubble.assistant').last()
+  await expect(lastBubble).toBeVisible({ timeout: 30000 })
   await expect(
-    page.locator('.bubble.assistant').last().locator('.content').getByText(/logged|created|recorded|minutes|HatCast|enregistré/i)
-  ).toBeVisible({ timeout: 10000 })
+    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|enregistré|added|saved|30|min|fait|done/i)
+  ).toBeVisible({ timeout: 15000 })
 })

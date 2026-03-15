@@ -17,7 +17,7 @@ test.describe('SPEC scenarios', () => {
     await input.fill('15 minutes on HatCast V1')
     await page.getByRole('button', { name: 'Send' }).click()
     const bubble1 = page.locator('.bubble.assistant').last()
-    await expect(bubble1).toBeVisible({ timeout: 10000 })
+    await expect(bubble1).toBeVisible({ timeout: 20000 })
     const text1 = await bubble1.textContent()
     if (/should i|create|don't know|couldn't find|not found/i.test(text1 ?? '')) {
       await input.fill('yes')

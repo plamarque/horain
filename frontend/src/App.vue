@@ -15,7 +15,7 @@ export type ConversationApi = {
   isProcessing: Ref<boolean>
 }
 const conversationApi = ref<ConversationApi | null>(null)
-provide<Ref<ConversationApi | null>>('conversationApi', conversationApi)
+provide<Ref<ConversationApi | null>>('conversationApi', conversationApi as Ref<ConversationApi | null>)
 
 // Injected at build time from frontend/package.json and git
 const appVersion = __APP_VERSION__

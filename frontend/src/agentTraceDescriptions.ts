@@ -116,11 +116,6 @@ export function getToolCallDescription(tc: ToolCallDisplay): string {
   return qualification ? `${base}${qualification}` : base
 }
 
-function getPeriodToolDescription(tc: ToolCallDisplay): string {
-  const { base, qualification } = getPeriodToolDescriptionParts(tc)
-  return qualification ? `${base}${qualification}` : base
-}
-
 function getPeriodToolDescriptionParts(tc: ToolCallDisplay): ToolCallDescriptionParts {
   let args: Record<string, unknown> = {}
   try {
@@ -132,11 +127,6 @@ function getPeriodToolDescriptionParts(tc: ToolCallDisplay): ToolCallDescription
   const periodLabel = formatPeriodLabel(args)
   const qualification = periodLabel != null && periodLabel.length > 0 ? ` ${periodLabel}` : ''
   return { base, qualification }
-}
-
-function getMemoryToolDescription(tc: ToolCallDisplay): string {
-  const { base, qualification } = getMemoryToolDescriptionParts(tc)
-  return qualification ? `${base}${qualification}` : base
 }
 
 function getMemoryToolDescriptionParts(tc: ToolCallDisplay): ToolCallDescriptionParts {

@@ -57,12 +57,12 @@ public class ProjectService {
             return;
         }
         UUID id = UUID.fromString(entityId);
-        if (projectRepository.existsById(id)) return;
-        dto.setId(id);
         try {
+            if (projectRepository.existsById(id)) return;
+            dto.setId(id);
             create(dto);
         } catch (DataIntegrityViolationException e) {
-            // Already exists (e.g. concurrent seed or previous run); treat as skip
+            // Already exists (e.g. concurrent seed, or flush during existsById revealed a duplicate); treat as skip
         }
     }
 
