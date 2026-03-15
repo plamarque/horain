@@ -101,7 +101,7 @@ let mediaQuery: MediaQueryList | null = null
 let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
 
 function refetchRecentLogs() {
-  return getRecentTimeLogs(8)
+  return getRecentTimeLogs(20)
     .then((logs) => { recentLogs.value = logs })
     .catch(() => { /* keep current recentLogs */ })
 }
@@ -130,7 +130,7 @@ onMounted(async () => {
 
   if (messages.value.length > 0) return
   try {
-    const logs = await getRecentTimeLogs(8)
+    const logs = await getRecentTimeLogs(20)
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -197,7 +197,7 @@ async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
   editingEntry.value = null
   if (!patch?.id) {
     try {
-      const logs = await getRecentTimeLogs(8)
+      const logs = await getRecentTimeLogs(20)
       recentLogs.value = logs
     } catch {
       // keep current recentLogs
@@ -217,7 +217,7 @@ async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
     })
   }
   try {
-    const logs = await getRecentTimeLogs(8)
+    const logs = await getRecentTimeLogs(20)
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -465,7 +465,7 @@ async function handleSubmit(text: string) {
           }
           streamingMessageId.value = null
           streamingSegments.value = []
-          getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
+          getRecentTimeLogs(20).then((logs) => { recentLogs.value = logs }).catch(() => {})
         },
         onError(err) {
           if ((err as Error).name === 'AbortError') return
@@ -503,7 +503,7 @@ async function handleSubmit(text: string) {
           if (response.reasoningSummary != null) agentTrace.reasoningSummary = response.reasoningSummary
         }
         addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId, agentTrace)
-        getRecentTimeLogs(8).then((logs) => { recentLogs.value = logs }).catch(() => {})
+        getRecentTimeLogs(20).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {
         if ((fallbackErr as Error).name === 'AbortError') return
         const msg = (fallbackErr as Error).message
@@ -534,7 +534,7 @@ async function handleResetSeed() {
   isSeeding.value = true
   try {
     await resetDevSeed()
-    const logs = await getRecentTimeLogs(8)
+    const logs = await getRecentTimeLogs(20)
     recentLogs.value = logs
     // Clear conversation so the default view shows "Dernières activités" like on app launch
     messages.value = []

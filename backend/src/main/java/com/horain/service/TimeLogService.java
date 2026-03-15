@@ -6,6 +6,7 @@ import com.horain.model.TimeLog;
 import com.horain.repository.ActivityTypeRepository;
 import com.horain.repository.ProjectRepository;
 import com.horain.repository.TimeLogRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +59,7 @@ public class TimeLogService {
         return toDto(saved);
     }
 
-    /** Idempotent create: skip if entity with same ID already exists. */
+    /** Idempotent create: skip if entity with same ID already exists (or duplicate key on concurrent seed). */
     @Transactional
     public void createOrSkip(String entityId, TimeLogDto dto) {
         if (entityId == null || entityId.isBlank()) {
@@ -68,7 +69,11 @@ public class TimeLogService {
         UUID id = UUID.fromString(entityId);
         if (timeLogRepository.existsById(id)) return;
         dto.setId(id);
-        create(dto);
+        try {
+            create(dto);
+        } catch (DataIntegrityViolationException e) {
+            // Already exists (e.g. concurrent seed); treat as skip
+        }
     }
 
     @Transactional(readOnly = true)
@@ -82,10 +87,11 @@ public class TimeLogService {
     public List<TimeLogDto> findRecentLogs(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 50);
         List<TimeLog> logs = timeLogRepository.findTop50ByOrderByLoggedAtDesc();
-        return logs.stream()
+        List<TimeLogDto> result = logs.stream()
                 .limit(safeLimit)
                 .map(this::toDto)
                 .collect(Collectors.toList());
+        return result;
     }
 
     @Transactional(readOnly = true)

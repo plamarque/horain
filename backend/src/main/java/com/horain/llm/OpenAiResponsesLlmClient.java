@@ -4,10 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
@@ -25,6 +28,7 @@ import java.util.function.Consumer;
  */
 public class OpenAiResponsesLlmClient implements StreamingLlmClient {
 
+    private static final Logger log = LoggerFactory.getLogger(OpenAiResponsesLlmClient.class);
     private static final int STREAM_TIMEOUT_SECONDS = 120;
 
     private static final String DEFAULT_REASONING_EFFORT = "medium";
@@ -178,6 +182,13 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                     }
                 },
                 err -> {
+                    if (err instanceof WebClientResponseException e) {
+                        String errorBody = e.getResponseBodyAsString();
+                        log.warn("Responses API stream failed: model={} status={} body={}",
+                                model, e.getStatusCode(), errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) + "..." : errorBody);
+                    } else {
+                        log.warn("Responses API stream failed: model={} error={}", model, err.getMessage(), err);
+                    }
                     resultRef.set(new LlmResponse(contentAccumulator.toString(),
                             toolCallsAccumulator.isEmpty() ? null : toolCallsAccumulator,
                             "error",

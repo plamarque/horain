@@ -5,6 +5,7 @@ import com.horain.dto.ProjectDto;
 import com.horain.model.Project;
 import com.horain.repository.ProjectRepository;
 import com.horain.repository.TimeLogRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +49,7 @@ public class ProjectService {
         return toDto(saved);
     }
 
-    /** Idempotent create: skip if entity with same ID already exists. */
+    /** Idempotent create: skip if entity with same ID already exists (or duplicate key on concurrent seed). */
     @Transactional
     public void createOrSkip(String entityId, ProjectDto dto) {
         if (entityId == null || entityId.isBlank()) {
@@ -58,7 +59,11 @@ public class ProjectService {
         UUID id = UUID.fromString(entityId);
         if (projectRepository.existsById(id)) return;
         dto.setId(id);
-        create(dto);
+        try {
+            create(dto);
+        } catch (DataIntegrityViolationException e) {
+            // Already exists (e.g. concurrent seed or previous run); treat as skip
+        }
     }
 
     @Transactional(readOnly = true)

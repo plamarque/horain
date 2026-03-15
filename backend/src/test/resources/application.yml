@@ -1,0 +1,14 @@
+# Test profile: exclude all Spring AI OpenAI auto-configurations so the app context
+# can start without OPENAI_API_KEY / LLM_API_KEY (LlmConfig returns PlaceholderLlmClient).
+# Use only H2 migrations to avoid Flyway "more than one migration with version" (h2 + postgresql on classpath).
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+  flyway:
+    locations: classpath:db/migration/h2

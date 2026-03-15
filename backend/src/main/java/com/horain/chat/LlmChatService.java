@@ -152,9 +152,13 @@ public class LlmChatService {
                     Map<String, Object> data = new HashMap<>();
                     if (chartData != null) data.put("chart", chartData);
                     if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-                    String assistantMessage = response.content() != null && !response.content().isBlank()
-                            ? response.content()
-                            : "I'm sorry, I couldn't generate a response.";
+                    String assistantMessage;
+                    if (response.content() != null && !response.content().isBlank()) {
+                        assistantMessage = response.content();
+                    } else {
+                        log.warn("LLM returned empty content (check backend logs for API or model errors)");
+                        assistantMessage = "I'm sorry, I couldn't generate a response.";
+                    }
                     return persistTurnAndBuildResponse(userMessage, assistantMessage, toolCallsExecuted,
                             data.isEmpty() ? null : data, history, contextEntries, startTime, false);
                 }
@@ -419,9 +423,13 @@ public class LlmChatService {
                     Map<String, Object> data = new HashMap<>();
                     if (chartData != null) data.put("chart", chartData);
                     if (timeLogsData != null) data.put("timeLogs", timeLogsData);
-                    String assistantMessage = accumulatedAssistantMessage.length() > 0
-                            ? accumulatedAssistantMessage.toString()
-                            : "I'm sorry, I couldn't generate a response.";
+                    String assistantMessage;
+                    if (accumulatedAssistantMessage.length() > 0) {
+                        assistantMessage = accumulatedAssistantMessage.toString();
+                    } else {
+                        log.warn("LLM returned empty content (check backend logs for Responses API or model errors)");
+                        assistantMessage = "I'm sorry, I couldn't generate a response.";
+                    }
                     // Do not send assistant_segment for the final turn so the client shows only this reply in the bubble.
                     String reasoningText = response.reasoningSummary() != null && !response.reasoningSummary().isBlank()
                             ? response.reasoningSummary() : null;

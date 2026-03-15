@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import type { TimeLogEntry } from '../types'
 
-const INITIAL_SHOWN = 8
+const INITIAL_SHOWN = 20
 const LONG_PRESS_MS = 500
 
 // Stable palette for project-based card background (readable with white text)
