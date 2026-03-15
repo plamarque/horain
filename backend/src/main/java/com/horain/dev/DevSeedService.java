@@ -108,13 +108,14 @@ public class DevSeedService {
                 .collect(Collectors.toList());
 
         int logsCreated = 0;
-        LocalDate today = fixedToday != null ? fixedToday : LocalDate.now(ZONE);
-        LocalDate start = today.minusMonths(4);
+        // Seed the full year 2026 so dev and evals have activities across the year
+        LocalDate start = LocalDate.of(2026, 1, 1);
+        LocalDate end = LocalDate.of(2026, 12, 31);
 
         java.util.Random rand = new java.util.Random(42);
         int globalSeq = 0;
 
-        for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
             // Fewer logs on weekends
             DayOfWeek dow = d.getDayOfWeek();
             boolean weekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
