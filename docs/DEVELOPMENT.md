@@ -50,7 +50,9 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 
 ### Exécution locale
 
-**Prérequis :**
+**Pour faire passer les e2e :** à la racine du dépôt, lancer `./scripts/run-tests.sh e2e`. Le script démarre le backend, build le frontend avec `VITE_API_URL=http://localhost:8080`, puis exécute Playwright. Lancer uniquement `npm run test:e2e` depuis `frontend/` sans backend ni build adapté fait échouer la plupart des tests.
+
+**Prérequis (si vous lancez les tests à la main) :**
 
 1. Backend lancé sur le port 8080 (ex. `./scripts/start-dev.sh` ou `cd backend && mvn spring-boot:run`)
 2. Clé API : les tests lisent `HORAIN_API_KEY` depuis `backend/.env` (ou `VITE_API_KEY` / `HORAIN_API_KEY` en env). La clé doit correspondre à celle du backend pour éviter les 401.
@@ -60,9 +62,11 @@ cd frontend
 npm run test:e2e
 ```
 
-Playwright construit le frontend et le sert sur 4173. Les tests appellent le backend sur 8080 (seed, API projects/time-logs).
+Playwright sert le `dist` existant sur 4173 (il ne rebuild pas). L’app doit avoir été buildée avec `VITE_API_URL=http://localhost:8080` pour appeler le backend sur 8080 ; sinon les appels API échouent et les tests tombent (ex. « Dernières activités » absent, pas de bulle assistant).
 
-**Script tout-en-un :** `./scripts/run-tests.sh` démarre le backend si besoin, attend qu’il soit prêt, lance les e2e puis arrête le backend. Si tous les tests passent, le script quitte avec le code 0. Un message Maven « BUILD FAILURE » peut apparaître à la fin lors de l’arrêt du backend ; c’est attendu et peut être ignoré.
+**Recommandé — Script tout-en-un :** Depuis la racine du dépôt, `./scripts/run-tests.sh e2e` démarre le backend si besoin, build le frontend avec la bonne URL, sert sur 4173, puis lance Playwright. À utiliser en priorité pour éviter les échecs liés à l’env.
+
+**Script tout-en-un (détail) :** `./scripts/run-tests.sh` démarre le backend si besoin, attend qu’il soit prêt, lance les e2e puis arrête le backend. Si tous les tests passent, le script quitte avec le code 0. Un message Maven « BUILD FAILURE » peut apparaître à la fin lors de l’arrêt du backend ; c’est attendu et peut être ignoré.
 
 ### CI (.github/workflows/deploy.yml)
 
