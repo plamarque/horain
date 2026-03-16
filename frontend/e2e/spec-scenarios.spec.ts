@@ -40,6 +40,8 @@ test.describe('SPEC scenarios', () => {
       page.locator('.bubble.assistant').last()
     ).toContainText(/logged|created|HatCast V2/i, { timeout: 10000 })
 
+    // Wait for input to be enabled again (isProcessing false) before next message
+    await expect(input).toBeEnabled({ timeout: 15000 })
     // Ambiguous: "HatCast" matches both
     await input.fill('30 minutes on HatCast')
     await page.getByRole('button', { name: 'Send' }).click()
