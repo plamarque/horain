@@ -1,6 +1,6 @@
 {
   "name": "horain-frontend",
-  "version": "0.8.1-SNAPSHOT",
+  "version": "0.8.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
