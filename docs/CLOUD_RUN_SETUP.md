@@ -1,13 +1,15 @@
 # Google Cloud Run — Backend deployment guide
 
-This guide explains how to deploy the Horain backend to Cloud Run with continuous deployment on push to `main` (Cloud Build trigger). The database stays on Supabase; only the backend runtime moves to GCP.
+This guide explains how to deploy the Horain backend to Cloud Run. Deployment is **triggered from GitHub Actions** (workflow [deploy.yml](../.github/workflows/deploy.yml)) **only after tests pass** (backend unit tests + e2e). The database stays on Supabase; only the backend runtime runs on GCP.
+
+**Unified pipeline:** Push to `main` runs tests; if they pass, both backend (Cloud Run) and frontend (GitHub Pages) are deployed. No separate Cloud Build trigger on push — that trigger must be disabled (see below).
 
 ---
 
 ## Prerequisites
 
 - A Google Cloud project
-- GitHub repo connected (Cloud Build GitHub App or Developer Connect)
+- GitHub repository (Actions used for deploy; Workload Identity Federation for GCP auth)
 - Supabase project with Session Pooler JDBC details (see [ENV_SETUP.md](ENV_SETUP.md) section A)
 
 ---
@@ -51,7 +53,7 @@ gcloud artifacts repositories create horain \
 
 ## 3. Cloud Build permissions
 
-Ensure the Cloud Build service account can deploy to Cloud Run and push to Artifact Registry:
+When GitHub Actions runs `gcloud builds submit`, the build runs on Cloud Build. Ensure the **Cloud Build default service account** can deploy to Cloud Run and push to Artifact Registry:
 
 1. Go to [Cloud Build Settings](https://console.cloud.google.com/cloud-build/settings) (or **Cloud Build** → **Settings**).
 2. Under **Service account permissions**, enable:
@@ -67,44 +69,89 @@ Or grant roles to the default Cloud Build service account (`PROJECT_NUMBER@cloud
 
 ---
 
-## 4. Connect GitHub and create the trigger
+## 4. Workload Identity Federation (GitHub Actions → GCP)
 
-### Option A: From Cloud Run console
+GitHub Actions needs to authenticate to GCP to run `gcloud builds submit`. We use **Workload Identity Federation** (no long-lived keys in GitHub).
 
-1. Go to [Cloud Run](https://console.cloud.google.com/run).
-2. **Create Service** (or **Connect repository** if adding to an existing service).
-3. Choose **Cloud Build** as the source, then connect your GitHub account and select the `horain` repo.
-4. **Branch:** `^main$`
-5. **Build type:** Dockerfile
-6. **Source location:** `backend/Dockerfile` (path relative to repo root)
-7. **Build context directory:** `backend`
-8. Create the service; on first run Cloud Build will use the trigger. You can instead define the build in a config file (see Option B).
+### 4.1 Create a dedicated service account for GitHub Actions
 
-### Option B: Trigger with repo `cloudbuild.yaml`
+1. **IAM & Admin** → **Service Accounts** → **Create**.
+2. **Name:** e.g. `github-actions-deploy`
+3. **Grant this service account access to project:** skip (we will grant roles next).
 
-The repo contains a root-level [cloudbuild.yaml](../cloudbuild.yaml) that builds from `backend/`, pushes to Artifact Registry, and deploys to Cloud Run.
+Then grant the minimal roles needed to submit builds and let Cloud Build do the actual deploy:
 
-1. Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers).
-2. **Create Trigger**
-3. **Name:** e.g. `horain-backend-deploy`
-4. **Region:** same as Artifact Registry (e.g. `europe-west1`)
-5. **Event:** Push to a branch
-6. **Source:** your connected GitHub repo, branch `^main$`
-7. **Configuration:** Cloud Build configuration file (YAML or JSON)
-8. **Location:** Repository; path `cloudbuild.yaml` (at repo root)
-9. **Substitution variables** (add these so the YAML does not hardcode project/region):
+- **Cloud Build Editor** (`roles/cloudbuild.builds.editor`) — so the SA can submit builds.
+- **Service Account User** (`roles/iam.serviceAccountUser`) — so Cloud Build can act as the default Cloud Build SA.
 
-   | Variable        | Value           |
-   |----------------|-----------------|
-   | `_REGION`      | `europe-west1`  |
-   | `_SERVICE_NAME`| `horain-api`    |
-   | `_REPOSITORY`  | `horain`        |
+Optional: if you prefer the GitHub Actions SA to trigger builds without the default Cloud Build SA having broad roles, you can use **Cloud Build Service Account** and ensure that account has Run Admin + Artifact Registry Writer. The standard setup is: GitHub SA can submit builds; the **default Cloud Build SA** (used when the build runs) has Run Admin + Artifact Registry Writer (section 3).
 
-10. Save. A push to `main` will run the build and deploy.
+### 4.2 Create Workload Identity Pool and Provider
+
+1. **IAM & Admin** → **Workload Identity Federation** → **Create pool**.
+2. **Pool name:** e.g. `github-pool`
+3. **Provider:** Add provider → **OpenID Connect (OIDC)**.
+   - **Provider name:** e.g. `github`
+   - **Issuer (URL):** `https://token.actions.githubusercontent.com`
+   - **Audience:** leave default or set to your repo URL if you use a custom audience.
+4. **Attribute mapping:** add:
+   - `google.subject` = `assertion.sub`
+   - `attribute.actor` = `assertion.actor`
+   - `attribute.repository` = `assertion.repository`
+5. **Attribute condition (obligatoire dans la console):** Le champ ne peut pas rester vide. La condition **doit référencer au moins un claim** du jeton OIDC avec le préfixe `assertion.`. Deux possibilités :
+   - **Accepter tous les jetons GitHub (pas de restriction)** : utilisez une condition toujours vraie qui référence un claim présent dans tout jeton (ex. `sub`) :
+     ```text
+     assertion.sub != ''
+     ```
+   - **Restreindre par org ou branche** : ex. `assertion.repository_owner=='YOUR_GITHUB_ORG'` ou `assertion.repository_owner=='YOUR_GITHUB_ORG' && assertion.ref=='refs/heads/main'`.
+   Claims utiles du [jeton OIDC GitHub](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#understanding-the-oidc-token) : `assertion.sub`, `assertion.repository`, `assertion.repository_owner`, `assertion.ref`.
+   **Erreur fréquente :** "The attribute condition must reference one of the provider's claims" → n’utiliser que `assertion.<claim>` avec un nom de claim réel.
+6. Save the pool and provider.
+
+### 4.3 Allow GitHub repo to impersonate the service account
+
+1. **IAM & Admin** → **IAM**.
+2. **Grant access** → **Add principal**: the service account email (e.g. `github-actions-deploy@PROJECT_ID.iam.gserviceaccount.com`).
+3. **Role:** **Workload Identity User** is not a role for the SA; we need to grant the **pool’s identity** the right to impersonate the SA.
+4. Run in Cloud Shell (replace placeholders):
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  github-actions-deploy@PROJECT_ID.iam.gserviceaccount.com \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/OWNER/REPO"
+```
+
+Use your GitHub org/user as `OWNER` and repo name as `REPO`. For a single branch (e.g. `main` only), you can use `attribute.repository_owner` or a more restrictive principal set; see [Google Cloud docs](https://cloud.google.com/iam/docs/workload-identity-federation#restrict).
+
+### 4.4 GitHub secrets and variables
+
+In the repo: **Settings** → **Secrets and variables** → **Actions**. Add:
+
+| Name | Kind | Value |
+|------|------|--------|
+| `GCP_PROJECT_ID` | Secret or variable | Your GCP project ID |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Secret | Full provider resource name, e.g. `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github` |
+| `GCP_SERVICE_ACCOUNT` | Secret | Service account email, e.g. `github-actions-deploy@PROJECT_ID.iam.gserviceaccount.com` |
+| `GCP_REGION` | Secret or variable | e.g. `europe-west1` |
+| `GCP_SERVICE_NAME` | Secret or variable | Cloud Run service name, e.g. `horain-api` |
+| `GCP_ARTIFACT_REPOSITORY` | Secret or variable | Artifact Registry repo name, e.g. `horain` |
+
+The workflow [deploy.yml](../.github/workflows/deploy.yml) uses these to authenticate and pass substitutions to [cloudbuild.yaml](../cloudbuild.yaml).
 
 ---
 
-## 5. First deployment and environment variables
+## 5. Disable the old “push to main” trigger
+
+If you previously had a Cloud Build trigger that ran on push to `main`, **disable or delete it** so that the backend is only deployed from GitHub Actions after tests pass.
+
+1. Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers).
+2. Find the trigger that runs on branch `^main$` (e.g. `horain-backend-deploy`).
+3. **Disable** it (or delete it). From now on, deployment is only triggered by the **Deploy to Production** workflow on push to `main` (tests run first, then `gcloud builds submit`).
+
+---
+
+## 6. First deployment and environment variables
 
 If you created the service from the console (Option A), the first revision may run with no env vars. Add them before or right after the first deploy.
 
@@ -131,7 +178,7 @@ Optional (LLM):
 
 ---
 
-## 6. Secrets (recommended)
+## 7. Secrets (recommended)
 
 For `SPRING_DATASOURCE_PASSWORD` and API keys, use Secret Manager:
 
@@ -143,7 +190,7 @@ When using `gcloud run deploy` (e.g. in a custom build step), use `--set-secrets
 
 ---
 
-## 7. Backend URL and GitHub Actions
+## 8. Backend URL and GitHub Actions
 
 After the first successful deployment:
 
@@ -151,25 +198,25 @@ After the first successful deployment:
 2. In GitHub: **Settings** → **Secrets and variables** → **Actions** → set (or update) **VITE_API_URL** to this URL.
 3. **VITE_API_KEY** must match **HORAIN_API_KEY** on Cloud Run.
 
-The next frontend build and deploy will use the new backend URL.
+The next run of the **Deploy to Production** workflow (push to `main` after tests pass) will build the frontend with this backend URL.
 
 ---
 
-## 8. Rollback / coexistence with Render
+## 9. Rollback / coexistence with Render
 
 - As long as **VITE_API_URL** in GitHub points to Render, the app keeps using the Render backend.
-- To switch: configure Cloud Run and the trigger, deploy once, set env vars, then update **VITE_API_URL** to the Cloud Run URL.
+- To switch: configure Cloud Run and WIF (section 4), add GitHub secrets, run the deploy workflow once, set env vars on Cloud Run, then update **VITE_API_URL** to the Cloud Run URL.
 - To roll back: set **VITE_API_URL** back to the Render URL and redeploy the frontend (or leave Render running and just switch the secret).
 
 ---
 
-## 9. Request timeout (streaming)
+## 10. Request timeout (streaming)
 
 The chat stream endpoint (`POST /chat/message/stream`) keeps the connection open while the agent may run several tool-call rounds. Cloud Run allows configuring the **request timeout** (default is 5 minutes). If users hit timeouts on long conversations, in **Cloud Run** → your service → **Edit & deploy new revision** → **Container** → set **Request timeout** to e.g. 300 seconds (or leave the default). The backend uses a 5-minute timeout for the SSE emitter.
 
 ---
 
-## 10. Troubleshooting: "Container failed to start and listen on PORT"
+## 11. Troubleshooting: "Container failed to start and listen on PORT"
 
 If the revision fails with *"The user-provided container failed to start and listen on the port defined by the PORT=8080 environment variable"*:
 
@@ -185,7 +232,7 @@ See [Cloud Run troubleshooting](https://cloud.google.com/run/docs/troubleshootin
 
 ---
 
-## 11. Troubleshooting: Cannot connect to Supabase
+## 12. Troubleshooting: Cannot connect to Supabase
 
 If Cloud Run fails to connect to the database (connection timeout, auth failure, or "Connection is not available"):
 
@@ -237,6 +284,8 @@ If Cloud Run fails to connect to the database (connection timeout, auth failure,
 
 ## Reference
 
+- [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) — single entry point for production deploy (tests then backend + frontend)
 - [Continuous deployment from a repository (Cloud Run)](https://cloud.google.com/run/docs/continuous-deployment)
 - [Deploying to Cloud Run using Cloud Build](https://cloud.google.com/build/docs/deploying-builds/deploy-cloud-run)
+- [Workload Identity Federation with GitHub Actions](https://cloud.google.com/iam/docs/workload-identity-federation-with-other-providers#github-actions)
 - [ENV_SETUP.md](ENV_SETUP.md) — Supabase, Cloud Run env vars, GitHub secrets

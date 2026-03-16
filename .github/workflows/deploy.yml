@@ -1,8 +1,10 @@
-# Deploy Horain to production on push to main
-# - Frontend → GitHub Pages (this workflow)
-# - Backend → Cloud Run (Cloud Build trigger on push to main; see docs/CLOUD_RUN_SETUP.md)
+# Deploy Horain to production on push to main.
+# Backend and frontend deploy only after tests pass (unified pipeline).
+# - Backend → Cloud Run (via gcloud builds submit from this workflow; see docs/CLOUD_RUN_SETUP.md)
+# - Frontend → GitHub Pages
 #
-# CI: Backend unit tests + e2e tests run before deploy. E2E requires OPENAI_API_KEY secret.
+# CI: Backend unit tests + e2e tests run first. E2E requires OPENAI_API_KEY secret.
+# GCP: Workload Identity Federation (secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT, etc.).
 name: Deploy to Production
 
 on:
@@ -102,6 +104,35 @@ jobs:
           npm run test:e2e
 
           kill $SERVE_PID 2>/dev/null || true
+
+  deploy-backend:
+    name: Deploy backend to Cloud Run
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Submit build and deploy to Cloud Run
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=COMMIT_SHA=${{ github.sha }},_REGION=${{ secrets.GCP_REGION }},_SERVICE_NAME=${{ secrets.GCP_SERVICE_NAME }},_REPOSITORY=${{ secrets.GCP_ARTIFACT_REPOSITORY }} \
+            .
 
   build-and-deploy-frontend:
     name: Build and deploy frontend

@@ -1,6 +1,6 @@
 # Cloud Build config for Horain backend → Cloud Run
-# Trigger on push to main; set substitutions in the trigger:
-#   _REGION (e.g. europe-west1), _SERVICE_NAME (e.g. horain-api), _REPOSITORY (e.g. horain)
+# Invoked from GitHub Actions (deploy.yml) after tests pass. Substitutions passed by the workflow:
+#   COMMIT_SHA, _REGION (e.g. europe-west1), _SERVICE_NAME (e.g. horain-api), _REPOSITORY (e.g. horain)
 # See docs/CLOUD_RUN_SETUP.md
 
 steps:
