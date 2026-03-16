@@ -167,6 +167,12 @@ export async function createTimeLogViaApi(body: {
   return apiPost<TimeLogDto>('/time-logs', body)
 }
 
+/** True if the string is a valid UUID (required by PATCH/DELETE time-logs/:id). */
+export function isValidTimeLogId(id: string): boolean {
+  if (!id || typeof id !== 'string') return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim())
+}
+
 /** PATCH /time-logs/:id - update a time log (partial) */
 export async function updateTimeLog(
   id: string,
@@ -179,11 +185,17 @@ export async function updateTimeLog(
     activityTypeCode?: string | null
   }
 ): Promise<TimeLogDto> {
+  if (!isValidTimeLogId(id)) {
+    throw new Error('Invalid entry id; this entry cannot be updated.')
+  }
   return apiPatch<TimeLogDto>(`/time-logs/${id}`, patch)
 }
 
 /** DELETE /time-logs/:id - delete a time log */
 export async function deleteTimeLog(id: string): Promise<void> {
+  if (!isValidTimeLogId(id)) {
+    throw new Error('Invalid entry id; this entry cannot be deleted.')
+  }
   return apiDelete<void>(`/time-logs/${id}`)
 }
 

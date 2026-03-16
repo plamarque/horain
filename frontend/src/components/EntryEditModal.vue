@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { getProjects, getActivityTypes, updateTimeLog, deleteTimeLog } from '../services/apiClient'
+import { ref, watch, computed } from 'vue'
+import { getProjects, getActivityTypes, updateTimeLog, deleteTimeLog, isValidTimeLogId } from '../services/apiClient'
 import type { TimeLogEntry } from '../types'
 import type { ProjectDto, ActivityTypeDto } from '../services/apiClient'
 
@@ -27,6 +27,8 @@ const deleting = ref(false)
 const confirmDelete = ref(false)
 const error = ref('')
 
+const canEditOrDelete = computed(() => isValidTimeLogId(props.entry?.id ?? ''))
+
 async function loadProjects() {
   try {
     projects.value = await getProjects()
@@ -45,7 +47,7 @@ async function loadActivityTypes() {
 
 watch(
   () => props.entry,
-  (entry) => {
+  async (entry) => {
     if (entry) {
       projectId.value = entry.projectId || ''
       activityTypeCode.value = entry.activityTypeCode || ''
@@ -57,8 +59,18 @@ watch(
         : new Date().toISOString().slice(0, 10)
       error.value = ''
       confirmDelete.value = false
-      loadProjects()
-      loadActivityTypes()
+      await loadProjects()
+      await loadActivityTypes()
+      if (projects.value.length && entry.projectName) {
+        const currentId = projectId.value
+        const idInList = currentId && projects.value.some((p) => p.id === currentId)
+        if (!idInList) {
+          const byName = projects.value.find(
+            (p) => p.name === entry.projectName || (entry.projectName != null && p.name.toLowerCase() === entry.projectName.toLowerCase())
+          )
+          if (byName) projectId.value = byName.id
+        }
+      }
     }
   },
   { immediate: true }
@@ -71,6 +83,10 @@ function formatLoggedAtForApi(val: string): string {
 
 async function save() {
   if (!props.entry?.id) return
+  if (!isValidTimeLogId(props.entry.id)) {
+    error.value = 'This entry cannot be edited (invalid id from conversation).'
+    return
+  }
   saving.value = true
   error.value = ''
   try {
@@ -108,6 +124,10 @@ function cancelDelete() {
 
 async function doDelete() {
   if (!props.entry?.id) return
+  if (!isValidTimeLogId(props.entry.id)) {
+    error.value = 'This entry cannot be deleted (invalid id from conversation).'
+    return
+  }
   deleting.value = true
   error.value = ''
   try {
@@ -137,6 +157,9 @@ async function doDelete() {
       <h2 id="entry-edit-title" class="entry-edit-title">Edit entry</h2>
     </header>
     <div class="entry-edit-body">
+      <p v-if="!canEditOrDelete" class="form-error form-error--banner">
+        This entry cannot be edited or deleted (invalid id). It may come from a conversation display bug.
+      </p>
       <form class="entry-edit-form" @submit.prevent="save">
         <div class="form-row">
           <label for="edit-project">Project</label>
@@ -221,7 +244,7 @@ async function doDelete() {
         </div>
         <div v-else class="entry-edit-actions">
           <button
-            v-if="entry?.id"
+            v-if="entry?.id && canEditOrDelete"
             type="button"
             class="btn btn-danger"
             @click="confirmDelete = true"
@@ -231,7 +254,7 @@ async function doDelete() {
           <button type="button" class="btn btn-secondary" @click="emit('close')">
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary" :disabled="saving">
+          <button type="submit" class="btn btn-primary" :disabled="saving || !canEditOrDelete">
             {{ saving ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -352,6 +375,13 @@ async function doDelete() {
   margin: 0;
   font-size: 1.0625rem;
   color: #e57373;
+}
+
+.form-error--banner {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(229, 115, 115, 0.12);
+  border-radius: 6px;
 }
 
 .entry-edit-actions {

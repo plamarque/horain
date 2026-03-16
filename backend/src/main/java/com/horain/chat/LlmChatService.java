@@ -581,6 +581,16 @@ public class LlmChatService {
         }
     }
 
+    private static boolean isValidTimeLogId(String id) {
+        if (id == null || id.isBlank()) return false;
+        try {
+            UUID.fromString(id.trim());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private Object extractTimeLogsFromToolCalls(List<ToolCallRecord> toolCallsExecuted) {
         Map<String, Map<String, Object>> patchesById = buildTimeLogPatchesFromToolResults(toolCallsExecuted);
 
@@ -601,10 +611,12 @@ public class LlmChatService {
                     List<Map<String, Object>> entries = new ArrayList<>();
                     for (JsonNode entry : entriesNode) {
                         if (!entry.has("durationMinutes") || !entry.has("loggedAt")) continue;
+                        String idStr = entry.has("id") ? entry.get("id").asText() : null;
+                        if (!isValidTimeLogId(idStr)) continue;
                         Map<String, Object> map = new HashMap<>();
+                        map.put("id", idStr);
                         map.put("durationMinutes", entry.get("durationMinutes").asInt());
                         map.put("loggedAt", entry.get("loggedAt").asText());
-                        if (entry.has("id")) map.put("id", entry.get("id").asText());
                         if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
                         if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
                         if (entry.has("note")) map.put("note", entry.get("note").asText());
