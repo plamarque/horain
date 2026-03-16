@@ -79,10 +79,12 @@ GitHub Actions needs to authenticate to GCP to run `gcloud builds submit`. We us
 2. **Name:** e.g. `github-actions-deploy`
 3. **Grant this service account access to project:** skip (we will grant roles next).
 
-Then grant the minimal roles needed to submit builds and let Cloud Build do the actual deploy:
+Then grant the following roles to the GitHub Actions service account (at project level):
 
-- **Cloud Build Editor** (`roles/cloudbuild.builds.editor`) — so the SA can submit builds.
-- **Service Account User** (`roles/iam.serviceAccountUser`) — so Cloud Build can act as the default Cloud Build SA.
+- **Cloud Build Editor** (`roles/cloudbuild.builds.editor`) — create and submit builds.
+- **Service Account User** (`roles/iam.serviceAccountUser`) — so Cloud Build can run as the default Cloud Build SA.
+- **Storage Admin** (`roles/storage.admin`) — required so the SA can upload source to the default Cloud Build bucket (`PROJECT_ID_cloudbuild`) when running `gcloud builds submit`.
+- **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) — required for `serviceusage.services.use`; without it you get "The user is forbidden from accessing the bucket [***_cloudbuild]".
 
 Optional: if you prefer the GitHub Actions SA to trigger builds without the default Cloud Build SA having broad roles, you can use **Cloud Build Service Account** and ensure that account has Run Admin + Artifact Registry Writer. The standard setup is: GitHub SA can submit builds; the **default Cloud Build SA** (used when the build runs) has Run Admin + Artifact Registry Writer (section 3).
 
