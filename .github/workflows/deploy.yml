@@ -151,7 +151,8 @@ jobs:
 
       - name: Skip e2e (version-only commit)
         if: needs.detect-version-only.outputs.skip_e2e == 'true'
-        run: echo "E2e skipped: push only touched version manifest files. Backend unit tests passed."
+        run: |
+          echo "E2e skipped (version-only push). Backend unit tests passed."
 
   deploy-backend:
     name: Deploy backend to Cloud Run
