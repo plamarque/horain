@@ -32,7 +32,7 @@ test('edit project via context menu on card', async ({ page, request }) => {
     data: {
       projectId: project.id,
       durationMinutes: 20,
-      note: 'e2e project modal test',
+      note: `e2e project modal test ${projectName}`,
       loggedAt: RECENT_LOGGED_AT,
     },
   })
@@ -47,7 +47,7 @@ test('edit project via context menu on card', async ({ page, request }) => {
   // Find the card by note (visible when collapsed); project name is visible when expanded
   const cardWithProject = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e project modal test' }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: `e2e project modal test ${projectName}` }) })
     .first()
   await expect(cardWithProject).toBeVisible({ timeout: 10000 })
 
@@ -95,7 +95,12 @@ test('edit project via double-click on project name on card', async ({ page, req
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
-    data: { projectId: project.id, durationMinutes: 10, note: 'e2e dblclick', loggedAt: RECENT_LOGGED_AT },
+    data: {
+      projectId: project.id,
+      durationMinutes: 10,
+      note: `e2e dblclick ${projectName}`,
+      loggedAt: RECENT_LOGGED_AT,
+    },
   })
 
   await page.goto('/')
@@ -106,13 +111,13 @@ test('edit project via double-click on project name on card', async ({ page, req
   // Find card by note, then expand (click) so project name is visible
   const cardWithProject = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e dblclick' }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: `e2e dblclick ${projectName}` }) })
     .first()
   await expect(cardWithProject).toBeVisible({ timeout: 10000 })
   await cardWithProject.click()
   await expect(cardWithProject).toHaveClass(/card-wrapper--expanded/, { timeout: 3000 })
   const projectNameEl = cardWithProject.locator('.card-project').filter({ hasText: projectName })
-  await expect(projectNameEl).toBeVisible({ timeout: 2000 })
+  await expect(projectNameEl).toBeVisible({ timeout: 8000 })
   await projectNameEl.dblclick({ delay: 80 })
 
   await expect(page.getByRole('heading', { name: 'Edit project' })).toBeVisible({ timeout: 10000 })

@@ -32,7 +32,7 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
     data: {
       projectId: project.id,
       durationMinutes: 30,
-      note: 'e2e billable test',
+      note: `e2e billable test ${projectName}`,
       loggedAt: RECENT_LOGGED_AT,
     },
   })
@@ -45,7 +45,7 @@ test('edit entry - toggle billable via modal', async ({ page, request }) => {
   await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
   const card = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e billable test' }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: `e2e billable test ${projectName}` }) })
     .first()
   await expect(card).toBeVisible({ timeout: 10000 })
   await card.click()

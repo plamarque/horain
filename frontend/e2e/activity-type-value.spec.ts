@@ -28,7 +28,7 @@ test('entry with activity type shows euro and amount on verso', async ({ page, r
     data: {
       projectId: project.id,
       durationMinutes: 30,
-      note: 'e2e activity type value',
+      note: `e2e activity type value ${projectName}`,
       activityTypeCode: 'DEV',
       loggedAt: RECENT_LOGGED_AT,
     },
@@ -42,11 +42,12 @@ test('entry with activity type shows euro and amount on verso', async ({ page, r
 
   const card = page
     .locator('.card-wrapper')
-    .filter({ has: page.locator('.card-note').filter({ hasText: 'e2e activity type value' }) })
+    .filter({ has: page.locator('.card-note').filter({ hasText: `e2e activity type value ${projectName}` }) })
     .first()
   await expect(card).toBeVisible({ timeout: 10000 })
 
   await card.click()
+  await expect(card).toHaveClass(/card-wrapper--expanded/, { timeout: 5000 })
   await expect(card.locator('.card-project').filter({ hasText: projectName })).toBeVisible()
   // Amount: computed value in € when API returns dailyRateCents (e.g. 25 € for 30 min DEV); can vary with shared backend
   const amountValue = card.locator('.card-amount-value')

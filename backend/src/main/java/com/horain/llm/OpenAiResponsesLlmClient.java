@@ -14,11 +14,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -202,31 +198,13 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                     }
                 },
                 err -> {
-                    // #region agent log
-                    try {
-                        Map<String, Object> data = new LinkedHashMap<>();
-                        data.put("model", model);
-                        if (err instanceof WebClientResponseException e) {
-                            String errorBody = e.getResponseBodyAsString();
-                            data.put("status", e.getStatusCode().value());
-                            data.put("bodyPreview", errorBody != null && errorBody.length() > 300 ? errorBody.substring(0, 300) + "..." : errorBody);
-                            log.warn("Responses API stream failed: model={} status={} body={}",
-                                    model, e.getStatusCode(), errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) + "..." : errorBody);
-                        } else {
-                            data.put("errorMessage", err.getMessage());
-                            log.warn("Responses API stream failed: model={} error={}", model, err.getMessage(), err);
-                        }
-                        Map<String, Object> entry = new LinkedHashMap<>();
-                        entry.put("sessionId", "57e58b");
-                        entry.put("location", "OpenAiResponsesLlmClient.java:err");
-                        entry.put("message", "Responses API stream failed");
-                        entry.put("data", data);
-                        entry.put("hypothesisId", "H1");
-                        entry.put("timestamp", System.currentTimeMillis());
-                        String line = objectMapper.writeValueAsString(entry) + "\n";
-                        Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (Exception ignored) { }
-                    // #endregion
+                    if (err instanceof WebClientResponseException e) {
+                        String errorBody = e.getResponseBodyAsString();
+                        log.warn("Responses API stream failed: model={} status={} body={}",
+                                model, e.getStatusCode(), errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) + "..." : errorBody);
+                    } else {
+                        log.warn("Responses API stream failed: model={} error={}", model, err.getMessage(), err);
+                    }
                     resultRef.set(new LlmResponse(contentAccumulator.toString(),
                             toolCallsAccumulator.isEmpty() ? null : toolCallsAccumulator,
                             "error",
@@ -234,24 +212,9 @@ public class OpenAiResponsesLlmClient implements StreamingLlmClient {
                     latch.countDown();
                 },
                 () -> {
-                    // #region agent log
                     if (contentAccumulator.isEmpty()) {
-                        try {
-                            Map<String, Object> data = new LinkedHashMap<>();
-                            data.put("model", model);
-                            data.put("contentEmpty", true);
-                            Map<String, Object> entry = new LinkedHashMap<>();
-                            entry.put("sessionId", "57e58b");
-                            entry.put("location", "OpenAiResponsesLlmClient.java:complete");
-                            entry.put("message", "Stream completed with empty content");
-                            entry.put("data", data);
-                            entry.put("hypothesisId", "H2");
-                            entry.put("timestamp", System.currentTimeMillis());
-                            String line = objectMapper.writeValueAsString(entry) + "\n";
-                            Files.write(Path.of("/Users/patrice/GitHub/horain/.cursor/debug-57e58b.log"), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (Exception ignored) { }
+                        log.warn("Responses API stream completed with empty content (model={})", model);
                     }
-                    // #endregion
                     resultRef.set(new LlmResponse(contentAccumulator.toString(),
                             toolCallsAccumulator.isEmpty() ? null : toolCallsAccumulator,
                             "stop",

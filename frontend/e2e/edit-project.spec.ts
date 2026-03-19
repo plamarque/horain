@@ -31,10 +31,10 @@ test('update project - rename via natural language', async ({ page, request }) =
 
   const renameBubble = page.locator('.bubble.assistant').last()
   await expect(renameBubble).toBeVisible({ timeout: 20000 })
-  await expect(renameBubble).toContainText(
-    /renamed|updated|changed|saved|done|name is now|now called/i,
-    { timeout: 10000 }
-  )
+  // Success wording: English or French (LLM may reply in either language).
+  const renameSuccessPattern =
+    /renamed|updated|changed|saved|done|name is now|now called|renommé|renomme|mis à jour|modifié|modifie|enregistré|enregistre/i
+  await expect(renameBubble).toContainText(renameSuccessPattern, { timeout: 10000 })
   await expect(renameBubble).toContainText(newName)
 })
 
@@ -83,7 +83,7 @@ test('delete project via natural language', async ({ page, request }) => {
   const turn1Bubble = page.locator('.bubble.assistant').last()
   await expect(turn1Bubble).toBeVisible({ timeout: 20000 })
   await expect(turn1Bubble).toContainText(
-    /(entry|entries)|cannot|would you|delete.*first|confirm|first|need to|don't have|not found|different project|let me know|unable to delete/i
+    /(entry|entries|entrée|entrées)|cannot|can't|ne peux|pas supprimer|would you|voulez-vous|delete.*first|d'abord|confirm|confirmer|first|need to|don't have|not found|different project|let me know|unable to delete|associées|entrées de temps/i
   )
 
   // Turn 2: User confirms -> assistant deletes entry then project (wait for new reply when stream completes)
@@ -98,7 +98,7 @@ test('delete project via natural language', async ({ page, request }) => {
     }).toPass({ timeout: 25000 })
     const lastBubble = page.locator('.bubble.assistant').last()
     await expect(lastBubble).toContainText(
-      /deleted|removed|done|finished|completed|don't have|not found|nothing to delete|proceed to delete|shall I go ahead|no time log entries|entry has been deleted|deleted the entry|removed the entry/i,
+      /deleted|removed|done|finished|completed|don't have|not found|nothing to delete|proceed to delete|shall I go ahead|no time log entries|entry has been deleted|deleted the entry|removed the entry|supprimé|supprime|effacé|retiré/i,
       { timeout: 5000 }
     )
   } catch {
