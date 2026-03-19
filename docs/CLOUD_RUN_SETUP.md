@@ -33,6 +33,8 @@ gcloud services enable cloudbuild.googleapis.com run.googleapis.com artifactregi
 
 ## 2. Artifact Registry repository
 
+**Not the same as Cloud Build → Repositories (Dépôts):** In the console, **Cloud Build → Repositories** lists **Git** connections (e.g. `plamarque/horain` via the GitHub app) used for Cloud Build triggers or 2nd-gen repos. That page does **not** create or show the **Docker** registry where `docker push` sends images. For Horain’s pipeline (`gcloud builds submit` → `docker push` → Cloud Run), you need a repository under **Artifact Registry** (menu **Artifact Registry**, or URL `console.cloud.google.com/artifacts`), format **Docker**, in the **same region** as Cloud Run (e.g. `europe-west1`). The push URL looks like `europe-west1-docker.pkg.dev/PROJECT_ID/REPOSITORY_NAME/...`.
+
 Create a Docker repository in a region aligned with your Cloud Run service (e.g. `europe-west1`):
 
 1. **Artifact Registry** → **Create repository**
@@ -295,6 +297,42 @@ the **build may still succeed** in Cloud Console; `gcloud` returns a non-zero ex
 **Fix in this repo:** [cloudbuild.yaml](../cloudbuild.yaml) sets `options.logging: CLOUD_LOGGING_ONLY` so logs are written to **Cloud Logging** and `gcloud builds submit` can complete without bucket Viewer on the caller. After pulling this change, redeploy from `main`.
 
 **Alternatives:** Grant the GitHub Actions service account a role that can read the default logs bucket (often broader than desired), or pass `gcloud builds submit --suppress-logs` (you lose streamed logs in the Actions UI). See [Store and manage build logs](https://cloud.google.com/build/docs/securing-builds/store-manage-build-logs).
+
+---
+
+## 14. Troubleshooting: `name unknown: Repository "horain" not found` (docker push)
+
+Cloud Build **Step #0** (image build) succeeds, then **Step #1** (`docker push`) fails with:
+
+```text
+name unknown: Repository "horain" not found
+```
+
+**Meaning:** There is no **Artifact Registry** Docker repository with that **name** in the **region** used in the image URL (e.g. `europe-west1-docker.pkg.dev/PROJECT/horain/...` → repository id = `horain`). Seeing `plamarque/horain` under **Cloud Build → Repositories** does **not** fix this—that is your **Git** repo, not an Artifact Registry Docker repo.
+
+**Fix:**
+
+1. **Create the repository** in the same region as `GCP_REGION` (GitHub secret), e.g. `europe-west1`:
+
+   ```bash
+   gcloud config set project YOUR_PROJECT_ID
+   gcloud artifacts repositories create horain \
+     --repository-format=docker \
+     --location=europe-west1 \
+     --description="Horain backend images"
+   ```
+
+   Or in the console: **Artifact Registry** → **Create repository** → format **Docker**, location **Region** = same as Cloud Run / `GCP_REGION`, name **`horain`** (or another id you prefer).
+
+2. **Align GitHub Actions:** the secret **`GCP_ARTIFACT_REPOSITORY`** must be exactly that repository **name** (id), e.g. `horain`. If you chose another name (e.g. `docker-repo`), set the secret to that value.
+
+3. **Confirm it exists:**
+
+   ```bash
+   gcloud artifacts repositories list --location=europe-west1
+   ```
+
+4. Ensure the **Cloud Build default service account** can push to this repo (section 3 — **Artifact Registry** writer on that repository or project).
 
 ---
 
