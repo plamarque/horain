@@ -2,6 +2,13 @@
 # Invoked from GitHub Actions (deploy.yml) after tests pass. Substitutions passed by the workflow:
 #   COMMIT_SHA, _REGION (e.g. europe-west1), _SERVICE_NAME (e.g. horain-api), _REPOSITORY (e.g. horain)
 # See docs/CLOUD_RUN_SETUP.md
+#
+# Logs go to Cloud Logging only (not the default GCS logs bucket). Without this,
+# gcloud builds submit from GitHub Actions often exits 1: the WIF service account
+# cannot stream logs from the default bucket without broad Viewer permissions.
+
+options:
+  logging: CLOUD_LOGGING_ONLY
 
 steps:
   # Build image from backend/ (Dockerfile context = backend)

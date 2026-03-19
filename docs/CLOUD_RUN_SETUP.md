@@ -284,6 +284,20 @@ If Cloud Run fails to connect to the database (connection timeout, auth failure,
 
 ---
 
+## 13. Troubleshooting: `gcloud builds submit` exits 1 in GitHub Actions (log streaming)
+
+If the deploy job fails with a message like:
+
+> This tool can only stream logs if you are Viewer/Owner of the project …
+
+the **build may still succeed** in Cloud Console; `gcloud` returns a non-zero exit code because it cannot read the **default Cloud Build logs bucket** with the GitHub Actions service account (common with Workload Identity Federation without project **Viewer**).
+
+**Fix in this repo:** [cloudbuild.yaml](../cloudbuild.yaml) sets `options.logging: CLOUD_LOGGING_ONLY` so logs are written to **Cloud Logging** and `gcloud builds submit` can complete without bucket Viewer on the caller. After pulling this change, redeploy from `main`.
+
+**Alternatives:** Grant the GitHub Actions service account a role that can read the default logs bucket (often broader than desired), or pass `gcloud builds submit --suppress-logs` (you lose streamed logs in the Actions UI). See [Store and manage build logs](https://cloud.google.com/build/docs/securing-builds/store-manage-build-logs).
+
+---
+
 ## Reference
 
 - [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) — single entry point for production deploy (tests then backend + frontend)
