@@ -16,6 +16,8 @@ const emit = defineEmits<{
 
 const projects = ref<ProjectDto[]>([])
 const activityTypes = ref<ActivityTypeDto[]>([])
+/** Set when GET /activity-types fails (e.g. network, CORS, API key); avoids a silent empty nature dropdown. */
+const activityTypesLoadError = ref('')
 const projectId = ref('')
 const activityTypeCode = ref('')
 const durationMinutes = ref(0)
@@ -38,10 +40,13 @@ async function loadProjects() {
 }
 
 async function loadActivityTypes() {
+  activityTypesLoadError.value = ''
   try {
     activityTypes.value = await getActivityTypes()
-  } catch {
+  } catch (e) {
     activityTypes.value = []
+    activityTypesLoadError.value =
+      e instanceof Error ? e.message : 'Could not load activity types. Check API URL, key, and CORS.'
   }
 }
 
@@ -172,6 +177,9 @@ async function doDelete() {
         </div>
         <div class="form-row">
           <label for="edit-activity-type">Nature d'activité</label>
+          <p v-if="activityTypesLoadError" class="form-error form-error--inline" role="alert">
+            {{ activityTypesLoadError }}
+          </p>
           <select id="edit-activity-type" v-model="activityTypeCode" class="form-input">
             <option value="">—</option>
             <option
@@ -382,6 +390,11 @@ async function doDelete() {
   padding: 0.5rem 0.75rem;
   background: rgba(229, 115, 115, 0.12);
   border-radius: 6px;
+}
+
+.form-error--inline {
+  margin-bottom: 0.35rem;
+  font-size: 0.95rem;
 }
 
 .entry-edit-actions {

@@ -53,4 +53,22 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", "Invalid request", "message", ex.getMessage() != null ? ex.getMessage() : "Type mismatch"));
     }
+
+    /**
+     * Map domain "not found" cases to 404 instead of default 500. Other {@link IllegalArgumentException}
+     * from the API layer are treated as client errors (400).
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Bad request";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        if (msg.startsWith("Time log not found:")
+                || msg.startsWith("Project not found:")
+                || msg.startsWith("Turn not found:")
+                || msg.startsWith("No project found matching ")) {
+            status = HttpStatus.NOT_FOUND;
+        }
+        String error = status == HttpStatus.NOT_FOUND ? "Not found" : "Bad request";
+        return ResponseEntity.status(status).body(Map.of("error", error, "message", msg));
+    }
 }

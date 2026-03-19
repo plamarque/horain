@@ -17,11 +17,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Orchestrates the chat flow: receives user message, calls LLM with tools,
@@ -569,8 +571,115 @@ public class LlmChatService {
         }
     }
 
+    /**
+     * Parses {@code time_logs} from a fetch tool result (search_time_logs, get_time_logs_for_period, get_recent_logs).
+     */
+    private List<Map<String, Object>> parseTimeLogsFromFetchTool(ToolCallRecord tc) {
+        if (tc == null || tc.result() == null) {
+            return null;
+        }
+        try {
+            JsonNode root = resultDataNode(tc.result());
+            if (root.has("error")) {
+                return null;
+            }
+            JsonNode timeLogs = root.get("time_logs");
+            if (timeLogs == null || !timeLogs.isArray()) {
+                return null;
+            }
+            List<Map<String, Object>> entries = new ArrayList<>();
+            for (JsonNode entry : timeLogs) {
+                Map<String, Object> map = new HashMap<>();
+                if (entry.has("id")) map.put("id", entry.get("id").asText());
+                if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
+                if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
+                if (entry.has("durationMinutes")) map.put("durationMinutes", entry.get("durationMinutes").asInt());
+                if (entry.has("note")) map.put("note", entry.get("note").asText());
+                if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
+                if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
+                if (entry.has("activityTypeCode")) map.put("activityTypeCode", entry.get("activityTypeCode").asText());
+                if (entry.has("activityTypeLabel")) map.put("activityTypeLabel", entry.get("activityTypeLabel").asText());
+                if (entry.has("dailyRateCents")) map.put("dailyRateCents", entry.get("dailyRateCents").asInt());
+                entries.add(map);
+            }
+            return entries.isEmpty() ? null : entries;
+        } catch (Exception e) {
+            log.debug("Failed to parse time_logs from {} result: {}", tc.name(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Most recent successful time_logs payload from a fetch tool (authoritative ids and fields for the UI).
+     */
+    private List<Map<String, Object>> findLastAuthoritativeTimeLogs(List<ToolCallRecord> toolCallsExecuted) {
+        for (int i = toolCallsExecuted.size() - 1; i >= 0; i--) {
+            ToolCallRecord tc = toolCallsExecuted.get(i);
+            String name = tc.name();
+            if (ToolRegistry.SEARCH_TIME_LOGS.equals(name)
+                    || ToolRegistry.GET_TIME_LOGS_FOR_PERIOD.equals(name)
+                    || ToolRegistry.GET_RECENT_LOGS.equals(name)) {
+                List<Map<String, Object>> parsed = parseTimeLogsFromFetchTool(tc);
+                if (parsed != null) {
+                    return parsed;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> authoritativeRowById(List<Map<String, Object>> authoritative, String id) {
+        for (Map<String, Object> row : authoritative) {
+            Object oid = row.get("id");
+            if (oid != null && id.equals(oid.toString())) {
+                return row;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Reconcile propose_entries with the last fetch tool result so the UI never shows LLM-hallucinated ids
+     * (which break PATCH /time-logs/:id). Preserves propose_entries order; uses server row data when id matches.
+     */
+    private List<Map<String, Object>> reconcileProposeEntriesWithFetch(
+            List<Map<String, Object>> proposeParsed,
+            List<Map<String, Object>> authoritative) {
+        if (authoritative == null || authoritative.isEmpty()) {
+            return proposeParsed;
+        }
+        Set<String> validIds = new HashSet<>();
+        for (Map<String, Object> row : authoritative) {
+            Object oid = row.get("id");
+            if (oid != null && isValidTimeLogId(oid.toString())) {
+                validIds.add(oid.toString());
+            }
+        }
+        if (validIds.isEmpty()) {
+            return proposeParsed;
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> e : proposeParsed) {
+            Object idObj = e.get("id");
+            if (idObj == null) {
+                continue;
+            }
+            String idStr = idObj.toString();
+            if (!validIds.contains(idStr)) {
+                continue;
+            }
+            Map<String, Object> canon = authoritativeRowById(authoritative, idStr);
+            out.add(canon != null ? new HashMap<>(canon) : new HashMap<>(e));
+        }
+        if (!out.isEmpty()) {
+            return out;
+        }
+        return authoritative.stream().map(HashMap::new).collect(Collectors.toCollection(ArrayList::new));
+    }
+
     private Object extractTimeLogsFromToolCalls(List<ToolCallRecord> toolCallsExecuted) {
         Map<String, Map<String, Object>> patchesById = buildTimeLogPatchesFromToolResults(toolCallsExecuted);
+        List<Map<String, Object>> authoritative = findLastAuthoritativeTimeLogs(toolCallsExecuted);
 
         // Prefer propose_entries (structured display like propose_chart); fall back to raw tool result
         ToolCallRecord lastProposeEntries = null;
@@ -605,6 +714,7 @@ public class LlmChatService {
                         entries.add(map);
                     }
                     if (!entries.isEmpty()) {
+                        entries = reconcileProposeEntriesWithFetch(entries, authoritative);
                         applyTimeLogPatches(entries, patchesById);
                         return entries;
                     }
@@ -613,45 +723,27 @@ public class LlmChatService {
                 log.debug("Failed to parse propose_entries arguments: {}", e.getMessage());
             }
         }
-        // Fallback: extract from get_time_logs_for_period or get_recent_logs result
+        // Fallback: extract from search_time_logs, get_time_logs_for_period, or get_recent_logs result
+        if (authoritative != null) {
+            List<Map<String, Object>> copy = authoritative.stream().map(HashMap::new).collect(Collectors.toCollection(ArrayList::new));
+            applyTimeLogPatches(copy, patchesById);
+            return copy;
+        }
         ToolCallRecord lastLogsCall = null;
         for (int i = toolCallsExecuted.size() - 1; i >= 0; i--) {
             ToolCallRecord tc = toolCallsExecuted.get(i);
-            if (ToolRegistry.GET_TIME_LOGS_FOR_PERIOD.equals(tc.name()) || ToolRegistry.GET_RECENT_LOGS.equals(tc.name())) {
+            if (ToolRegistry.SEARCH_TIME_LOGS.equals(tc.name())
+                    || ToolRegistry.GET_TIME_LOGS_FOR_PERIOD.equals(tc.name())
+                    || ToolRegistry.GET_RECENT_LOGS.equals(tc.name())) {
                 lastLogsCall = tc;
                 break;
             }
         }
-        if (lastLogsCall != null && lastLogsCall.result() != null) {
-            try {
-                JsonNode root = resultDataNode(lastLogsCall.result());
-                if (!root.has("error")) {
-                    JsonNode timeLogs = root.get("time_logs");
-                    if (timeLogs != null && timeLogs.isArray()) {
-                        List<Map<String, Object>> entries = new ArrayList<>();
-                        for (JsonNode entry : timeLogs) {
-                            Map<String, Object> map = new HashMap<>();
-                            if (entry.has("id")) map.put("id", entry.get("id").asText());
-                            if (entry.has("projectId")) map.put("projectId", entry.get("projectId").asText());
-                            if (entry.has("projectName")) map.put("projectName", entry.get("projectName").asText());
-                            if (entry.has("durationMinutes")) map.put("durationMinutes", entry.get("durationMinutes").asInt());
-                            if (entry.has("note")) map.put("note", entry.get("note").asText());
-                            if (entry.has("loggedAt")) map.put("loggedAt", entry.get("loggedAt").asText());
-                            if (entry.has("billable")) map.put("billable", entry.get("billable").asBoolean());
-                            if (entry.has("activityTypeCode")) map.put("activityTypeCode", entry.get("activityTypeCode").asText());
-                            if (entry.has("activityTypeLabel")) map.put("activityTypeLabel", entry.get("activityTypeLabel").asText());
-                            if (entry.has("dailyRateCents")) map.put("dailyRateCents", entry.get("dailyRateCents").asInt());
-                            entries.add(map);
-                        }
-                        if (!entries.isEmpty()) {
-                            applyTimeLogPatches(entries, patchesById);
-                            return entries;
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("Failed to parse time_logs from tool result: {}", e.getMessage());
-            }
+        List<Map<String, Object>> fromLastFetch = parseTimeLogsFromFetchTool(lastLogsCall);
+        if (fromLastFetch != null) {
+            List<Map<String, Object>> copy = fromLastFetch.stream().map(HashMap::new).collect(Collectors.toCollection(ArrayList::new));
+            applyTimeLogPatches(copy, patchesById);
+            return copy;
         }
         // Fallback: extract from create_time_log and update_time_log results (for create/update confirmations)
         List<Map<String, Object>> createdOrUpdatedEntries = new ArrayList<>();

@@ -10,6 +10,8 @@
 
 - **PATCH /time-logs/{id} 400 Bad Request avec un id non-UUID (ex. « entry-uuid-123 »)** — Corrigé. Cause : entrée affichée avec un id inventé ou mal transmis par le flux conversation (propose_entries / LLM). Côté frontend : validation UUID avant tout PATCH/DELETE, message explicite dans la modale d’édition et boutons désactivés si l’id est invalide. Côté backend : 422 + message clair quand le path variable n’est pas un UUID valide.
 
+- **Cartes après recherche (`search_time_logs`) : édition → 500 / « Time log not found » alors que la carte semblait correcte** — Corrigé. Cause : le payload `data.timeLogs` du chat privilégiait les arguments de `propose_entries` ; le modèle pouvait recopier des entrées avec des UUID syntaxiquement valides mais absents en base. Désormais `LlmChatService` réconcilie avec le dernier résultat outil `search_time_logs` / `get_time_logs_for_period` / `get_recent_logs` (ordre des cartes issu de `propose_entries` quand les ids matchent ; sinon liste serveur). Le fallback d’extraction inclut aussi `search_time_logs`. Côté UI : si `GET /activity-types` échoue (CORS, clé, réseau), la modale d’édition affiche l’erreur au lieu d’un menu « nature » vide.
+
 ## Limitations
 
 - **STT sur mobile** — Sur mobile (Chrome Android notamment), la Web Speech API interrompt l'enregistrement après ~0,5 s de silence. Le transcript capturé jusque-là est inséré dans l'input ; l'utilisateur peut recliquer sur le micro pour continuer et ajouter du texte à la suite. Parlant par étapes, les segments s'ajoutent bout à bout.
