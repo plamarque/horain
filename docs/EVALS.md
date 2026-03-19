@@ -70,7 +70,7 @@ Exemples pour Horain : `log-time`, `clarification`, `robustness`, `analytics`, `
 
 ### Tests scorés (LLM-as-judge, release uniquement)
 
-Fichiers sous `promptfoo/tests/scored/` : `weekly-summary`, `open-question`, `robustness-scored`, `conversational`. Ils utilisent un modèle Mistral configuré comme juge (`llm-rubric`) pour évaluer la qualité des réponses (exactitude des résumés, cohérence avec les données, robustesse au langage vague, pertinence conversationnelle). Seuils typiques : 0.75 ou 0.8. Exécutés **uniquement en release** (workflow `evals-scored.yml` sur événement release ou tag `v*`), avec `PROMPTFOO_JUDGE_MISTRAL_API_KEY` et `--max-concurrency 1` (limite Mistral 6 req/min). Voir [DEVELOPMENT.md](DEVELOPMENT.md) section Evals scorés.
+Fichiers sous `promptfoo/tests/scored/` : `weekly-summary`, `open-question`, `robustness-scored`, `conversational`. Ils utilisent un modèle Mistral configuré comme juge (`llm-rubric`) pour évaluer la qualité des réponses (exactitude des résumés, cohérence avec les données, robustesse au langage vague, pertinence conversationnelle). Seuils typiques : 0.75 ou 0.8. Exécutés **une fois par release GitHub** : workflow [`evals-scored.yml`](../.github/workflows/evals-scored.yml) sur l’événement **`release` (published)** ou manuellement (`workflow_dispatch`), avec `PROMPTFOO_JUDGE_MISTRAL_API_KEY` et `--max-concurrency 1` (limite Mistral 6 req/min). Voir [DEVELOPMENT.md](DEVELOPMENT.md) section Evals scorés.
 
 ---
 
@@ -89,7 +89,7 @@ Fichiers sous `promptfoo/tests/scored/` : `weekly-summary`, `open-question`, `ro
 | Moment | Action |
 |--------|--------|
 | **À chaque PR / push main** | Exécuter la suite **déterministe** (`npm run eval:deterministic` ou `run-promptfoo-eval.sh --deterministic-only`) pour détecter une régression. Pour ne lancer qu’un test : `--filter-pattern "description"` (voir [DEVELOPMENT.md](DEVELOPMENT.md) Evals Promptfoo). |
-| **À chaque release** | Workflow `evals-scored.yml` exécute la suite complète (déterministe + scorée) avec le juge Mistral |
+| **À chaque release** | Quand une **GitHub Release est publiée**, `evals-scored.yml` exécute la suite complète (déterministe + scorée) avec le juge Mistral (pas de second déclenchement sur le tag seul) |
 | **À chaque changement de modèle** | Exécuter la suite complète des evals (déterministe + scorée) |
 | **Une fois par mois** | Revue rapide : tests inutiles, tests fragiles, cas utilisateurs réels non couverts |
 

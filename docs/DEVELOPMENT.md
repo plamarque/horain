@@ -72,14 +72,13 @@ Playwright sert le `dist` existant sur 4173 (il ne rebuild pas). L’app doit av
 
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :
 
-1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe)
-2. **Build frontend pour e2e :** `npm run build` avec `VITE_API_URL=http://localhost:8080` (erreurs de build visibles dans le job)
-3. **Backend + seed :** Démarrage du backend (port 8080), seed via POST /dev/seed
-4. **Tests e2e :** Démarrage de `serve` sur 4173 (dist déjà buildé), puis `npm run test:e2e` (Playwright réutilise le serveur via `reuseExistingServer`)
+1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe) — **toujours** exécutés
+2. **E2e (sauf bump de version seul) :** Si le push ne modifie **que** `package.json`, `frontend/package.json` et/ou `backend/pom.xml` (ex. commit « prepare next dev » après release), les étapes Playwright + e2e sont **ignorées** pour gagner du temps ; le déploiement repose sur la suite complète déjà passée sur le commit précédent.
+3. **Sinon :** build frontend pour e2e (`npm run build` avec `VITE_API_URL=http://localhost:8080`), backend + seed (`POST /dev/seed`), `serve` sur 4173, puis `npm run test:e2e`
 
-Les evals **scorés** (LLM-as-judge) sont exécutés uniquement lors d'une **release** (workflow `.github/workflows/evals-scored.yml` sur événement release ou tag `v*`). Secret requis : `PROMPTFOO_JUDGE_MISTRAL_API_KEY`.
+Les evals **scorés** (LLM-as-judge) s'exécutent **une fois** lorsqu'une **GitHub Release est publiée** (workflow `.github/workflows/evals-scored.yml`, événement `release: published`, plus `workflow_dispatch`). Secret requis : `PROMPTFOO_JUDGE_MISTRAL_API_KEY`.
 
-**Release (tag v\*):** Créer une release (ex. `git tag v1.0.0 && git push --tags`) déclenche le workflow `.github/workflows/release.yml`, qui exécute d'abord les mêmes tests (backend + e2e) que sur `main` ; la release GitHub n'est créée que si tous les tests passent.
+**Release (tag v\*):** Le push d'un tag déclenche `.github/workflows/release.yml`, qui crée la **GitHub Release** et le changelog. Les tests complets (backend + e2e) sont assurés par **deploy.yml** sur le même commit lorsque `main` est poussé (voir `scripts/release-version.sh`).
 
 Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les tests appelent le backend local. Le déploiement utilise les secrets (`VITE_API_URL` pointant vers Cloud Run) pour le build de production.
 
@@ -87,7 +86,9 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 ### Release locale (scripts/release-version.sh)
 
-Le script démarre le backend automatiquement avant les e2e (comme en CI), attend `/health` puis lance Playwright. Pour que les tests passant par le chat (assistant) réussissent, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans `backend/.env` (voir section LLM ci-dessus).
+Par défaut, le script démarre le backend avant les e2e, attend `/health` puis lance Playwright. Pour que les tests passant par le chat (assistant) réussissent, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans `backend/.env` (voir section LLM ci-dessus).
+
+**Options :** `--fast` — `mvn test` + `npm run build` seulement (pas d’e2e locale ; l’e2e tourne sur le push `main` dans CI). `--skip-tests` — aucun test ni build local avant le bump (rare ; la CI reste le garde-fou).
 
 ## Evals Promptfoo
 
@@ -176,7 +177,7 @@ Les tests sous `promptfoo/tests/scored/` utilisent Mistral comme juge pour noter
 | `PROMPTFOO_JUDGE_MISTRAL_API_KEY` | Clé API Mistral pour le juge |
 | `PROMPTFOO_JUDGE_MODEL` | Modèle Mistral (défaut : `mistral-small-latest`) |
 
-Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. En CI (release), le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml`. En cas d'échec, le workflow affiche un résumé des tests en échec dans les logs et publie l'artifact **promptfoo-eval-report** (JSON + HTML complets) ; télécharger l'artifact depuis la page de la run GitHub Actions pour analyser le rapport en détail.
+Copier `promptfoo/.env.example` en `promptfoo/.env` et renseigner la clé. Lorsqu’une **GitHub Release est publiée**, le secret `PROMPTFOO_JUDGE_MISTRAL_API_KEY` est utilisé par le workflow `evals-scored.yml` (également lançable à la main via `workflow_dispatch`). En cas d'échec, le workflow affiche un résumé des tests en échec dans les logs et publie l'artifact **promptfoo-eval-report** (JSON + HTML complets) ; télécharger l'artifact depuis la page de la run GitHub Actions pour analyser le rapport en détail.
 
 Voir [promptfoo/README.md](../promptfoo/README.md) pour la configuration et la structure des tests.
 
@@ -190,13 +191,15 @@ Pour créer une release avec version sémantique et publication sur GitHub :
 ./scripts/release-version.sh --patch   # 0.1.0-SNAPSHOT → release 0.1.1, puis 0.1.2-SNAPSHOT
 ./scripts/release-version.sh --minor   # 0.1.0-SNAPSHOT → release 0.2.0, puis 0.2.1-SNAPSHOT
 ./scripts/release-version.sh --major   # 0.1.0-SNAPSHOT → release 1.0.0, puis 1.0.1-SNAPSHOT
+./scripts/release-version.sh --patch --fast   # idem, sans e2e locale
+./scripts/release-version.sh --patch --skip-tests   # idem, sans aucun test local (déconseillé sauf urgence)
 ```
 
-Ou via npm : `npm run release -- --patch|--minor|--major`
+Ou via npm : `npm run release -- --patch|--minor|--major` (ajouter `-- --fast` ou `-- --skip-tests` si besoin).
 
 **Prérequis :** working tree propre, GitHub CLI (`gh`) installé et authentifié.
 
-**Étapes du script :** (1) vérification du working tree et de `gh`, tests backend et e2e, build frontend ; (2) phase release : extraction de la base (sans -SNAPSHOT), bump selon option, mise à jour des 3 fichiers, commit, tag, push ; (3) phase next dev : bump patch, ajout de -SNAPSHOT, commit, push. Le workflow GitHub crée la release avec un changelog auto-généré.
+**Étapes du script :** (1) vérification du working tree et de `gh`, puis par défaut tests backend, e2e et build frontend (`--fast` / `--skip-tests` pour raccourcir) ; (2) phase release : extraction de la base (sans -SNAPSHOT), bump selon option, mise à jour des 3 fichiers, commit, tag, push ; (3) phase next dev : bump patch, ajout de -SNAPSHOT, commit, push. Le workflow `release.yml` crée la GitHub Release avec un changelog auto-généré ; `deploy.yml` exécute la suite de tests sur chaque push `main`.
 
 **Affichage UI :** En version SNAPSHOT, le header affiche aussi le short commit hash (ex. `v0.1.0-SNAPSHOT (a1b2c3d)`) pour distinguer les builds.
 

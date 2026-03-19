@@ -6,10 +6,12 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 usage() {
-  echo "Usage: $0 --patch | --minor | --major"
+  echo "Usage: $0 --patch | --minor | --major [--fast] [--skip-tests]"
   echo "  --patch   0.1.0-SNAPSHOT → release 0.1.1, then 0.1.2-SNAPSHOT"
   echo "  --minor   0.1.0-SNAPSHOT → release 0.2.0, then 0.2.1-SNAPSHOT"
   echo "  --major   0.1.0-SNAPSHOT → release 1.0.0, then 1.0.1-SNAPSHOT"
+  echo "  --fast    Run backend unit tests + frontend build only (skip local e2e; e2e still runs on push to main in CI)."
+  echo "  --skip-tests  Skip all local tests and frontend build before bumping (trust CI; use sparingly)."
   echo ""
   echo "The release workflow (triggered by the tag) creates the GitHub release"
   echo "with an auto-generated changelog from commits."
@@ -17,11 +19,16 @@ usage() {
 }
 
 BUMP=""
+SKIP_TESTS=false
+FAST=false
+
 for arg in "$@"; do
   case "$arg" in
     --patch) BUMP="patch" ;;
     --minor) BUMP="minor" ;;
     --major) BUMP="major" ;;
+    --skip-tests) SKIP_TESTS=true ;;
+    --fast) FAST=true ;;
     *) usage ;;
   esac
 done
@@ -47,52 +54,63 @@ if ! gh auth status &>/dev/null; then
 fi
 
 # 3. Tests and build
-echo "Running backend tests..."
-cd "$ROOT_DIR/backend"
-mvn test -q
+if [ "$SKIP_TESTS" = true ]; then
+  echo "Skipping local tests and frontend build (--skip-tests)."
+elif [ "$FAST" = true ]; then
+  echo "Running backend unit tests (--fast; skipping local e2e)..."
+  cd "$ROOT_DIR/backend"
+  mvn test -q
+  echo "Building frontend..."
+  cd "$ROOT_DIR/frontend"
+  npm run build
+  cd "$ROOT_DIR"
+else
+  echo "Running backend tests..."
+  cd "$ROOT_DIR/backend"
+  mvn test -q
 
-# E2E require backend on 8080 (same as CI). Ensure port is free, then start and run Playwright.
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
-  echo "Error: Port 8080 is already in use (e.g. backend from start-dev.sh). Stop it and retry."
-  exit 1
-fi
-# Optional: detect any listener on 8080 (health might not be up yet)
-if command -v lsof &>/dev/null; then
-  if lsof -i :8080 -sTCP:LISTEN -t &>/dev/null; then
-    echo "Error: Port 8080 is in use. Stop the process (e.g. ./scripts/start-dev.sh) and retry."
+  # E2E require backend on 8080 (same as CI). Ensure port is free, then start and run Playwright.
+  if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+    echo "Error: Port 8080 is already in use (e.g. backend from start-dev.sh). Stop it and retry."
     exit 1
   fi
-fi
-
-echo "Starting backend for e2e..."
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
-BACKEND_PID=$!
-cleanup_backend() { kill $BACKEND_PID 2>/dev/null || true; }
-trap cleanup_backend EXIT
-
-echo "Waiting for backend to be ready..."
-for i in $(seq 1 60); do
-  if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
-    echo "Backend ready."
-    break
+  if command -v lsof &>/dev/null; then
+    if lsof -i :8080 -sTCP:LISTEN -t &>/dev/null; then
+      echo "Error: Port 8080 is in use. Stop the process (e.g. ./scripts/start-dev.sh) and retry."
+      exit 1
+    fi
   fi
-  sleep 2
-done
-if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
-  echo "Error: Backend did not become ready on 8080. Check backend logs above."
-  exit 1
+
+  echo "Starting backend for e2e..."
+  mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
+  BACKEND_PID=$!
+  cleanup_backend() { kill $BACKEND_PID 2>/dev/null || true; }
+  trap cleanup_backend EXIT
+
+  echo "Waiting for backend to be ready..."
+  for i in $(seq 1 60); do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+      echo "Backend ready."
+      break
+    fi
+    sleep 2
+  done
+  if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then
+    echo "Error: Backend did not become ready on 8080. Check backend logs above."
+    exit 1
+  fi
+
+  echo "Running frontend e2e tests..."
+  cd "$ROOT_DIR/frontend"
+  npm run test:e2e
+  cleanup_backend
+  trap - EXIT
+
+  echo "Building frontend..."
+  npm run build
+
+  cd "$ROOT_DIR"
 fi
-
-echo "Running frontend e2e tests..."
-cd "$ROOT_DIR/frontend"
-npm run test:e2e
-cleanup_backend
-trap - EXIT
-
-echo "Building frontend..."
-npm run build
-
-cd "$ROOT_DIR"
 
 # 4. Phase 1: Release — extract base, bump, update to release version
 CURRENT=$(node -p "require('./package.json').version")

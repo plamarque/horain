@@ -1,4 +1,5 @@
-# Run full Promptfoo evals (deterministic + scored) on release.
+# Run full Promptfoo evals (deterministic + scored) once per GitHub release.
+# Triggered when a release is published (not on tag push — avoids duplicate runs with release workflow).
 # Requires PROMPTFOO_JUDGE_MISTRAL_API_KEY secret. Uses --max-concurrency 1 for Mistral rate limit (6 req/min).
 
 name: Evals scored (release)
@@ -6,9 +7,6 @@ name: Evals scored (release)
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch: {}
 
 permissions:

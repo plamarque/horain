@@ -3,7 +3,9 @@
 # - Backend → Cloud Run (via gcloud builds submit from this workflow; see docs/CLOUD_RUN_SETUP.md)
 # - Frontend → GitHub Pages
 #
-# CI: Backend unit tests + e2e tests run first. E2E requires OPENAI_API_KEY secret.
+# CI: mvn test always. E2e is skipped when the push only changes package.json / frontend/package.json /
+# backend/pom.xml (e.g. "prepare next dev" after a release). See docs/DEVELOPMENT.md.
+# E2E requires OPENAI_API_KEY secret when e2e runs.
 # GCP: Workload Identity Federation (secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT, etc.).
 name: Deploy to Production
 
@@ -21,8 +23,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  detect-version-only:
+    name: Detect version-only push
+    runs-on: ubuntu-latest
+    outputs:
+      skip_e2e: ${{ steps.pick.outputs.skip_e2e }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute skip_e2e
+        id: pick
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "skip_e2e=false" >> "$GITHUB_OUTPUT"
+            echo "Full CI: invalid or initial before SHA"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" 2>/dev/null || true)
+          if [ -z "$CHANGED" ]; then
+            echo "skip_e2e=false" >> "$GITHUB_OUTPUT"
+            echo "Full CI: empty diff"
+            exit 0
+          fi
+          BAD=$(echo "$CHANGED" | grep -vxE 'package.json|frontend/package.json|backend/pom.xml' || true)
+          if [ -n "$BAD" ]; then
+            echo "skip_e2e=false" >> "$GITHUB_OUTPUT"
+            echo "Full CI: non-version files in push"
+          else
+            echo "skip_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping e2e: only version manifests changed"
+          fi
+
   test:
     name: Test
+    needs: detect-version-only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,6 +79,7 @@ jobs:
         run: mvn test -q
 
       - name: Set up Node.js
+        if: needs.detect-version-only.outputs.skip_e2e != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: "20"
@@ -47,14 +87,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
+        if: needs.detect-version-only.outputs.skip_e2e != 'true'
         working-directory: frontend
         run: npm ci
 
       - name: Install Playwright browsers
+        if: needs.detect-version-only.outputs.skip_e2e != 'true'
         working-directory: frontend
         run: npx playwright install chromium --with-deps
 
       - name: Build frontend for e2e
+        if: needs.detect-version-only.outputs.skip_e2e != 'true'
         working-directory: frontend
         env:
           VITE_API_URL: 'http://localhost:8080'
@@ -62,6 +105,7 @@ jobs:
         run: npm run build
 
       - name: Run e2e tests
+        if: needs.detect-version-only.outputs.skip_e2e != 'true'
         working-directory: frontend
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -104,6 +148,10 @@ jobs:
           npm run test:e2e
 
           kill $SERVE_PID 2>/dev/null || true
+
+      - name: Skip e2e (version-only commit)
+        if: needs.detect-version-only.outputs.skip_e2e == 'true'
+        run: echo "E2e skipped: push only touched version manifest files. Backend unit tests passed."
 
   deploy-backend:
     name: Deploy backend to Cloud Run
