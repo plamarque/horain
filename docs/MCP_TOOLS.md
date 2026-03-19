@@ -41,7 +41,7 @@ Full guidelines: [docs/AGENT_DESIGN.md](AGENT_DESIGN.md).
 | `sum_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums billable (invoicable) time in the period. Use for "how much billable time?" or "temps facturé". |
 | `sum_non_billable_time_for_period` | `start`, `end` (ISO-8601) | `totalMinutes`, `totalHours` | Sums non-billable time in the period. |
 | `get_time_aggregated_for_chart` | `start`, `end`, `groupBy` | categories, series | `groupBy`: `day_and_project` (stacked bar by project per day), `day_and_billable` (stacked bar billable vs non-billable per day), `project_only` (pie), `billable_vs_non_billable` (pie for whole period). |
-| `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). |
+| `get_current_datetime` | — | `iso`, `timezone`, period bounds | Returns current server datetime and period bounds (today, week, month). **In-app chat:** the same summary is injected at the **end** of the system message each request (`ServerTemporalContextService`); the model should use that block and avoid calling this tool unless a refresh is needed. The tool remains the contract for MCP/API traces and other clients. |
 | `store_memory` | `kind` (string), `memoryKey` (string), `factText` (string), `value` (string, optional), `ttlSeconds` (int, optional) | status, kind, memoryKey | Store or update a long-term memory. Use after user confirmed a disambiguation (e.g. which project) or stated an explicit preference. kind: project_disambiguation, typo, default_project, preference, explicit_fact. Do NOT use to store every project name mentioned. Consolidation: same (user, kind, key) updates the existing memory. |
 | `get_memories` | `kind` (string, optional) | `memories[]` (each with kind, memoryKey, factText) | Returns stored memories for the user (already injected in the prompt each turn; use to refresh after storing). Optional kind filters by kind. |
 | `forget_memory` | `kind` (string), `memoryKey` (string, optional) | status | Forget one or more memories. Use when the user explicitly asks to forget (e.g. default project, a disambiguation). If memoryKey omitted, forgets all memories of that kind—confirm before doing so. |
@@ -52,7 +52,7 @@ To reduce model errors, these tools have explicit example invocations in their d
 
 - **search_project:** `{"name": "Horain"}` or `{"name": "HatCast"}`. Do NOT use to list all projects; use list_projects instead.
 - **create_time_log:** `{"projectId": "Horain", "durationMinutes": 90, "note": "backend API"}` or with activity type `{"projectId": "<uuid from search_project>", "durationMinutes": 30, "activityTypeCode": "DEV"}`. Always get projectId from list_projects or search_project first.
-- **get_time_aggregated_for_chart:** Call get_current_datetime first, then e.g. `{"start": "<startOfWeek>", "end": "<endOfWeek>", "groupBy": "day_and_project"}`. Then call propose_chart with the returned categories and series.
+- **get_time_aggregated_for_chart:** Use `start`/`end` from the **Current server time** block at the end of the system message (in-app), or call `get_current_datetime` if absent; e.g. `{"start": "<startOfWeek>", "end": "<endOfWeek>", "groupBy": "day_and_project"}`. Then call propose_chart with the returned categories and series.
 - **propose_entries:** Call only after get_time_logs_for_period, get_recent_logs, or search_time_logs; pass the returned time_logs array as the entries argument. Example flow: get_recent_logs(limit=10) → propose_entries(entries: time_logs from that result); or search_time_logs(query: "backend") → propose_entries(entries: time_logs from that result).
 - **store_memory:** After user confirms "HatCast V2" for "30 min on HatCast", call e.g. `{"kind": "project_disambiguation", "memoryKey": "HatCast", "value": "<project-id-of-V2>", "factText": "When the user says HatCast without specifying, they mean HatCast V2."}`. Do NOT call for every project mention.
 
@@ -61,7 +61,7 @@ To reduce model errors, these tools have explicit example invocations in their d
 When documenting or implementing a new tool (in this spec and in `ToolRegistry`), follow this template so that descriptions stay LLM-oriented and consistent with [docs/AGENT_DESIGN.md](AGENT_DESIGN.md):
 
 - **Purpose** — What the tool does in one sentence.
-- **When to use** — Explicit guidance (e.g. “Use when the user asks…”, “Call after get_current_datetime when…”).
+- **When to use** — Explicit guidance (e.g. “Use when the user asks…”, “Use period bounds from the injected Current server time block when…”).
 - **When not to use** — Explicit guidance (e.g. “Do NOT use to list all projects; use list_projects instead.”).
 - **Example calls** — Optional but recommended; one or two valid invocations.
 - **Parameters** — Name, type, and a short description for each; indicate required vs optional and defaults.
@@ -82,11 +82,12 @@ The table above is the contractual spec; this template describes how to write ea
 
 ## Mass update and “all activities” without date
 
-- **No date specified:** When the user asks to change “all” or “toutes” activities for a project (e.g. “bascule toutes les activités associées à X en facturable”) without specifying a period, the agent must use an all-time range: `get_time_logs_for_period` with `start` = `2000-01-01T00:00:00Z` and `end` = `endOfMonth` from `get_current_datetime`. It must not assume an arbitrary month (e.g. October).
+- **No date specified:** When the user asks to change “all” or “toutes” activities for a project (e.g. “bascule toutes les activités associées à X en facturable”) without specifying a period, the agent must use an all-time range: `get_time_logs_for_period` with `start` = `2000-01-01T00:00:00Z` and `end` = `endOfMonth` from the **Current server time** block (in-app) or from `get_current_datetime`. It must not assume an arbitrary month (e.g. October).
 - **Confirmation:** Before applying a mass update (e.g. setting many entries to billable), the agent must state how many entries are concerned and ask for explicit confirmation; it must not call `update_time_log` in a loop until the user has confirmed.
 
 ## Implementation Notes
 
+- **Injected server time (in-app agent):** Each chat request appends a **Current server time** section to the system message (after static instructions, UI context, and memories). It mirrors the `get_current_datetime` tool output (same `ServerTemporalContextService` / `TemporalSnapshot` as the tool) so the model can resolve “today / this week / this month” without an extra tool round. Placement at the **end** preserves a longer stable prefix for provider prompt caching. [ASSUMPTION] Server timezone is UTC (`ServerTemporalContextService.DEFAULT_ZONE`); user-specific zones would require config + keeping tool and injection aligned.
 - **Tool result format:** Each tool returns a dual payload: **llm** (string sent to the model; readable summary) and **data** (structured JSON for the client). The backend sends only **llm** to the LLM; the API exposes the full result. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
 - **When not to use / Expected output:** These are specified in the backend `ToolRegistry` for each tool and summarized in the "Example calls (at-risk tools)" section above. Keep the table descriptions aligned with the code.
 - `create_time_log` and `update_time_log` return a `time_log` object including `projectName` (resolved from the project). The UI displays this in the structured table after create/update so the user can verify the action.

@@ -227,7 +227,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_LOGS_FOR_PERIOD,
-                        "Get time logs for a date range. Call get_current_datetime first for start/end bounds. Use for 'what did I do today/week/month?' or to list entries. Do NOT use for 'most recent N' without a range—use get_recent_logs. Returns: time_logs array.",
+                        "Get time logs for a date range. For 'today/week/month', use start/end from the Current server time block at the end of the system message; only call get_current_datetime if you need a refresh. Use for 'what did I do today/week/month?' or to list entries. Do NOT use for 'most recent N' without a range—use get_recent_logs. Returns: time_logs array.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(
@@ -332,7 +332,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_CURRENT_DATETIME,
-                        "Get the current server date and time with timezone. Use to determine 'today', 'this week', 'this month' when the user asks relative time questions. Call before get_time_logs_for_period, sum_*_for_period, or get_time_aggregated_for_chart when you need bounds. Returns: iso, timezone, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth.",
+                        "Get the current server date and time with timezone. Do NOT call when the system message already ends with 'Current server time'—use those bounds instead to save a tool round. Call only if that block is missing or the user needs an explicit fresh server read. Returns: iso, timezone, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(),
@@ -341,7 +341,7 @@ public class ToolRegistry {
                 ),
                 new ToolDefinition(
                         GET_TIME_AGGREGATED_FOR_CHART,
-                        "Get time aggregated for chart display. Call get_current_datetime first to get start/end bounds, then call this tool. Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable per day?'). groupBy: 'day_and_project' (stacked bar by project per day), 'day_and_billable' (stacked bar billable vs non-billable per day), 'project_only' (pie by project), 'billable_vs_non_billable' (pie for whole period). Example: {\"start\": \"<startOfWeek from get_current_datetime>\", \"end\": \"<endOfWeek>\", \"groupBy\": \"day_and_project\"}. Then call propose_chart with the returned categories and series.",
+                        "Get time aggregated for chart display. Use start/end from the Current server time block at the end of the system message (or get_current_datetime if missing). Use when the user asks analytical questions ('what did I work on this week?', 'how much time per project?', 'billable vs non-billable per day?'). groupBy: 'day_and_project' (stacked bar by project per day), 'day_and_billable' (stacked bar billable vs non-billable per day), 'project_only' (pie by project), 'billable_vs_non_billable' (pie for whole period). Example: {\"start\": \"<startOfWeek>\", \"end\": \"<endOfWeek>\", \"groupBy\": \"day_and_project\"}. Then call propose_chart with the returned categories and series.",
                         Map.of(
                                 "type", "object",
                                 "properties", Map.of(

@@ -166,22 +166,42 @@ public class AnalyticsService {
      * Start of today in the given timezone (inclusive).
      */
     public static Instant startOfDay(ZoneId zone) {
-        return LocalDate.now(zone).atStartOfDay(zone).toInstant();
+        return startOfDay(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * Start of the given calendar day in the timezone (inclusive).
+     */
+    public static Instant startOfDay(ZoneId zone, LocalDate day) {
+        return day.atStartOfDay(zone).toInstant();
     }
 
     /**
      * End of today in the given timezone (exclusive, i.e. start of next day).
      */
     public static Instant endOfDay(ZoneId zone) {
-        return LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
+        return endOfDay(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * End of the given calendar day in the timezone (exclusive).
+     */
+    public static Instant endOfDay(ZoneId zone, LocalDate day) {
+        return day.plusDays(1).atStartOfDay(zone).toInstant();
     }
 
     /**
      * Start of the week (Monday) in the given timezone.
      */
     public static Instant startOfWeek(ZoneId zone) {
-        LocalDate now = LocalDate.now(zone);
-        LocalDate monday = now.with(java.time.DayOfWeek.MONDAY);
+        return startOfWeek(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * Start of the ISO week (Monday) containing {@code day} in the given timezone.
+     */
+    public static Instant startOfWeek(ZoneId zone, LocalDate day) {
+        LocalDate monday = day.with(java.time.DayOfWeek.MONDAY);
         return monday.atStartOfDay(zone).toInstant();
     }
 
@@ -189,15 +209,28 @@ public class AnalyticsService {
      * End of the week (Sunday 23:59:59.999) - exclusive bound for next week start.
      */
     public static Instant endOfWeek(ZoneId zone) {
-        return startOfWeek(zone).plus(java.time.Duration.ofDays(7));
+        return endOfWeek(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * End of the ISO week (exclusive) containing {@code day}.
+     */
+    public static Instant endOfWeek(ZoneId zone, LocalDate day) {
+        return startOfWeek(zone, day).plus(java.time.Duration.ofDays(7));
     }
 
     /**
      * Start of the month in the given timezone.
      */
     public static Instant startOfMonth(ZoneId zone) {
-        LocalDate now = LocalDate.now(zone);
-        LocalDate first = now.withDayOfMonth(1);
+        return startOfMonth(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * Start of the month containing {@code day}.
+     */
+    public static Instant startOfMonth(ZoneId zone, LocalDate day) {
+        LocalDate first = day.withDayOfMonth(1);
         return first.atStartOfDay(zone).toInstant();
     }
 
@@ -205,8 +238,14 @@ public class AnalyticsService {
      * End of the month (exclusive).
      */
     public static Instant endOfMonth(ZoneId zone) {
-        LocalDate now = LocalDate.now(zone);
-        LocalDate first = now.withDayOfMonth(1);
+        return endOfMonth(zone, LocalDate.now(zone));
+    }
+
+    /**
+     * End of the month containing {@code day} (exclusive).
+     */
+    public static Instant endOfMonth(ZoneId zone, LocalDate day) {
+        LocalDate first = day.withDayOfMonth(1);
         return first.plusMonths(1).atStartOfDay(zone).toInstant();
     }
 }

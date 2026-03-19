@@ -52,8 +52,7 @@
         const hasBillableSum = tc.some(t => t.name === 'sum_billable_time_for_period');
         const hasChart = tc.some(t => t.name === 'get_time_aggregated_for_chart'
           && (t.arguments || '').includes('billable_vs_non_billable'));
-        const hasDatetime = tc.some(t => t.name === 'get_current_datetime');
-        return (hasBillableSum || hasChart) && hasDatetime;
+        return hasBillableSum || hasChart;
 
 # Regression: "toutes les activités" without date must use all-time range, not an arbitrary month (e.g. October)
 - description: Billable mass toggle - all activities for project without date uses all-time range and asks confirmation

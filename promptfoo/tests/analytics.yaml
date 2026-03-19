@@ -8,7 +8,7 @@
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;
         const tc = o.toolCalls || [];
-        return tc.some(t => t.name === 'get_current_datetime');
+        return tc.some(t => ['sum_time_for_period', 'get_time_logs_for_period', 'sum_time_by_project'].includes(t.name));
     - type: javascript
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;
@@ -24,7 +24,7 @@
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;
         const tc = o.toolCalls || [];
-        return tc.some(t => t.name === 'get_current_datetime');
+        return tc.some(t => ['sum_time_for_period', 'get_time_logs_for_period', 'sum_time_by_project'].includes(t.name));
     - type: javascript
       value: |
         const o = typeof output === 'string' ? JSON.parse(output) : output;

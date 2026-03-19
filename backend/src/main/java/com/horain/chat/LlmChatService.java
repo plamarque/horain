@@ -7,6 +7,7 @@ import com.horain.llm.*;
 import com.horain.model.AgentTurn;
 import com.horain.model.Memory;
 import com.horain.service.MemoryService;
+import com.horain.time.ServerTemporalContextService;
 import com.horain.tools.ToolExecutorService;
 import com.horain.tools.ToolRegistry;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ public class LlmChatService {
             - Use the available tools to read and write data. You never guess data.
             - The [Memories] section (when present) contains stored facts about the user (preferences, project disambiguation, typos). Use them to personalize responses and avoid re-asking; e.g. when the user says "HatCast" and a memory says they mean HatCast V2, log on that project directly. You can store new facts with store_memory after a confirmed disambiguation or explicit preference, and forget with forget_memory when the user asks.
             - projectId: sum_time_by_project, get_time_logs_for_period, create_time_log accept EITHER a project UUID OR a project name (e.g. "HatCast"). If you pass a name, the system resolves it automatically.
+            - The "## Current server time" block at the **end** of this system message is refreshed every request. Use its values (iso, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth) for "today", "this week", "this month", and for sum_*_for_period, get_time_logs_for_period, get_time_aggregated_for_chart bounds. Do **not** call get_current_datetime unless that block is missing or the user explicitly needs a fresh server time read.
 
             ## Logging time (create_time_log, project matching)
             - Extract project name, duration (in minutes), and optional note from the user's message.
@@ -61,11 +63,11 @@ public class LlmChatService {
             - When the user asks to delete or remove a project: use delete_project. If delete_project returns an error (project has time log entries), inform the user of the entry count and ask explicitly whether they want to delete all entries first, then the project. NEVER automatically chain delete_time_log calls without user confirmation. If ambiguous which project, ask which one.
 
             ## Time queries and listing entries
-            - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use get_current_datetime first, then sum_time_for_period or get_time_logs_for_period. When you need "this week" or "today" or "this month", call get_current_datetime to get the correct start/end timestamps.
+            - For time queries ("combien de temps?", "how many hours?", "what did I do?"): use the Current server time block for bounds, then sum_time_for_period or get_time_logs_for_period. For "this week", "today", or "this month", use startOfWeek/endOfWeek, startOfToday/endOfToday, or startOfMonth/endOfMonth from that block.
             - For listing entries ("les entrées", "détails", "qu'est-ce que j'ai logué?", "what did I log?", "show me my entries"): call get_time_logs_for_period or get_recent_logs, then MUST call propose_entries with the full time_logs array (including id, projectId, projectName, and when present activityTypeCode, activityTypeLabel, dailyRateCents for each entry). Do NOT summarize entries in your text; the UI displays them in a table. Keep your text response brief (e.g. "Here are your entries for this week.").
             - When the user asks to find entries by keyword or phrase (e.g. "find logs with backend", "entries mentioning Horain", "recherche pie chart", "entrées qui contiennent X"): call search_time_logs with the query, then propose_entries with the returned time_logs. Do NOT use get_time_logs_for_period or get_recent_logs for keyword search.
-            - When listing entries for a specific project (e.g. "list entries for Horain"): if the user did not specify a date range, call get_current_datetime first and use a period that includes recent activity (e.g. startOfMonth to endOfMonth, or startOfWeek to endOfWeek). Do NOT use an arbitrary past period (e.g. October); use the current month or week so that recent entries are included.
-            - When the user asks to change/update/toggle "toutes les activités" or "all activities" for a project (e.g. "bascule toutes les activités associées à eXo en facturable") WITHOUT specifying a period: call get_current_datetime, then get_time_logs_for_period with start = "2000-01-01T00:00:00Z" and end = the endOfMonth value returned by get_current_datetime, and projectId = the project. Do NOT assume or use an arbitrary month (e.g. October); if no period was specified, use this all-time range.
+            - When listing entries for a specific project (e.g. "list entries for Horain"): if the user did not specify a date range, use the Current server time block and pick a period that includes recent activity (e.g. startOfMonth to endOfMonth, or startOfWeek to endOfWeek). Do NOT use an arbitrary past period (e.g. October); use the current month or week so that recent entries are included.
+            - When the user asks to change/update/toggle "toutes les activités" or "all activities" for a project (e.g. "bascule toutes les activités associées à eXo en facturable") WITHOUT specifying a period: use endOfMonth from the Current server time block, then get_time_logs_for_period with start = "2000-01-01T00:00:00Z" and end = that endOfMonth, and projectId = the project. Do NOT assume or use an arbitrary month (e.g. October); if no period was specified, use this all-time range.
             - When the user asks which activities or entries correspond to a date or period ("quelles activités?", "détail", "les entrées du lundi 2", "what entries on March 2?"): call get_time_logs_for_period with that exact day's start and end, then list the entries or call propose_entries. Never say "no activities" or "aucune activité" without having called get_time_logs_for_period for that exact period first.
 
             ## Mass operations (guards)
@@ -73,13 +75,13 @@ public class LlmChatService {
             - MASS UPDATE GUARD: When the user asks to apply a change to "all" or "toutes" activities for a project (e.g. set all to billable, "bascule toutes en facturable"), you MUST first fetch the entries (using the all-time range above if no period was specified), then state the ACTION you will perform and ask for confirmation. The confirmation must describe the action requested, not the current state: e.g. "You are about to set all N entries to billable. Confirm? (yes / go ahead)". Never say "set X to billable and Y to non-billable" when the user asked to set all to billable—that describes the current mix, not the action. Do NOT call update_time_log in a loop until the user has confirmed.
 
             ## Charts and analytics
-            - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): call get_current_datetime, then get_time_aggregated_for_chart with groupBy "day_and_project" (stacked bar by project per day) or "day_and_billable" (stacked bar billable vs non-billable per day; use for "heures facturables vs non facturables par jour") or "project_only" (pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
+            - For analytical questions ("sur quoi j'ai travaillé cette semaine?", "what did I work on this week?", "répartition par projet", "hours per project", "un chart"): use the Current server time block for start/end, then get_time_aggregated_for_chart with groupBy "day_and_project" (stacked bar by project per day) or "day_and_billable" (stacked bar billable vs non-billable per day; use for "heures facturables vs non facturables par jour") or "project_only" (pie), then propose_chart with chartType "stackedBar", "pie", or "bar". Include a short text summary. You MUST call propose_chart to show a chart; never output markdown image syntax like ![...](url).
             - For "heures facturables du [date]" or "billable hours on [date]": use sum_billable_time_for_period with start and end of that calendar day in UTC (e.g. 2025-03-02T00:00:00Z to 2025-03-03T00:00:00Z for March 2). The numbers must match the chart if the chart was built with day_and_billable for the same period.
             - Occupancy rate (taux d'occupation): formula is (total hours from sum_time_for_period) / (days in period × base hours per day) × 100. Count calendar days: "2 weeks" = 14 days, "this week" = 7 days. Example: 2 weeks at 7 h/day → denominator = 14 × 7 = 98 hours. Always show the calculation.
 
             ## Entry edits and deletes
             - When the user asks to edit, change, or correct an entry (e.g. "change duration to 45 min", "update the note", "fix that entry"): ALWAYS use update_time_log with the entry id and the new values. NEVER use create_time_log for modifying an existing entry. NEVER use create_time_log + delete_time_log to simulate an update.
-            - When the user asks to edit/change/correct an entry but no context entries are provided: first call get_recent_logs or get_time_logs_for_period (use get_current_datetime for "today"/"this week") to fetch entries, identify which entry to modify, then call update_time_log with its id.
+            - When the user asks to edit/change/correct an entry but no context entries are provided: first call get_recent_logs or get_time_logs_for_period (use the Current server time block for "today"/"this week" bounds) to fetch entries, identify which entry to modify, then call update_time_log with its id.
             - When the user asks to delete or remove an entry: use delete_time_log with the entry id. When context entries are provided (user has selected entries), those entries include their ids; use them for edit/delete.
 
             ## Activity types (natures + TJM)
@@ -102,13 +104,15 @@ public class LlmChatService {
     private final int massDeleteLimit;
     private final AgentTurnService agentTurnService;
     private final LlmProperties llmProperties;
+    private final ServerTemporalContextService serverTemporalContextService;
 
     public LlmChatService(LlmClient llmClient, ToolRegistry toolRegistry, ToolExecutorService toolExecutor,
                           MemoryService memoryService,
                           ObjectMapper objectMapper,
                           @Value("${horain.mass-delete-limit:5}") int massDeleteLimit,
                           AgentTurnService agentTurnService,
-                          LlmProperties llmProperties) {
+                          LlmProperties llmProperties,
+                          ServerTemporalContextService serverTemporalContextService) {
         this.llmClient = llmClient;
         this.toolRegistry = toolRegistry;
         this.toolExecutor = toolExecutor;
@@ -117,6 +121,7 @@ public class LlmChatService {
         this.massDeleteLimit = massDeleteLimit;
         this.agentTurnService = agentTurnService;
         this.llmProperties = llmProperties;
+        this.serverTemporalContextService = serverTemporalContextService;
     }
 
     public ChatResponse chat(String userMessage, List<ChatHistoryEntry> history,
@@ -125,7 +130,7 @@ public class LlmChatService {
         try {
             long startTime = System.currentTimeMillis();
             List<ChatMessage> messages = new ArrayList<>();
-            String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
+            String systemPrompt = buildFullSystemPrompt(contextEntries, contextProjects);
             messages.add(ChatMessage.system(systemPrompt));
             if (history != null && !history.isEmpty()) {
                 for (ChatHistoryEntry e : history) {
@@ -257,6 +262,15 @@ public class LlmChatService {
     /**
      * Builds the [Memories] block for the system prompt: active memories for the default user, limited in count.
      */
+    /**
+     * Static instructions first, then UI context and memories, then server time last (longer shared prefix for caching).
+     */
+    private String buildFullSystemPrompt(List<Map<String, Object>> contextEntries,
+                                         List<Map<String, Object>> contextProjects) {
+        return SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock()
+                + serverTemporalContextService.buildPromptBlock();
+    }
+
     private String buildMemoriesBlock() {
         String userId = memoryService.getDefaultUserId();
         List<Memory> memories = memoryService.findActiveByUserId(userId);
@@ -370,7 +384,7 @@ public class LlmChatService {
                           StreamEventWriter writer) {
         long startTime = System.currentTimeMillis();
         List<ChatMessage> messages = new ArrayList<>();
-        String systemPrompt = SYSTEM_PROMPT + summarizeContext(contextEntries, contextProjects) + buildMemoriesBlock();
+        String systemPrompt = buildFullSystemPrompt(contextEntries, contextProjects);
         messages.add(ChatMessage.system(systemPrompt));
         if (history != null && !history.isEmpty()) {
             for (ChatHistoryEntry e : history) {

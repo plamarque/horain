@@ -3,6 +3,7 @@ package com.horain.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.horain.analytics.AnalyticsService;
+import com.horain.time.ServerTemporalContextService;
 import com.horain.dto.ActivityTypeDto;
 import com.horain.dto.ProjectDto;
 import com.horain.dto.TimeLogDto;
@@ -22,8 +23,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +39,6 @@ import java.util.stream.Collectors;
 public class ToolExecutorService {
 
     private static final Logger log = LoggerFactory.getLogger(ToolExecutorService.class);
-    private static final ZoneId DEFAULT_ZONE = ZoneId.of("UTC");
 
     private final ProjectService projectService;
     private final TimeLogService timeLogService;
@@ -48,6 +46,7 @@ public class ToolExecutorService {
     private final AnalyticsService analyticsService;
     private final MemoryService memoryService;
     private final ObjectMapper objectMapper;
+    private final ServerTemporalContextService serverTemporalContextService;
 
     public ToolExecutorService(
             ProjectService projectService,
@@ -55,13 +54,15 @@ public class ToolExecutorService {
             ActivityTypeService activityTypeService,
             AnalyticsService analyticsService,
             MemoryService memoryService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ServerTemporalContextService serverTemporalContextService) {
         this.projectService = projectService;
         this.timeLogService = timeLogService;
         this.activityTypeService = activityTypeService;
         this.analyticsService = analyticsService;
         this.memoryService = memoryService;
         this.objectMapper = objectMapper;
+        this.serverTemporalContextService = serverTemporalContextService;
     }
 
     public ToolCallResult execute(ToolCallRequest request) {
@@ -416,7 +417,7 @@ public class ToolExecutorService {
         String startStr = getText(args, "start");
         String endStr = getText(args, "end");
         if (startStr == null || endStr == null) {
-            return toDualResult("Error: start and end (ISO-8601) are required. Call get_current_datetime for bounds.", Map.of("error", "start and end (ISO-8601) are required"));
+            return toDualResult("Error: start and end (ISO-8601) are required. Use the Current server time block in the system message or call get_current_datetime for bounds.", Map.of("error", "start and end (ISO-8601) are required"));
         }
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
@@ -510,7 +511,7 @@ public class ToolExecutorService {
         String startStr = getText(args, "start");
         String endStr = getText(args, "end");
         if (startStr == null || endStr == null) {
-            return toDualResult("Error: start and end (ISO-8601) are required. Call get_current_datetime for bounds.", Map.of("error", "start and end (ISO-8601) are required"));
+            return toDualResult("Error: start and end (ISO-8601) are required. Use the Current server time block in the system message or call get_current_datetime for bounds.", Map.of("error", "start and end (ISO-8601) are required"));
         }
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
@@ -549,27 +550,8 @@ public class ToolExecutorService {
     }
 
     private String executeGetCurrentDatetime() {
-        ZonedDateTime now = ZonedDateTime.now(DEFAULT_ZONE);
-        String startOfToday = AnalyticsService.startOfDay(DEFAULT_ZONE).toString();
-        String endOfToday = AnalyticsService.endOfDay(DEFAULT_ZONE).toString();
-        String startOfWeek = AnalyticsService.startOfWeek(DEFAULT_ZONE).toString();
-        String endOfWeek = AnalyticsService.endOfWeek(DEFAULT_ZONE).toString();
-        String startOfMonth = AnalyticsService.startOfMonth(DEFAULT_ZONE).toString();
-        String endOfMonth = AnalyticsService.endOfMonth(DEFAULT_ZONE).toString();
-        Map<String, Object> data = Map.of(
-                "iso", now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
-                "timezone", DEFAULT_ZONE.getId(),
-                "startOfToday", startOfToday,
-                "endOfToday", endOfToday,
-                "startOfWeek", startOfWeek,
-                "endOfWeek", endOfWeek,
-                "startOfMonth", startOfMonth,
-                "endOfMonth", endOfMonth);
-        String llm = "Current datetime (UTC): " + now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-                + ". Today: " + startOfToday + " to " + endOfToday
-                + ". Week: " + startOfWeek + " to " + endOfWeek
-                + ". Month: " + startOfMonth + " to " + endOfMonth + ".";
-        return toDualResult(llm, data);
+        var snapshot = serverTemporalContextService.snapshot();
+        return toDualResult(snapshot.toLlmSummary(), snapshot.toDataMap());
     }
 
     private String executeGetTimeAggregatedForChart(JsonNode args) {
@@ -577,14 +559,15 @@ public class ToolExecutorService {
         String endStr = getText(args, "end");
         String groupBy = getText(args, "groupBy");
         if (startStr == null || endStr == null) {
-            return toDualResult("Error: start and end (ISO-8601) are required. Call get_current_datetime first.", Map.of("error", "start and end (ISO-8601) are required"));
+            return toDualResult("Error: start and end (ISO-8601) are required. Use the Current server time block or call get_current_datetime.", Map.of("error", "start and end (ISO-8601) are required"));
         }
         if (groupBy == null || groupBy.isBlank()) {
             return toDualResult("Error: groupBy is required. Use day_and_project, day_and_billable, project_only, or billable_vs_non_billable.", Map.of("error", "groupBy is required (day_and_project, day_and_billable, project_only, or billable_vs_non_billable)"));
         }
         Instant start = Instant.parse(startStr);
         Instant end = Instant.parse(endStr);
-        var result = analyticsService.getTimeAggregatedForChart(start, end, groupBy, DEFAULT_ZONE);
+        ZoneId zone = serverTemporalContextService.defaultZone();
+        var result = analyticsService.getTimeAggregatedForChart(start, end, groupBy, zone);
         String llm;
         try {
             llm = "Chart data ready. Pass the following categories and series exactly to propose_chart (do not invent data): "

@@ -106,6 +106,10 @@ LLM context windows degrade as they grow (sometimes called "context rot"). Syste
 
 The architecture should assume **context degradation over time**.
 
+### 4.1 Server time injected into the system message (Horain)
+
+For relative periods (“today”, “this week”, “this month”), the backend injects a **Current server time** block at the **end** of the system message on every request. It duplicates the same bounds as the `get_current_datetime` tool (single implementation) so the model can pass `start`/`end` to period tools **without** a mandatory tool round. The tool remains available for MCP clients, traces, and rare refresh cases. **Rationale:** (1) lower latency and fewer tokens from tool chatter; (2) appending transient content **after** long static instructions helps preserve a longer identical prefix for **prompt caching** on the provider side when other parts of the system message are stable.
+
 ---
 
 ## 5. Prefer Specialized Tools Over Generic APIs

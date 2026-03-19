@@ -46,6 +46,8 @@ Modifier un test seulement dans **trois cas**.
 | **Le test est trop fragile** | Assertions volontairement souples (ex. `icontains-any`) ; avec un seed fixe, on peut durcir |
 | **Le test vérifie mal l'intention** | On cherche des mots-clés génériques au lieu du contrat réel (ex. `data.chart.series[]`) |
 
+**Périodes relatives et `get_current_datetime` :** le chat in-app injecte le bloc **Current server time** (mêmes bornes que l’outil). Les tests déterministes ne doivent pas **imposer** l’appel à `get_current_datetime` pour « cette semaine » / « ce mois » ; ils assertent plutôt les outils métier (`sum_time_for_period`, `get_time_logs_for_period`, graphiques, etc.) ou le contenu de la réponse.
+
 ---
 
 ## 3. Quand supprimer un test

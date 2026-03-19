@@ -6,6 +6,8 @@ Slice 5 clôturée. Prochaine phase au choix (slice 6 optionnelle, ou différé 
 
 ## État actuel (codebase)
 
+- **Agent :** injection du contexte temporel serveur en fin de system prompt (réduction des appels `get_current_datetime` dans le chat in-app) — voir `ServerTemporalContextService`, [docs/MCP_TOOLS.md](MCP_TOOLS.md), [docs/AGENT_DESIGN.md](AGENT_DESIGN.md).
+
 Le projet a progressé au-delà des statuts précédemment indiqués. Vue 3 + Vite, conversation UI, push-to-talk, agent backend avec outils intégrés, PWA et tests e2e sont en place. Voir le détail des slices et tâches ci-dessous.
 
 **Écarts documentés :**

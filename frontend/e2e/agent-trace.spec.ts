@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
  *
  * What we test (deterministic enough):
  * - Trace block appears after a response that used tools; we can expand tool detail.
- * - Natural-language descriptions are shown (e.g. "Récupération de la date", "Chargement...").
+ * - Natural-language descriptions are shown (e.g. "Chargement de la liste des projets", "Lecture...").
  * - Tool names remain visible in the detail (debug).
  * - Trace block tool row can be expanded then collapsed.
  *
@@ -23,7 +23,7 @@ test('agent trace shows natural-language descriptions and tool detail after resp
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   const input = page.getByPlaceholder('Ask anything')
-  await input.fill("What's the time?")
+  await input.fill('List all my projects')
   await page.getByRole('button', { name: 'Send' }).click()
 
   const lastBubble = page.locator('.bubble.assistant').last()
@@ -34,7 +34,7 @@ test('agent trace shows natural-language descriptions and tool detail after resp
   const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
   await expect(traceRegion).toBeVisible({ timeout: 10000 })
   const traceToggle = traceRegion.getByRole('button', {
-    name: /Récupération de la date|1 appel|\d+ appels/,
+    name: /Chargement de la liste|1 appel|\d+ appels/,
   }).first()
   await expect(traceToggle).toBeVisible({ timeout: 5000 })
   await traceToggle.click()
@@ -56,7 +56,7 @@ test('agent trace shows natural-language descriptions and tool detail after resp
 
   // Debug detail: at least one tool name still visible
   await expect(traceRegion).toContainText(
-    /get_current_datetime|list_projects|create_time_log|search_project|get_recent_logs/i,
+    /list_projects|create_time_log|search_project|get_recent_logs|get_current_datetime/i,
     { timeout: 2000 }
   )
 })
@@ -67,13 +67,13 @@ test('agent trace block can be collapsed', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   const input = page.getByPlaceholder('Ask anything')
-  await input.fill("What's the time?")
+  await input.fill('List all my projects')
   await page.getByRole('button', { name: 'Send' }).click()
 
   const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
   await expect(traceRegion).toBeVisible({ timeout: 15000 })
   const traceToggle = traceRegion.getByRole('button', {
-    name: /Récupération de la date|1 appel|\d+ appels/,
+    name: /Chargement de la liste|1 appel|\d+ appels/,
   }).first()
   await expect(traceToggle).toBeVisible({ timeout: 5000 })
 
