@@ -145,6 +145,19 @@ Par défaut le fichier est écrit dans `scripts/out/eval-candidates.jsonl`. Autr
 
 **Triage :** Ouvrir le JSONL, remplir `expected_behavior`, `eval_family`, etc. pour les cas à promouvoir, puis ajouter manuellement les cas retenus dans `promptfoo/tests/` (ou utiliser un script de promotion si vous en créez un).
 
+### Export eval candidates vers LangSmith (dataset)
+
+Hors chemin critique du chat : créer un **dataset** dans LangSmith (UI), copier son UUID, puis :
+
+```bash
+export LANGCHAIN_API_KEY=...
+export LANGSMITH_DATASET_ID=<uuid-du-dataset>
+curl -sS -H "Authorization: Bearer $HORAIN_API_KEY" "$EVAL_CANDIDATES_ENDPOINT" \
+  | node scripts/export-eval-to-langsmith.mjs
+```
+
+Le script lit du **JSONL** sur stdin (même format que `GET /admin/export-eval-candidates`) et envoie chaque ligne comme **example** via l’API LangSmith (`POST /examples`). Voir les variables en tête de [scripts/export-eval-to-langsmith.mjs](../scripts/export-eval-to-langsmith.mjs).
+
 ## Evals Promptfoo — cibler un test
 
 **Cibler un test (ou un sous-ensemble) :** le script transmet tous les arguments à `promptfoo eval`. Utiliser `--filter-pattern` (regex sur le champ `description` des tests) pour ne lancer que certains tests :

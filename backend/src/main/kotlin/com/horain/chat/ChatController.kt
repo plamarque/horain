@@ -40,11 +40,12 @@ class ChatController(
         val history = request?.history ?: emptyList()
         val contextEntries = request?.contextEntries ?: emptyList()
         val contextProjects = request?.contextProjects ?: emptyList()
+        val conversationId = parseConversationId(request?.conversationId)
         val emitter = SseEmitter(SSE_EMITTER_TIMEOUT_MS)
         val writer = SseEmitterStreamEventWriter(emitter, objectMapper)
         CompletableFuture.runAsync {
             try {
-                chatService.chatStream(userMessage, history, contextEntries, contextProjects, writer)
+                chatService.chatStream(userMessage, history, contextEntries, contextProjects, conversationId, writer)
             } catch (e: Exception) {
                 writer.sendError(e.message ?: "Unknown error")
             }
@@ -57,18 +58,20 @@ class ChatController(
         val userMessage = request?.message?.trim().orEmpty()
         if (userMessage.isBlank()) {
             return ResponseEntity.badRequest()
-                .body(ChatMessageResponse("Please provide a message.", null, null, null))
+                .body(ChatMessageResponse("Please provide a message.", null, null, null, null))
         }
         val history = request?.history ?: emptyList()
         val contextEntries = request?.contextEntries ?: emptyList()
         val contextProjects = request?.contextProjects ?: emptyList()
-        val response = chatService.chat(userMessage, history, contextEntries, contextProjects)
+        val conversationId = parseConversationId(request?.conversationId)
+        val response = chatService.chat(userMessage, history, contextEntries, contextProjects, conversationId)
         return ResponseEntity.ok(
             ChatMessageResponse(
                 response.assistantMessage,
                 response.toolCalls.map { tc -> ToolCallDto(tc.name, tc.arguments, tc.result) },
                 response.data,
-                response.turnId
+                response.turnId,
+                response.conversationId
             )
         )
     }
@@ -77,14 +80,18 @@ class ChatController(
         val message: String?,
         val history: List<ChatHistoryEntry>?,
         val contextEntries: List<Map<String, Any?>>?,
-        val contextProjects: List<Map<String, Any?>>?
+        val contextProjects: List<Map<String, Any?>>?,
+        /** Omit or null for the first message in a thread; send back the value from the previous response for follow-ups. */
+        val conversationId: String?
     )
 
     data class ChatMessageResponse(
         val assistantMessage: String,
         val toolCalls: List<ToolCallDto>?,
         val data: Any?,
-        val turnId: UUID?
+        val turnId: UUID?,
+        /** Null on validation error responses only. */
+        val conversationId: UUID?
     )
 
     data class ToolCallDto(
@@ -135,5 +142,15 @@ class ChatController(
 
     companion object {
         private const val SSE_EMITTER_TIMEOUT_MS = 300_000L
+
+        private fun parseConversationId(raw: String?): UUID? {
+            val s = raw?.trim().orEmpty()
+            if (s.isEmpty()) return null
+            return try {
+                UUID.fromString(s)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
     }
 }

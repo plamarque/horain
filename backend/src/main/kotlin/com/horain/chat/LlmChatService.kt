@@ -3,6 +3,7 @@ package com.horain.chat
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.horain.agent.AgentTurnService
+import com.horain.model.AgentTurn
 import com.horain.llm.ChatMessage
 import com.horain.llm.LlmClient
 import com.horain.llm.LlmProperties
@@ -15,9 +16,15 @@ import com.horain.llm.ToolDefinition
 import com.horain.model.Memory
 import com.horain.service.MemoryService
 import com.horain.time.ServerTemporalContextService
+import com.horain.observability.AgentTraceSink
+import com.horain.observability.ReasoningPhase
+import com.horain.observability.ToolCallTrace
+import com.horain.observability.TurnCompletedEvent
 import com.horain.tools.ToolExecutorService
 import com.horain.tools.ToolRegistry
+import io.micrometer.tracing.Tracer
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.LinkedHashMap
@@ -39,7 +46,9 @@ class LlmChatService(
     @Value("\${horain.mass-delete-limit:5}") private val massDeleteLimit: Int,
     private val agentTurnService: AgentTurnService,
     private val llmProperties: LlmProperties,
-    private val serverTemporalContextService: ServerTemporalContextService
+    private val serverTemporalContextService: ServerTemporalContextService,
+    private val agentTraceSink: AgentTraceSink,
+    private val tracer: ObjectProvider<Tracer>
 ) {
 
     companion object {
@@ -112,7 +121,9 @@ class LlmChatService(
         userMessage: String,
         history: List<ChatHistoryEntry>?,
         contextEntries: List<Map<String, Any?>>?,
-        contextProjects: List<Map<String, Any?>>?
+        contextProjects: List<Map<String, Any?>>?,
+        /** Same id for all turns in one UI conversation; null starts a new thread. */
+        conversationId: UUID? = null
     ): ChatResponse {
         try {
             val startTime = System.currentTimeMillis()
@@ -134,9 +145,14 @@ class LlmChatService(
 
             val tools = toolRegistry.getAllTools()
             val toolCallsExecuted = mutableListOf<ToolCallRecord>()
+            val reasoningPhases = mutableListOf<ReasoningPhase>()
 
             for (iterations in 0 until MAX_TOOL_ITERATIONS) {
                 val response = llmClient.chat(messages, tools)
+
+                if (!response.reasoningSummary.isNullOrBlank()) {
+                    reasoningPhases.add(ReasoningPhase(response.reasoningSummary.trim(), null))
+                }
 
                 if (iterations > 0) {
                     log.debug("Tool iteration {} for message: {}", iterations, userMessage)
@@ -163,7 +179,9 @@ class LlmChatService(
                         history,
                         contextEntries,
                         startTime,
-                        false
+                        false,
+                        conversationId,
+                        reasoningPhases
                     )
                 }
 
@@ -214,7 +232,9 @@ class LlmChatService(
                 history,
                 contextEntries,
                 startTime,
-                true
+                true,
+                conversationId,
+                reasoningPhases
             )
         } finally {
             (llmClient as? RoutingLlmClient)?.clearRequestScope()
@@ -372,15 +392,18 @@ class LlmChatService(
         contextEntries: List<Map<String, Any?>>?,
         startTime: Long,
         maxIterations: Boolean,
-        modelName: String?
-    ): UUID {
-        val conversationId = UUID.randomUUID()
+        modelName: String?,
+        conversationId: UUID?,
+        reasoningPhases: List<ReasoningPhase> = emptyList()
+    ): AgentTurn {
+        val cid = conversationId ?: UUID.randomUUID()
+        val turnIndex = agentTurnService.countTurnsInConversation(cid).toInt()
         val status = deriveStatus(assistantMessage, toolCallsExecuted, maxIterations)
         val latencyMs = System.currentTimeMillis() - startTime
         val modelToStore = if (!modelName.isNullOrBlank()) modelName else llmProperties.resolvedModel()
         val turn = agentTurnService.saveTurn(
-            conversationId,
-            0,
+            cid,
+            turnIndex,
             userMessage,
             assistantMessage,
             toolCallsExecuted,
@@ -391,7 +414,48 @@ class LlmChatService(
             contextEntries,
             latencyMs
         )
-        return turn.id!!
+        val toolNames = toolCallsExecuted.map { it.name }
+        val toolCallSteps = toolCallsExecuted.map { tc ->
+            ToolCallTrace(name = tc.name, arguments = tc.arguments, result = tc.result)
+        }
+        agentTraceSink.onTurnCompleted(
+            TurnCompletedEvent(
+                turnId = turn.id!!,
+                conversationId = cid,
+                userMessage = userMessage,
+                assistantMessage = assistantMessage,
+                toolCallNames = toolNames,
+                model = modelToStore,
+                status = status,
+                startTimeEpochMs = startTime,
+                latencyMs = latencyMs,
+                reasoningPhases = reasoningPhases,
+                toolCallSteps = toolCallSteps
+            )
+        )
+        recordAgentTurnOtelSpan(turn, latencyMs)
+        return turn
+    }
+
+    /**
+     * Optional Micrometer span (OTLP export when management.tracing + OTLP are configured).
+     */
+    private fun recordAgentTurnOtelSpan(turn: AgentTurn, latencyMs: Long?) {
+        tracer.ifAvailable { t ->
+            try {
+                val span = t.nextSpan()
+                    .name("horain.agent.turn")
+                    .tag("turn.id", turn.id.toString())
+                    .tag("conversation.id", turn.conversationId.toString())
+                    .tag("horain.model", turn.model ?: "")
+                    .tag("horain.status", turn.status ?: "")
+                    .tag("latency.ms", (latencyMs ?: 0L).toString())
+                val started = span.start()
+                started.end()
+            } catch (e: Exception) {
+                log.trace("OTel span: {}", e.message)
+            }
+        }
     }
 
     private fun persistTurnAndBuildResponse(
@@ -402,9 +466,11 @@ class LlmChatService(
         history: List<ChatHistoryEntry>?,
         contextEntries: List<Map<String, Any?>>?,
         startTime: Long,
-        maxIterations: Boolean
+        maxIterations: Boolean,
+        conversationId: UUID?,
+        reasoningPhases: List<ReasoningPhase> = emptyList()
     ): ChatResponse {
-        val turnId = persistTurn(
+        val turn = persistTurn(
             userMessage,
             assistantMessage,
             toolCallsExecuted,
@@ -413,9 +479,11 @@ class LlmChatService(
             contextEntries,
             startTime,
             maxIterations,
-            resolveModelName()
+            resolveModelName(),
+            conversationId,
+            reasoningPhases
         )
-        return ChatResponse(assistantMessage, toolCallsExecuted, data, turnId)
+        return ChatResponse(assistantMessage, toolCallsExecuted, data, turn.id, turn.conversationId!!)
     }
 
     /**
@@ -427,6 +495,7 @@ class LlmChatService(
         history: List<ChatHistoryEntry>?,
         contextEntries: List<Map<String, Any?>>?,
         contextProjects: List<Map<String, Any?>>?,
+        conversationId: UUID?,
         writer: StreamEventWriter
     ) {
         val startTime = System.currentTimeMillis()
@@ -450,11 +519,12 @@ class LlmChatService(
         val toolCallsExecuted = mutableListOf<ToolCallRecord>()
         val toolCallIterations = mutableListOf<Int>()
         val streamingClient = llmClient is StreamingLlmClient
-        val reasoningTimeMs = longArrayOf(-1L, -1L)
         val accumulatedAssistantMessage = StringBuilder()
+        val reasoningPhases = mutableListOf<ReasoningPhase>()
 
         try {
             for (iterations in 0 until MAX_TOOL_ITERATIONS) {
+                val reasoningTimeMs = longArrayOf(-1L, -1L)
                 val response: LlmResponse =
                     if (streamingClient) {
                         val reasoningConsumer = Consumer<String> { text ->
@@ -481,6 +551,16 @@ class LlmChatService(
                 }
                 if (streamingClient && reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0) {
                     writer.sendReasoningPhaseDone(reasoningTimeMs[1] - reasoningTimeMs[0])
+                }
+
+                if (!response.reasoningSummary.isNullOrBlank()) {
+                    val phaseDurationMs =
+                        if (reasoningTimeMs[0] >= 0 && reasoningTimeMs[1] >= 0) {
+                            reasoningTimeMs[1] - reasoningTimeMs[0]
+                        } else {
+                            null
+                        }
+                    reasoningPhases.add(ReasoningPhase(response.reasoningSummary.trim(), phaseDurationMs))
                 }
 
                 val turnContent = response.content ?: ""
@@ -511,7 +591,7 @@ class LlmChatService(
                         } else {
                             null
                         }
-                    val turnId = persistTurn(
+                    val turn = persistTurn(
                         userMessage,
                         assistantMessage,
                         toolCallsExecuted,
@@ -520,17 +600,20 @@ class LlmChatService(
                         contextEntries,
                         startTime,
                         false,
-                        resolveModelName()
+                        resolveModelName(),
+                        conversationId,
+                        reasoningPhases
                     )
                     writer.sendDone(
                         assistantMessage,
                         toolCallsExecuted,
                         toolCallIterations,
                         if (data.isEmpty()) null else data,
-                        turnId,
+                        turn.id!!,
                         reasoningText,
                         reasoningDurationMs,
-                        resolveModelName()
+                        resolveModelName(),
+                        turn.conversationId!!
                     )
                     return
                 }
@@ -581,7 +664,7 @@ class LlmChatService(
             if (chartData != null) data["chart"] = chartData
             if (timeLogsData != null) data["timeLogs"] = timeLogsData
             val maxStepsMessage = "I'm sorry, I reached the maximum number of steps. Please try a simpler request."
-            val turnId = persistTurn(
+            val turn = persistTurn(
                 userMessage,
                 maxStepsMessage,
                 toolCallsExecuted,
@@ -590,17 +673,20 @@ class LlmChatService(
                 contextEntries,
                 startTime,
                 true,
-                resolveModelName()
+                resolveModelName(),
+                conversationId,
+                reasoningPhases
             )
             writer.sendDone(
                 maxStepsMessage,
                 toolCallsExecuted,
                 toolCallIterations,
                 if (data.isEmpty()) null else data,
-                turnId,
+                turn.id!!,
                 null,
                 null,
-                resolveModelName()
+                resolveModelName(),
+                turn.conversationId!!
             )
         } catch (e: Exception) {
             log.error("chatStream error: {}", e.message, e)

@@ -82,6 +82,8 @@ function buildAgentTrace(
 }
 
 const messages = ref<Message[]>([])
+/** Backend thread id: send on every follow-up so LangSmith groups turns in one thread. */
+const conversationThreadId = ref<string | null>(null)
 const isProcessing = ref(false)
 const streamingMessageId = ref<string | null>(null)
 /** Segments for interleaved display (text then tools per turn); reset when starting a new stream. */
@@ -495,6 +497,9 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
           if (msg) msg.segments = [...streamingSegments.value]
         },
         onDone(payload) {
+          if (typeof payload.conversationId === 'string' && payload.conversationId.trim()) {
+            conversationThreadId.value = payload.conversationId.trim()
+          }
           const rawChart = payload.data && typeof payload.data === 'object' && 'chart' in payload.data
             ? (payload.data as { chart: unknown }).chart
             : undefined
@@ -583,7 +588,10 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
       history,
       contextToSend,
       contextProjectsToSend,
-      { signal: abortControllerRef.value?.signal }
+      {
+        signal: abortControllerRef.value?.signal,
+        conversationId: conversationThreadId.value ?? undefined,
+      }
     )
   } catch (err) {
     if ((err as Error).name === 'AbortError') return
@@ -592,7 +600,11 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
       try {
         const response = await sendChatMessage(text.trim(), history, contextToSend, contextProjectsToSend, {
           signal: abortControllerRef.value?.signal,
+          conversationId: conversationThreadId.value ?? undefined,
         })
+        if (typeof response.conversationId === 'string' && response.conversationId.trim()) {
+          conversationThreadId.value = response.conversationId.trim()
+        }
         const rawChart = response.data && typeof response.data === 'object' && 'chart' in response.data
           ? (response.data as { chart: unknown }).chart
           : undefined

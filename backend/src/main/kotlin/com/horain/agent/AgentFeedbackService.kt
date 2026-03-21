@@ -1,6 +1,8 @@
 package com.horain.agent
 
 import com.horain.model.AgentFeedback
+import com.horain.observability.AgentTraceSink
+import com.horain.observability.FeedbackEvent
 import com.horain.repository.AgentFeedbackRepository
 import com.horain.repository.AgentTurnRepository
 import org.springframework.stereotype.Service
@@ -13,7 +15,8 @@ import java.util.UUID
 @Service
 class AgentFeedbackService(
     private val feedbackRepository: AgentFeedbackRepository,
-    private val turnRepository: AgentTurnRepository
+    private val turnRepository: AgentTurnRepository,
+    private val agentTraceSink: AgentTraceSink
 ) {
 
     /**
@@ -37,6 +40,15 @@ class AgentFeedbackService(
         feedback.rating = normalizedRating
         feedback.reasonCode = if (!reasonCode.isNullOrBlank()) reasonCode else null
         feedback.comment = if (!comment.isNullOrBlank()) comment else null
-        return feedbackRepository.save(feedback)
+        val saved = feedbackRepository.save(feedback)
+        agentTraceSink.onFeedback(
+            FeedbackEvent(
+                turnId = turnId,
+                rating = normalizedRating,
+                reasonCode = if (!reasonCode.isNullOrBlank()) reasonCode else null,
+                comment = if (!comment.isNullOrBlank()) comment else null
+            )
+        )
+        return saved
     }
 }

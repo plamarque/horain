@@ -12,6 +12,8 @@ export interface ChatMessageResponse {
   data?: unknown
   /** Turn id for feedback API (thumb up/down). */
   turnId?: string | null
+  /** Re-send on the next message so LangSmith and the DB group turns in one thread. */
+  conversationId?: string | null
   /** Optional reasoning text when model exposes it (e.g. Responses API). */
   reasoningText?: string
   /** Optional duration of reasoning phase in ms (for "Thought for Xs" header). */
@@ -56,7 +58,7 @@ export async function sendChatMessage(
   history?: HistoryEntry[],
   contextEntries?: ContextEntry[],
   contextProjects?: ContextProject[],
-  init?: { signal?: AbortSignal }
+  init?: { signal?: AbortSignal; conversationId?: string | null }
 ): Promise<ChatMessageResponse> {
   const trimmed =
     history?.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
@@ -87,7 +89,10 @@ export async function sendChatMessage(
       description: p.description,
     }))
   }
-  return apiPost<ChatMessageResponse>('/chat/message', body, init)
+  if (init?.conversationId) {
+    body.conversationId = init.conversationId
+  }
+  return apiPost<ChatMessageResponse>('/chat/message', body, { signal: init?.signal })
 }
 
 /**
@@ -151,7 +156,7 @@ export async function sendChatMessageStream(
   history?: HistoryEntry[],
   contextEntries?: ContextEntry[],
   contextProjects?: ContextProject[],
-  init?: { signal?: AbortSignal }
+  init?: { signal?: AbortSignal; conversationId?: string | null }
 ): Promise<void> {
   const trimmed =
     history?.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
@@ -181,6 +186,9 @@ export async function sendChatMessageStream(
       name: p.name,
       description: p.description,
     }))
+  }
+  if (init?.conversationId) {
+    body.conversationId = init.conversationId
   }
 
   const { url, headers } = getStreamRequestConfig('/chat/message/stream')

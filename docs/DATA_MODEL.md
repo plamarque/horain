@@ -64,9 +64,10 @@ Trace of one conversation turn (user message + assistant response and metadata).
 | history_snapshot_json | TEXT | nullable |
 | context_entries_json | TEXT | nullable |
 | latency_ms | BIGINT | nullable |
+| external_trace_id | VARCHAR(255) | nullable — optional id from an external observability platform (e.g. LangSmith run id) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-Indexes: `(conversation_id, turn_index)`, `(created_at DESC)`.
+Indexes: `(conversation_id, turn_index)`, `(created_at DESC)`, partial index on `external_trace_id` where set (PostgreSQL).
 
 ## Table: agent_feedback
 

@@ -18,6 +18,15 @@ This document explains how to configure Horain for local development and product
 | `LLM_API_KEY` / `OPENAI_API_KEY` | backend/.env | Service env / Secret Manager | Clé API du fournisseur LLM |
 | `LLM_BASE_URL` | backend/.env | Service env | URL de base (optionnel, défaut: OpenAI v1) |
 | `LLM_MODEL` | backend/.env | Service env | Modèle (optionnel, défaut: gpt-4o-mini) |
+| `HORAIN_OBSERVABILITY_PROVIDER` | backend/.env | Service env | `none` (défaut) ou `langsmith` |
+| `LANGCHAIN_API_KEY` | backend/.env | Secret Manager | Clé LangSmith / LangChain (si `langsmith`) |
+| `LANGSMITH_PROJECT` | backend/.env | Service env | Nom du projet de tracing LangSmith (défaut: `default`) ; le backend résout l’UUID via l’API (`/api/v1/sessions`) |
+| `LANGSMITH_ENDPOINT` | backend/.env | Service env | API LangSmith (défaut: `https://api.smith.langchain.com`) ; région **EU** : `https://eu.api.smith.langchain.com` |
+| `OTEL_TRACING_EXPORT_ENABLED` | backend/.env | Service env | `true` pour exporter les traces OTLP (défaut: `false`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | backend/.env | Service env | Endpoint OTLP (ex. collector ou plateforme) |
+| `OTEL_TRACE_SAMPLING_RATIO` | backend/.env | Service env | Probabilité d’échantillonnage 0.0–1.0 (défaut: `0`) |
+
+**Fichier `backend/.env` :** Spring le charge au format *Java Properties*. Un commentaire `#` **en fin de ligne** après une valeur (ex. `KEY=true # note`) est inclus dans la valeur et peut casser les types (booléen, etc.). Mettre les commentaires sur des lignes séparées au-dessus.
 
 **Important:** En dev local, laisser `VITE_API_URL` vide pour utiliser le proxy Vite (`/api`). Cela fonctionne à la fois sur localhost et sur smartphone (réseau local).
 

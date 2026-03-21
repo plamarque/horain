@@ -9,6 +9,29 @@ horain:
   mass-delete-limit: 5  # Max delete_time_log calls per turn; ask user to confirm before more
   dev:
     seed-enabled: true  # Enable POST /dev/seed for local dev; set false in postgres profile
+  # Optional: export agent traces to LangSmith (none | langsmith). Built-in agent_turn persistence is unchanged.
+  observability:
+    provider: ${HORAIN_OBSERVABILITY_PROVIDER:none}
+    keep-native-trace: ${HORAIN_KEEP_NATIVE_TRACE:true}
+    langsmith:
+      api-key: ${LANGCHAIN_API_KEY:}
+      endpoint: ${LANGSMITH_ENDPOINT:https://api.smith.langchain.com}
+      project: ${LANGSMITH_PROJECT:default}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACE_SAMPLING_RATIO:0.0}
+  otlp:
+    tracing:
+      # Full URL e.g. http://localhost:4318/v1/traces (Spring Boot 3.5)
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
+      export:
+        enabled: ${OTEL_TRACING_EXPORT_ENABLED:false}
 
 # LLM integration. Reads LLM_API_KEY or OPENAI_API_KEY from .env; enables assistant when set.
 # When model-simple, model-complex, model-very-complex are all set, multi-model routing is enabled.

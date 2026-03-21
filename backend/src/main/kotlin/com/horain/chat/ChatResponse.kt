@@ -11,5 +11,7 @@ data class ChatResponse(
     val assistantMessage: String,
     val toolCalls: List<ToolCallRecord>,
     val data: Any?,
-    val turnId: UUID?
+    val turnId: UUID?,
+    /** Stable id for the chat thread; reuse on follow-up requests for LangSmith threads and DB grouping. */
+    val conversationId: UUID
 )

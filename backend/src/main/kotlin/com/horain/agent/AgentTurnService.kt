@@ -61,6 +61,25 @@ class AgentTurnService(
         return saved
     }
 
+    /**
+     * Stores the external observability platform run id (e.g. LangSmith) after async export completes.
+     */
+    @Transactional
+    fun updateExternalTraceId(turnId: UUID, externalTraceId: String) {
+        val turn = repository.findById(turnId).orElseThrow {
+            IllegalArgumentException("Turn not found: $turnId")
+        }
+        turn.externalTraceId = externalTraceId
+        repository.save(turn)
+        log.debug("Updated external_trace_id for turn {}", turnId)
+    }
+
+    fun findById(turnId: UUID): AgentTurn? =
+        repository.findById(turnId).orElse(null)
+
+    fun countTurnsInConversation(conversationId: UUID): Long =
+        repository.countByConversationId(conversationId)
+
     private fun serializeToolCalls(toolCalls: List<ToolCallRecord>?): String? {
         if (toolCalls.isNullOrEmpty()) return null
         return try {

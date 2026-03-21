@@ -57,6 +57,10 @@ class AgentTurn {
     @Column(name = "latency_ms")
     var latencyMs: Long? = null
 
+    /** External platform run id (e.g. LangSmith) when export is enabled. */
+    @Column(name = "external_trace_id", length = 255)
+    var externalTraceId: String? = null
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant? = null
 

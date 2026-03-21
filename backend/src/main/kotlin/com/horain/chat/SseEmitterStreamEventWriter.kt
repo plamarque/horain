@@ -48,7 +48,8 @@ class SseEmitterStreamEventWriter(
         turnId: UUID?,
         reasoningText: String?,
         reasoningDurationMs: Long?,
-        modelName: String?
+        modelName: String?,
+        conversationId: UUID
     ) {
         if (completed) return
         try {
@@ -81,6 +82,7 @@ class SseEmitterStreamEventWriter(
             if (!modelName.isNullOrBlank()) {
                 payload["modelName"] = modelName
             }
+            payload["conversationId"] = conversationId.toString()
             val json = objectMapper.writeValueAsString(payload)
             emitter.send(SseEmitter.event().name("done").data(json, MediaType.APPLICATION_JSON))
             emitter.complete()

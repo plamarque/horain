@@ -11,6 +11,8 @@ import java.util.UUID
  */
 interface AgentTurnRepository : JpaRepository<AgentTurn, UUID> {
 
+    fun countByConversationId(conversationId: UUID): Long
+
     fun findByConversationIdOrderByTurnIndexAsc(conversationId: UUID): List<AgentTurn>
 
     fun findByCreatedAtAfterOrderByCreatedAtDesc(after: Instant, pageable: Pageable): List<AgentTurn>

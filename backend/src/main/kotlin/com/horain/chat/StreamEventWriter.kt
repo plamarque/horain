@@ -24,6 +24,7 @@ interface StreamEventWriter {
      * @param reasoningText Optional full reasoning text (when model exposes it)
      * @param reasoningDurationMs Optional duration of reasoning phase in ms (for "Thought for Xs" header)
      * @param modelName Optional model name used (for display in trace)
+     * @param conversationId Thread id for follow-up requests (LangSmith threads)
      */
     fun sendDone(
         assistantMessage: String,
@@ -33,7 +34,8 @@ interface StreamEventWriter {
         turnId: UUID?,
         reasoningText: String?,
         reasoningDurationMs: Long?,
-        modelName: String?
+        modelName: String?,
+        conversationId: UUID
     )
 
     /**
