@@ -12,7 +12,7 @@ The Horain backend was initially hosted on Render (ADR-0002). We want to change 
 
 ## Consequences
 
-- A single pipeline (deploy.yml) decides deployment: tests pass → backend (Cloud Run) and frontend (GitHub Pages) are deployed together; if tests fail, nothing is deployed.
+- A single pipeline (deploy.yml) decides deployment: tests pass → backend (Cloud Run) and frontend build run; **GitHub Pages is published only after** the Cloud Run deployment succeeds. If the frontend build or Pages deploy fails after a successful backend deploy, **Cloud Run traffic is rolled back** to the previous revision so production does not keep a new API with an old UI. If tests fail, nothing is deployed.
 - Backend listens on `PORT` (Cloud Run injects it; default 8080) via `server.port: ${PORT:8080}` in Spring Boot.
 - Environment variables (Supabase JDBC, `HORAIN_API_KEY`, LLM keys) are configured on the Cloud Run service (or Secret Manager); see [CLOUD_RUN_SETUP.md](../CLOUD_RUN_SETUP.md) and [ENV_SETUP.md](../ENV_SETUP.md).
 - Cost and cold-start behaviour depend on GCP pricing and instance settings; region choice (e.g. `europe-west1`) should align with Supabase for latency.

@@ -91,7 +91,7 @@ Use this URL as `VITE_API_URL` in GitHub Actions secrets (section C).
 
 ## C. GitHub (Repository Secrets + Pages)
 
-Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`. Le backend sur Cloud Run se redéploie automatiquement via le trigger Cloud Build à chaque push sur `main` (voir [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md)).
+Le frontend est buildé par GitHub Actions (`.github/workflows/deploy.yml`) et déployé sur GitHub Pages à chaque push sur `main`, **après** le déploiement réussi du backend sur Cloud Run pour le même commit. Le backend est déployé depuis ce workflow (`gcloud builds submit`), pas via un trigger Cloud Build séparé sur `main` (voir [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md)). En cas d’échec du build front ou du déploiement Pages après un backend déployé, le trafic Cloud Run est rétabli sur la révision précédente.
 
 **En dev local** (`npm run dev`), le frontend lit `frontend/.env`. Laisser `VITE_API_URL` vide pour le proxy (localhost + smartphone).
 

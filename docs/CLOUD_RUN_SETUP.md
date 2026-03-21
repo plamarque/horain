@@ -2,7 +2,7 @@
 
 This guide explains how to deploy the Horain backend to Cloud Run. Deployment is **triggered from GitHub Actions** (workflow [deploy.yml](../.github/workflows/deploy.yml)) **only after tests pass** (backend unit tests + e2e). The database stays on Supabase; only the backend runtime runs on GCP.
 
-**Unified pipeline:** Push to `main` runs tests; if they pass, both backend (Cloud Run) and frontend (GitHub Pages) are deployed. No separate Cloud Build trigger on push — that trigger must be disabled (see below).
+**Unified pipeline:** Push to `main` runs tests; if they pass, the backend (Cloud Run) and the frontend build run in parallel. **GitHub Pages is published only after** the Cloud Run deploy succeeds for that commit. If the frontend build or Pages deploy fails after a successful backend deploy, the workflow **rolls back Cloud Run traffic** to the revision that was serving before that run (see `rollback-cloud-run-on-frontend-failure` in [deploy.yml](../.github/workflows/deploy.yml)). The Workload Identity service account must be able to deploy the service and **update traffic** (same as `gcloud run deploy`). No separate Cloud Build trigger on push — that trigger must be disabled (see below).
 
 ---
 

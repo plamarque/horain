@@ -1,7 +1,9 @@
 # Deploy Horain to production on push to main.
 # Backend and frontend deploy only after tests pass (unified pipeline).
 # - Backend → Cloud Run (via gcloud builds submit from this workflow; see docs/CLOUD_RUN_SETUP.md)
-# - Frontend → GitHub Pages
+# - Frontend → GitHub Pages only after Cloud Run deploy succeeds for this commit
+# - If the backend deployed but the frontend build or Pages deploy fails, traffic is rolled back to the
+#   revision that was serving before this workflow run (see rollback-cloud-run-on-frontend-failure job)
 #
 # CI: mvn test always. E2e is skipped when the push only changes package.json / frontend/package.json /
 # backend/pom.xml (e.g. "prepare next dev" after a release). See docs/DEVELOPMENT.md.
@@ -158,6 +160,8 @@ jobs:
     name: Deploy backend to Cloud Run
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      previous_revision: ${{ steps.capture_revision.outputs.previous_revision }}
     permissions:
       contents: read
       id-token: write
@@ -175,6 +179,19 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Capture current revision before deploy
+        id: capture_revision
+        run: |
+          REV=$(gcloud run services describe "${{ secrets.GCP_SERVICE_NAME }}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)
+          echo "previous_revision=${REV}" >> "$GITHUB_OUTPUT"
+          if [ -z "$REV" ]; then
+            echo "No revision captured (first deploy or service missing). Rollback will be skipped if the frontend fails."
+          else
+            echo "Captured revision to restore on frontend failure: ${REV}"
+          fi
 
       - name: Submit build and deploy to Cloud Run
         run: |
@@ -218,7 +235,7 @@ jobs:
 
   deploy-frontend:
     name: Deploy to GitHub Pages
-    needs: build-and-deploy-frontend
+    needs: [build-and-deploy-frontend, deploy-backend]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -227,3 +244,35 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  rollback-cloud-run-on-frontend-failure:
+    name: Rollback Cloud Run on frontend failure
+    needs: [deploy-backend, build-and-deploy-frontend, deploy-frontend]
+    if: always() && needs.deploy-backend.result == 'success' && (needs.build-and-deploy-frontend.result == 'failure' || needs.deploy-frontend.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Point traffic at previous revision
+        run: |
+          PREV="${{ needs.deploy-backend.outputs.previous_revision }}"
+          if [ -z "$PREV" ]; then
+            echo "No previous revision to roll back to (first deployment or capture failed). Skipping."
+            exit 0
+          fi
+          echo "Rolling back traffic to revision: $PREV"
+          gcloud run services update-traffic "${{ secrets.GCP_SERVICE_NAME }}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --to-revisions="${PREV}=100"

@@ -82,6 +82,8 @@ Les evals **scorés** (LLM-as-judge) s'exécutent **une fois** lorsqu'une **GitH
 
 Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les tests appelent le backend local. Le déploiement utilise les secrets (`VITE_API_URL` pointant vers Cloud Run) pour le build de production.
 
+**Ordre prod :** après les tests, le backend (Cloud Run) et le build front tournent en parallèle ; la **publication GitHub Pages** ne s’exécute qu’une fois le déploiement Cloud Run réussi pour ce commit. Si le **build front** ou le **déploiement Pages** échoue alors que le backend a bien été déployé, le workflow **remet le trafic** Cloud Run sur la révision qui servait avant ce run (évite une API neuve avec une UI encore à l’ancienne version).
+
 **Secret requis :** `OPENAI_API_KEY` (ou `LLM_API_KEY`). Les tests e2e envoient des messages à l'agent ; sans clé LLM, le backend utilise un placeholder et les tests échouent. Ajouter le secret dans Settings → Secrets and variables → Actions.
 
 ### Release locale (scripts/release-version.sh)
