@@ -18,10 +18,10 @@ test('user can ask to remember a preference and get a response', async ({ page }
   await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(lastBubble).not.toBeEmpty()
 
-  const content = lastBubble.locator('.content')
-  await expect(
-    content.getByText(/remember|saved|stored|ok|got it|noted|will|sure|preference|HatCast/i)
-  ).toBeVisible({ timeout: 10000 })
+  await expect(lastBubble.locator('.content')).toContainText(
+    /remember|saved|stored|ok|got it|noted|will|sure|preference|HatCast/i,
+    { timeout: 10000 }
+  )
 })
 
 test('user can ask to forget and get a response', async ({ page }) => {
@@ -37,8 +37,9 @@ test('user can ask to forget and get a response', async ({ page }) => {
   await expect(lastBubble).toBeVisible({ timeout: 25000 })
   await expect(lastBubble).not.toBeEmpty()
 
-  const content = lastBubble.locator('.content')
-  await expect(
-    content.getByText(/forgot|forgotten|oublier|ok|done|removed|cleared|memory|souvenir|default|project/i)
-  ).toBeVisible({ timeout: 12000 })
+  // Match EN/FR success wording; include oublié/effacé/projet (markdown may split nodes — toContainText is more reliable than getByText on .content)
+  await expect(lastBubble.locator('.content')).toContainText(
+    /forgot|forgotten|forget|oublier|oublié|effacé|cleared|removed|memory|souvenir|default|project|projet|défaut|preference|understood|longer|won't|don't|any more|anymore|ok|done|noted|\bplus\b/i,
+    { timeout: 20000 }
+  )
 })

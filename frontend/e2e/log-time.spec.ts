@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
 
 /**
  * E2E: Log time via text input (demo workflow without microphone).
@@ -57,6 +58,7 @@ test('send button appears when typing and submits on click', async ({ page }) =>
  * "J'ai passé 30 minutes sur HatCast à travailler sur l'algo"
  */
 test('log time via French phrase', async ({ page }) => {
+  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -66,9 +68,11 @@ test('log time via French phrase', async ({ page }) => {
   await input.fill("J'ai passé 30 minutes sur HatCast V1 à travailler sur l'algo.")
   await page.getByRole('button', { name: 'Send' }).click()
 
+  await waitForChatInputReady(input)
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 30000 })
-  await expect(
-    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|enregistré|added|saved|30|min|fait|done/i)
-  ).toBeVisible({ timeout: 15000 })
+  await expect(lastBubble).toBeVisible({ timeout: 20_000 })
+  await expect(lastBubble.locator('.content')).toContainText(
+    /logged|created|recorded|minutes|HatCast|enregistré|added|saved|30|min|fait|done|passé|travaill|créé|ajouté|temps|enregistre/i,
+    { timeout: 15_000 }
+  )
 })

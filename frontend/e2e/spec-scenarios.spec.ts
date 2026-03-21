@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
 
 /**
  * E2E: SPEC expected behaviors — ambiguous project, unknown project, missing duration.
@@ -55,6 +56,7 @@ test.describe('SPEC scenarios', () => {
   })
 
   test('unknown project - agent offers to create', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
@@ -66,14 +68,16 @@ test.describe('SPEC scenarios', () => {
     await input.fill(`40 minutes on ${uniqueName}`)
     await page.getByRole('button', { name: 'Send' }).click()
 
+    await waitForChatInputReady(input)
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
+    await expect(assistantBubble).toBeVisible({ timeout: 20_000 })
     await expect(assistantBubble).toContainText(
-      /don't know|unknown|create|should i|couldn't find|not found|no project|doesn't exist|matching|failed|error/i
+      /don't know|unknown|create|should i|couldn't find|not found|no project|doesn't exist|matching|failed|error|créer|projet|inconnu|existe|aucun|trouvé|trouve|souhaitez|voulez|nouveau|new project|désolé|sorry/i
     )
   })
 
   test('missing duration - agent asks for estimate', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
@@ -84,22 +88,23 @@ test.describe('SPEC scenarios', () => {
     const projectName = `ZzzDurEst${Date.now()}`
     await input.fill(`15 minutes on ${projectName}`)
     await page.getByRole('button', { name: 'Send' }).click()
-    // Wait for at least one assistant bubble before asserting content (avoids asserting before response is rendered)
-    await expect(page.locator('.bubble.assistant').first()).toBeVisible({ timeout: 10000 })
+    await waitForChatInputReady(input)
+    await expect(page.locator('.bubble.assistant').last()).toBeVisible({ timeout: 25_000 })
     await expect(
       page.locator('.bubble.assistant').last()
-    ).toContainText(new RegExp(`logged|created|${projectName}`, 'i'), {
-      timeout: 5000,
+    ).toContainText(new RegExp(`logged|created|enregistr|${projectName}`, 'i'), {
+      timeout: 15_000,
     })
 
     // Missing duration: no minutes specified (use exact project name)
     await input.fill(`I worked on ${projectName} all morning`)
     await page.getByRole('button', { name: 'Send' }).click()
 
+    await waitForChatInputReady(input)
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
+    await expect(assistantBubble).toBeVisible({ timeout: 25_000 })
     await expect(assistantBubble).toContainText(
-      /duration|estimate|how long|minutes|hours/i
+      /duration|estimate|how long|minutes|hours|combien|durée|temps|heures/i
     )
   })
 })

@@ -4,8 +4,8 @@
 
 - Node 20+
 - npm ou pnpm
-- Java 21+ (pour le backend Spring AI)
-- Maven ou Gradle
+- JDK 21+ (cible JVM du backend Kotlin / Spring Boot)
+- Maven (backend Kotlin uniquement ; pas de Gradle dans ce dépôt)
 
 ## Installation
 

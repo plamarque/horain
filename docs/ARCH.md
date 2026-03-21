@@ -48,8 +48,8 @@ flowchart TB
 |-----------|----------------|-----------------|
 | Client | PWA, push-to-talk, conversation UI | Vue 3, Vite, custom UI (see UX.md) |
 | Chat Client | Sends messages to POST /chat/message/stream (SSE); fallback to POST /chat/message on 404/405 | frontend/src/services/chatClient.ts |
-| Backend | Chat endpoint, LLM orchestration, tool execution | Spring Boot (Cloud Run) |
-| LLM Client | Spring AI ChatModel (OpenAI-compatible) or fallback RestTemplate client | backend llm/ package |
+| Backend | Chat endpoint, LLM orchestration, tool execution | Spring Boot, Kotlin (Cloud Run) |
+| LLM Client | Spring AI ChatModel (OpenAI-compatible) or fallback WebClient client | backend `llm/` package (Kotlin) |
 | Tool Executor | Dispatches tool calls to ProjectService, TimeLogService, AnalyticsService | backend tools/ package |
 | Supabase | Storage for projects and time_logs | PostgreSQL |
 
@@ -57,7 +57,7 @@ flowchart TB
 
 Horain n’utilise pas de serveur MCP externe. Les outils sont **intégrés au backend** et exposés via le *tool calling* de Spring AI / OpenAI. La sémantique est alignée sur [MCP_TOOLS.md](MCP_TOOLS.md) : `list_projects`, `search_project`, `create_project`, `create_time_log`, `get_recent_logs`, etc. Le LLM appelle ces outils par nom et arguments ; `ToolExecutorService` exécute les opérations (lecture/écriture via JPA sur PostgreSQL ou H2).
 
-Implémentation : `backend/.../tools/ToolRegistry.java`, `ToolExecutorService.java`.
+Implémentation : `backend/.../tools/ToolRegistry.kt`, `ToolExecutorService.kt`.
 
 When agent capabilities grow (many tools or more complex workflows), consider a **sub-agent** architecture: a dedicated system prompt, a restricted tool set, and a focused objective. This reduces context pollution and improves reasoning reliability. See [AGENT_DESIGN.md](AGENT_DESIGN.md).
 
@@ -68,7 +68,7 @@ The SSE stream supports **optional reasoning**: events `reasoning_chunk` (text d
 ## Technology Stack
 
 - **Front-end:** Vue 3, Vite, HTML, CSS (custom UI, no PrimeVue)
-- **Backend:** Spring Boot 3.5, Spring AI 1.1.2 (OpenAI ChatModel) on Cloud Run
+- **Backend:** Spring Boot 3.5, Kotlin, Spring AI 1.1.2 (OpenAI ChatModel) on Cloud Run
 - **Tools:** Integrated in backend (MCP_TOOLS semantics), Spring AI tool calling
 - **Database:** Supabase (PostgreSQL 17). Schema evolution via Flyway 11 (migrations at startup).
 - **Deployment:** GitHub Pages (front), Cloud Run (backend via Cloud Build trigger), GitHub Actions

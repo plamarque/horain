@@ -47,7 +47,7 @@ Data is always read from the server via REST (e.g. GET /projects, GET /time-logs
 ### Prerequisites
 
 - Node.js 18+
-- Java 21+
+- JDK 21+ (backend Kotlin / Spring Boot)
 - Maven
 
 ### Backend
@@ -97,7 +97,7 @@ Without `LLM_API_KEY`, the backend returns a placeholder message instructing you
 ```
 horain/
 ├── backend/           # Spring Boot API
-│   └── src/main/java/com/horain/
+│   └── src/main/kotlin/com/horain/
 │       ├── chat/      # ChatController, LlmChatService
 │       ├── llm/       # LlmClient, OpenAI-compatible client
 │       ├── tools/     # ToolRegistry, ToolExecutorService
