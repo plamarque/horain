@@ -2,8 +2,10 @@ import { AIMessage, SystemMessage, ToolMessage } from "@langchain/core/messages"
 import { RunnableConfig } from "@langchain/core/runnables";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { StateGraph } from "@langchain/langgraph";
+import { withLangGraph } from "@langchain/langgraph/zod";
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "node:process";
+import { z } from "zod/v3";
 import { HorainMcpClient } from "./mcpClient.js";
 import { MAX_TOOL_ITERATIONS, HORAIN_SYSTEM_PROMPT } from "./prompts.js";
 import { StateAnnotation } from "./state.js";
@@ -11,6 +13,63 @@ import { buildHorainTools } from "./tools.js";
 
 const mcpClient = new HorainMcpClient();
 let cachedToolsPromise: Promise<DynamicStructuredTool[]> | null = null;
+const defaultModelName = env.LLM_MODEL ?? "gpt-4o-mini";
+
+const RuntimeConfigSchema = z.object({
+  systemPrompt: withLangGraph(z.string().default(HORAIN_SYSTEM_PROMPT), {
+    jsonSchemaExtra: {
+      langgraph_nodes: ["buildPrompt"],
+      langgraph_type: "prompt",
+      description: "Base system prompt for Horain assistant behavior.",
+    },
+  }),
+  model: withLangGraph(z.string().default(defaultModelName), {
+    jsonSchemaExtra: {
+      langgraph_nodes: ["callModel"],
+      description: "LLM identifier in provider/model format.",
+    },
+  }),
+  temperature: withLangGraph(z.number().min(0).max(2).default(0), {
+    jsonSchemaExtra: {
+      langgraph_nodes: ["callModel"],
+      description: "Sampling temperature for LLM generation.",
+    },
+  }),
+  maxToolIterations: withLangGraph(
+    z.number().int().min(1).default(MAX_TOOL_ITERATIONS),
+    {
+      jsonSchemaExtra: {
+        langgraph_nodes: ["callModel", "executeTools", "finalize"],
+        description: "Maximum tool loop iterations before forced finalization.",
+      },
+    },
+  ),
+  includeMemoryBlock: withLangGraph(z.boolean().default(true), {
+    jsonSchemaExtra: {
+      langgraph_nodes: ["prepareContext", "buildPrompt"],
+      description: "Whether to include persisted memories in system prompt.",
+    },
+  }),
+  includeCurrentServerTimeBlock: withLangGraph(z.boolean().default(true), {
+    jsonSchemaExtra: {
+      langgraph_nodes: ["prepareContext", "buildPrompt"],
+      description: "Whether to include current server time block in prompt.",
+    },
+  }),
+});
+
+type RuntimeConfig = z.infer<typeof RuntimeConfigSchema>;
+
+const parseRuntimeConfig = (config?: RunnableConfig): RuntimeConfig => {
+  const rawContext = ((config as { context?: unknown } | undefined)?.context ??
+    (config as { configurable?: unknown } | undefined)?.configurable ??
+    {}) as unknown;
+  const parsed = RuntimeConfigSchema.safeParse(rawContext);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  return RuntimeConfigSchema.parse({});
+};
 
 const getTools = async (): Promise<DynamicStructuredTool[]> => {
   if (cachedToolsPromise === null) {
@@ -19,11 +78,12 @@ const getTools = async (): Promise<DynamicStructuredTool[]> => {
   return cachedToolsPromise;
 };
 
-const model = new ChatOpenAI({
-  apiKey: env.LLM_API_KEY ?? env.OPENAI_API_KEY,
-  model: env.LLM_MODEL ?? "gpt-4o-mini",
-  temperature: 0,
-});
+const getModel = (runtimeConfig: RuntimeConfig): ChatOpenAI =>
+  new ChatOpenAI({
+    apiKey: env.LLM_API_KEY ?? env.OPENAI_API_KEY,
+    model: runtimeConfig.model,
+    temperature: runtimeConfig.temperature,
+  });
 
 const stringifyContent = (value: unknown): string => {
   if (typeof value === "string") {
@@ -114,9 +174,15 @@ const buildMemoryBlock = async (): Promise<string> => {
 
 const prepareContext = async (
   _state: typeof StateAnnotation.State,
+  config: RunnableConfig,
 ): Promise<Record<string, unknown>> => {
-  const memoryBlock = await buildMemoryBlock();
-  const currentServerTimeBlock = buildCurrentServerTimeBlock();
+  const runtimeConfig = parseRuntimeConfig(config);
+  const memoryBlock = runtimeConfig.includeMemoryBlock
+    ? await buildMemoryBlock()
+    : "[Memories]\nDisabled by runtime configuration.";
+  const currentServerTimeBlock = runtimeConfig.includeCurrentServerTimeBlock
+    ? buildCurrentServerTimeBlock()
+    : "";
   return {
     memoryBlock,
     currentServerTimeBlock,
@@ -127,15 +193,24 @@ const prepareContext = async (
 
 const buildPrompt = async (
   state: typeof StateAnnotation.State,
+  config: RunnableConfig,
 ): Promise<Record<string, unknown>> => {
-  const systemPrompt = `${HORAIN_SYSTEM_PROMPT}\n\n${state.memoryBlock}\n\n${state.currentServerTimeBlock}`;
+  const runtimeConfig = parseRuntimeConfig(config);
+  const promptParts = [
+    runtimeConfig.systemPrompt,
+    state.memoryBlock,
+    state.currentServerTimeBlock,
+  ].filter((part) => part.length > 0);
+  const systemPrompt = promptParts.join("\n\n");
   return { systemPrompt };
 };
 
 const callModel = async (
   state: typeof StateAnnotation.State,
-  _config: RunnableConfig,
+  config: RunnableConfig,
 ): Promise<Record<string, unknown>> => {
+  const runtimeConfig = parseRuntimeConfig(config);
+  const model = getModel(runtimeConfig);
   const tools = await getTools();
   const boundModel = model.bindTools(tools);
   const input = [new SystemMessage(state.systemPrompt), ...state.messages];
@@ -240,8 +315,10 @@ const executeTools = async (
 
 const finalize = async (
   state: typeof StateAnnotation.State,
+  config: RunnableConfig,
 ): Promise<Record<string, unknown>> => {
-  if (state.status === "running" && state.toolIteration >= MAX_TOOL_ITERATIONS) {
+  const runtimeConfig = parseRuntimeConfig(config);
+  if (state.status === "running" && state.toolIteration >= runtimeConfig.maxToolIterations) {
     return {
       status: "max_iterations",
       stopReason: "max_iterations",
@@ -257,8 +334,10 @@ const finalize = async (
 
 export const routeAfterCallModel = (
   state: typeof StateAnnotation.State,
+  config?: RunnableConfig,
 ): "executeTools" | "finalize" => {
-  if (state.toolIteration >= MAX_TOOL_ITERATIONS) {
+  const runtimeConfig = parseRuntimeConfig(config);
+  if (state.toolIteration >= runtimeConfig.maxToolIterations) {
     return "finalize";
   }
   return state.pendingToolCalls.length > 0 ? "executeTools" : "finalize";
@@ -266,8 +345,10 @@ export const routeAfterCallModel = (
 
 export const routeAfterExecuteTools = (
   state: typeof StateAnnotation.State,
+  config?: RunnableConfig,
 ): "callModel" | "finalize" => {
-  if (state.toolIteration >= MAX_TOOL_ITERATIONS) {
+  const runtimeConfig = parseRuntimeConfig(config);
+  if (state.toolIteration >= runtimeConfig.maxToolIterations) {
     return "finalize";
   }
   if (state.status === "tool_error") {
@@ -276,7 +357,7 @@ export const routeAfterExecuteTools = (
   return "callModel";
 };
 
-const builder = new StateGraph(StateAnnotation)
+const builder = new StateGraph(StateAnnotation, { context: RuntimeConfigSchema })
   .addNode("prepareContext", prepareContext)
   .addNode("buildPrompt", buildPrompt)
   .addNode("callModel", callModel)

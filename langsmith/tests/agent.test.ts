@@ -28,4 +28,19 @@ describe("Routers", () => {
     } as never);
     expect(res).toEqual("callModel");
   });
+
+  it("routes to finalize when maxToolIterations is reached from runtime config", async () => {
+    const res = routeAfterCallModel(
+      {
+        toolIteration: 2,
+        pendingToolCalls: [{ id: "a", name: "list_projects", args: {} }],
+      } as never,
+      {
+        context: {
+          maxToolIterations: 2,
+        },
+      } as never,
+    );
+    expect(res).toEqual("finalize");
+  });
 });
