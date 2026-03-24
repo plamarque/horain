@@ -4,6 +4,16 @@
 
 The MCP (Model Context Protocol) server exposes tools that allow the conversation agent to interact with the system. **These tools are the only way the agent can read or write data.** The agent never manipulates the database directly.
 
+## Transport and endpoint
+
+- Backend exposes MCP over HTTP at `POST /mcp` (JSON-RPC 2.0).
+- Supported methods:
+  - `tools/list`
+  - `tools/call`
+- Security is the same as the REST API:
+  - `Authorization: Bearer <HORAIN_API_KEY>`
+- Internal backend chat orchestration still uses direct in-JVM calls (`ToolExecutorService`) and does not go through HTTP.
+
 ## Design principles
 
 Tool design in this project follows context-engineering principles so that the LLM can use tools reliably within a limited context window.
