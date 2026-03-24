@@ -113,6 +113,7 @@ class LlmChatService(
             - When tools return empty data (no entries, no logs for a period): say "no entries", "0 hours", "aucun" or equivalent. Never invent or fabricate totals.
             - Be concise and friendly. Confirm actions clearly. When the user makes a correction: they refer to the previous action. Keep the same project; only change what they correct.
             - For calculations and numbers in your reply, use plain text only. Do NOT use LaTeX or math markup (no \\frac, \\times, \\text, etc.). Use Unicode symbols if needed (×, ÷, =) and write formulas like "22,5 / 8 = 2,8125 jours" or "2,75 × 600 = 1650 euros" so the message displays correctly in the chat.
+            - When using Markdown **bold**, keep a normal space between closing ** and the next letter, digit, «, or ( (e.g. **vos** 51 entrées, **36 h 15 min**), and between plain text and opening ** when the bold part starts with a letter or digit (e.g. avec **36 h**). Never glue tokens like **vos**51 or **minutes**Vous.
             
         """.trimIndent()
     }

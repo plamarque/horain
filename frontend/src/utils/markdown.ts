@@ -16,6 +16,23 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTR = ['class', 'aria-hidden']
 
 /**
+ * LLM markdown often places **bold** flush against digits or the next word
+ * (e.g. **vos**51, avec**36h**), which renders with no visible gap. Insert
+ * a normal space at those boundaries after sanitization.
+ */
+function insertSpacesAroundEmphasis(html: string): string {
+  let out = html.replace(
+    /<\/(strong|b|em|i)>(?=[\p{L}\p{N}«(])/gu,
+    '</$1> ',
+  )
+  out = out.replace(
+    /([\p{L}\p{N}])(<(?:strong|b|em|i)>)([\p{L}\p{N}])/gu,
+    '$1 $2$3',
+  )
+  return out
+}
+
+/**
  * Renders markdown to safe HTML.
  * Removes image syntax (charts shown separately), supports **bold**, lists.
  */
@@ -26,8 +43,9 @@ export function renderMarkdown(text: string): string {
     breaks: true,
   }) as string
 
-  return DOMPurify.sanitize(rawHtml, {
+  const safe = DOMPurify.sanitize(rawHtml, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
   })
+  return insertSpacesAroundEmphasis(safe)
 }
