@@ -1,5 +1,5 @@
-import { BaseMessage, BaseMessageLike } from "@langchain/core/messages";
-import { Annotation, messagesStateReducer } from "@langchain/langgraph";
+import type { BaseMessage } from "@langchain/core/messages";
+import { addMessages, Annotation } from "@langchain/langgraph";
 
 export type ToolCallStep = {
   iteration: number;
@@ -12,8 +12,8 @@ export type ToolCallStep = {
 export type AgentStatus = "running" | "success" | "tool_error" | "max_iterations";
 
 export const StateAnnotation = Annotation.Root({
-  messages: Annotation<BaseMessage[], BaseMessageLike[]>({
-    reducer: messagesStateReducer,
+  messages: Annotation<BaseMessage[]>({
+    reducer: addMessages,
     default: () => [],
   }),
   systemPrompt: Annotation<string>({

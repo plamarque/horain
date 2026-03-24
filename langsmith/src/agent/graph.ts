@@ -289,5 +289,5 @@ const builder = new StateGraph(StateAnnotation)
   .addConditionalEdges("executeTools", routeAfterExecuteTools)
   .addEdge("finalize", "__end__");
 
-export const graph: any = builder.compile();
+export const graph = builder.compile();
 graph.name = "Horain LangGraph Replica";

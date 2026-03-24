@@ -1,10 +1,14 @@
 import { describe, it, expect } from "@jest/globals";
+import { HumanMessage } from "@langchain/core/messages";
 import { graph } from "../src/agent/graph.js";
+import { StateAnnotation } from "../src/agent/state.js";
 
 describe("Graph", () => {
   it("should process input through the graph", async () => {
     const input = "What is the capital of France?";
-    const result = await graph.invoke({ messages: [input] });
+    const result = (await graph.invoke({
+      messages: [new HumanMessage(input)],
+    })) as typeof StateAnnotation.State;
 
     expect(result).toBeDefined();
     expect(typeof result).toBe("object");
