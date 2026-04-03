@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, inject } from 'vue'
+import type { ActivityPeriodCustom, ActivityPeriodPreset } from '../activityPeriod'
+import { formatActivityPeriodSummary } from '../activityPeriod'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 import ConversationTimeline from '../components/ConversationTimeline.vue'
 import EntryEditModal from '../components/EntryEditModal.vue'
@@ -19,6 +21,24 @@ type ConversationApi = {
   isProcessing: Ref<boolean>
 }
 const conversationApi = inject<Ref<ConversationApi | null>>('conversationApi', ref(null))
+
+const RECENT_LOGS_LIMIT = 20
+
+const getActivityRange = inject<() => { activityFrom: string; activityTo: string }>('getActivityRange', () => ({
+  activityFrom: new Date(Date.now() - 28 * 86400000).toISOString(),
+  activityTo: new Date().toISOString(),
+}))
+const activityPeriodPreset = inject<Ref<ActivityPeriodPreset>>('activityPeriodPreset')!
+const activityPeriodCustom = inject<Ref<ActivityPeriodCustom>>('activityPeriodCustom')!
+
+function recentLogsPeriodQuery() {
+  const r = getActivityRange()
+  return { from: r.activityFrom, to: r.activityTo }
+}
+
+const recentLogsBlockTitle = computed(() =>
+  `Activity · ${formatActivityPeriodSummary(activityPeriodPreset.value, activityPeriodCustom.value)}`
+)
 
 const MAX_CONTEXT_ENTRIES = 5
 const MAX_AUTO_CONTEXT_ENTRIES = 10
@@ -107,7 +127,7 @@ let mediaQuery: MediaQueryList | null = null
 let mediaListener: ((e: MediaQueryListEvent) => void) | null = null
 
 function refetchRecentLogs() {
-  return getRecentTimeLogs(20)
+  return getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery())
     .then((logs) => { recentLogs.value = logs })
     .catch(() => { /* keep current recentLogs */ })
 }
@@ -145,7 +165,7 @@ onMounted(async () => {
 
   if (messages.value.length > 0) return
   try {
-    const logs = await getRecentTimeLogs(20)
+    const logs = await getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery())
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -163,6 +183,10 @@ watch(isProcessing, async (now, was) => {
     inputRef.value?.focusInput()
   }
 })
+
+watch([activityPeriodPreset, activityPeriodCustom], () => {
+  refetchRecentLogs()
+}, { deep: true })
 
 function handlePermissionError(message: string) {
   addAssistantMessage(message)
@@ -213,7 +237,7 @@ async function handleEditSaved(patch?: Partial<TimeLogEntry> & { id: string }) {
   editingEntry.value = null
   if (!patch?.id) {
     try {
-      const logs = await getRecentTimeLogs(20)
+      const logs = await getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery())
       recentLogs.value = logs
     } catch {
       // keep current recentLogs
@@ -233,7 +257,7 @@ async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
     })
   }
   try {
-    const logs = await getRecentTimeLogs(20)
+    const logs = await getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery())
     recentLogs.value = logs
   } catch {
     recentLogs.value = []
@@ -576,7 +600,7 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
           }
           streamingMessageId.value = null
           streamingSegments.value = []
-          getRecentTimeLogs(20).then((logs) => { recentLogs.value = logs }).catch(() => {})
+          getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery()).then((logs) => { recentLogs.value = logs }).catch(() => {})
         },
         onError(err) {
           if ((err as Error).name === 'AbortError') return
@@ -621,7 +645,7 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
           if (response.reasoningSummary != null) agentTrace.reasoningSummary = response.reasoningSummary
         }
         addAssistantMessage(response.assistantMessage, chart, timeLogs, response.turnId, agentTrace)
-        getRecentTimeLogs(20).then((logs) => { recentLogs.value = logs }).catch(() => {})
+        getRecentTimeLogs(RECENT_LOGS_LIMIT, recentLogsPeriodQuery()).then((logs) => { recentLogs.value = logs }).catch(() => {})
       } catch (fallbackErr) {
         if ((fallbackErr as Error).name === 'AbortError') return
         const msg = (fallbackErr as Error).message
@@ -651,6 +675,7 @@ function handleStop() {
       ref="timelineRef"
       :messages="messages"
       :recent-logs="recentLogs"
+      :recent-logs-title="recentLogsBlockTitle"
       :is-processing="isProcessing"
       :has-streaming-bubble="hasStreamingBubble"
       :has-new-message-below="hasNewMessageBelow"

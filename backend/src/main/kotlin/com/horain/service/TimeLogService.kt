@@ -76,6 +76,20 @@ class TimeLogService(
         return logs.take(safeLimit).map { toDto(it) }
     }
 
+    /**
+     * Time logs in [start, end), newest first, at most [limit] (1–50).
+     */
+    @Transactional(readOnly = true)
+    fun findRecentLogsInPeriod(start: Instant, end: Instant, limit: Int): List<TimeLogDto> {
+        val safeLimit = minOf(maxOf(limit, 1), 50)
+        val logs = timeLogRepository.findByLoggedAtBetweenOrderByLoggedAtDesc(
+            start,
+            end,
+            PageRequest.of(0, safeLimit)
+        )
+        return logs.map { toDto(it) }
+    }
+
     @Transactional(readOnly = true)
     fun findLogsForPeriod(start: Instant, end: Instant, projectId: UUID?): List<TimeLogDto> {
         val logs = if (projectId != null) {

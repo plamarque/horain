@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
@@ -31,11 +32,33 @@ class TimeLogController(
 ) {
 
     @GetMapping("/recent")
-    fun getRecent(@RequestParam(defaultValue = "5") limit: Int): ResponseEntity<List<TimeLogEntryDto>> {
+    fun getRecent(
+        @RequestParam(defaultValue = "5") limit: Int,
+        @RequestParam(required = false) from: Instant?,
+        @RequestParam(required = false) to: Instant?
+    ): ResponseEntity<List<TimeLogEntryDto>> {
         val safeLimit = min(max(limit, 1), 50)
-        val logs = timeLogService.findRecentLogs(safeLimit)
+        val logs = when {
+            from == null && to == null -> timeLogService.findRecentLogs(safeLimit)
+            from != null && to != null -> {
+                if (!from.isBefore(to)) {
+                    throw IllegalArgumentException("from must be before to")
+                }
+                if (ChronoUnit.DAYS.between(from, to) > ProjectService.MAX_ACTIVITY_PERIOD_DAYS) {
+                    throw IllegalArgumentException(
+                        "period must not exceed ${ProjectService.MAX_ACTIVITY_PERIOD_DAYS} days"
+                    )
+                }
+                timeLogService.findRecentLogsInPeriod(from, to, safeLimit)
+            }
+            else -> throw IllegalArgumentException("from and to must both be set or both omitted")
+        }
+        return ResponseEntity.ok(toTimeLogEntryDtos(logs))
+    }
+
+    private fun toTimeLogEntryDtos(logs: List<TimeLogDto>): List<TimeLogEntryDto> {
         val projectNames = projectService.findAll().associate { it.id.toString() to it.name }
-        val entries = logs.map { log ->
+        return logs.map { log ->
             TimeLogEntryDto(
                 log.id.toString(),
                 log.projectId.toString(),
@@ -50,7 +73,6 @@ class TimeLogController(
                 log.dailyRateCents
             )
         }
-        return ResponseEntity.ok(entries)
     }
 
     @PostMapping

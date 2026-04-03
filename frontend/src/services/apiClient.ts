@@ -134,9 +134,21 @@ export interface ActivityTypeDto {
   description?: string | null
 }
 
-/** GET /projects - list all projects */
-export async function getProjects(): Promise<ProjectDto[]> {
-  return apiGet<ProjectDto[]>('/projects')
+export interface ProjectActivityPeriodQuery {
+  activityFrom: string
+  activityTo: string
+}
+
+/** GET /projects — without period: all projects and all-time stats (modals). With period: projects with activity in [from, to) and scoped stats. */
+export async function getProjects(period?: ProjectActivityPeriodQuery): Promise<ProjectDto[]> {
+  if (!period) {
+    return apiGet<ProjectDto[]>('/projects')
+  }
+  const q = new URLSearchParams({
+    activityFrom: period.activityFrom,
+    activityTo: period.activityTo,
+  })
+  return apiGet<ProjectDto[]>(`/projects?${q.toString()}`)
 }
 
 /** POST /projects - create a project */
@@ -204,8 +216,16 @@ export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
   return apiGet<ActivityTypeDto[]>('/activity-types')
 }
 
-/** GET /time-logs/recent - list most recent time logs with project names (for initial display) */
-export async function getRecentTimeLogs(limit = 5): Promise<
+export interface RecentTimeLogsPeriodQuery {
+  from: string
+  to: string
+}
+
+/** GET /time-logs/recent — optional period filters by loggedAt in [from, to). */
+export async function getRecentTimeLogs(
+  limit = 5,
+  period?: RecentTimeLogsPeriodQuery
+): Promise<
   Array<{
     id: string
     projectId: string
@@ -221,7 +241,12 @@ export async function getRecentTimeLogs(limit = 5): Promise<
   }>
 > {
   const safeLimit = Math.min(Math.max(limit, 1), 50)
-  return apiGet(`/time-logs/recent?limit=${safeLimit}`)
+  const params = new URLSearchParams({ limit: String(safeLimit) })
+  if (period) {
+    params.set('from', period.from)
+    params.set('to', period.to)
+  }
+  return apiGet(`/time-logs/recent?${params.toString()}`)
 }
 
 /** POST /dev/seed - load fictional seed data (dev only, when backend enables it) */

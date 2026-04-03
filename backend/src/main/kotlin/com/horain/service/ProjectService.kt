@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.nio.ByteBuffer
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToLong
 
@@ -74,6 +76,35 @@ class ProjectService(
         }
     }
 
+    /**
+     * Projects that have at least one time log in [start, end), sorted by name (case-insensitive).
+     * Revenue, counts, and top activity types are scoped to the same interval.
+     */
+    @Transactional(readOnly = true)
+    fun findAllWithActivityInPeriod(start: Instant, end: Instant): List<ProjectDto> {
+        require(start.isBefore(end)) { "activityFrom must be before activityTo" }
+        require(ChronoUnit.DAYS.between(start, end) <= MAX_ACTIVITY_PERIOD_DAYS) {
+            "Activity period must not exceed $MAX_ACTIVITY_PERIOD_DAYS days"
+        }
+        val projectIds = timeLogRepository.findDistinctProjectIdsByLoggedAtBetween(start, end).toSet()
+        if (projectIds.isEmpty()) {
+            return emptyList()
+        }
+        val projects = projectRepository.findAllById(projectIds)
+            .sortedBy { it.name?.lowercase(Locale.ROOT) ?: "" }
+        val revenueByProject = sumRevenueCentsByProjectMapForPeriod(start, end)
+        val countByProject = countByProjectIdMapForPeriod(start, end)
+        val topActivityTypesByProject = topActivityTypesByProjectMapForPeriod(start, end)
+        return projects.map { p ->
+            toDto(
+                p,
+                revenueByProject[p.id],
+                countByProject[p.id],
+                topActivityTypesByProject[p.id]
+            )
+        }
+    }
+
     /** Builds projectId -> number of time log entries. Projects with zero logs are not in the result (default 0). */
     private fun countByProjectIdMap(): Map<UUID, Long> {
         val rows = timeLogRepository.countByProjectId()
@@ -102,6 +133,39 @@ class ProjectService(
     /** Builds projectId -> total revenue (cents) for billable entries with activity type. */
     private fun sumRevenueCentsByProjectMap(): Map<UUID, Long> {
         val rows = timeLogRepository.sumRevenueCentsByProject()
+        return rows.associate { row ->
+            toUuid(row[0]) to (row[1] as Number).toDouble().roundToLong()
+        }
+    }
+
+    private fun countByProjectIdMapForPeriod(start: Instant, end: Instant): Map<UUID, Long> {
+        val rows = timeLogRepository.countLogsByProjectForPeriod(start, end)
+        return rows.associate { row ->
+            toUuid(row[0]) to (row[1] as Number).toLong()
+        }
+    }
+
+    private fun topActivityTypesByProjectMapForPeriod(
+        start: Instant,
+        end: Instant
+    ): Map<UUID, List<ProjectActivityTypeSummaryDto>> {
+        val rows = timeLogRepository.countByProjectIdAndActivityTypeForPeriod(start, end)
+        val byProject = linkedMapOf<UUID, MutableList<ProjectActivityTypeSummaryDto>>()
+        for (row in rows) {
+            val projectId = toUuid(row[0])
+            val code = row[1]?.toString() ?: ""
+            val label = row[2]?.toString() ?: ""
+            val count = if (row[3] != null) (row[3] as Number).toLong() else 0L
+            byProject.getOrPut(projectId) { mutableListOf() }
+                .add(ProjectActivityTypeSummaryDto(code, label, count))
+        }
+        return byProject.mapValues { (_, list) ->
+            list.sortedByDescending { it.count }.take(TOP_ACTIVITY_TYPES_MAX)
+        }
+    }
+
+    private fun sumRevenueCentsByProjectMapForPeriod(start: Instant, end: Instant): Map<UUID, Long> {
+        val rows = timeLogRepository.sumRevenueCentsByProjectForPeriod(start, end)
         return rows.associate { row ->
             toUuid(row[0]) to (row[1] as Number).toDouble().roundToLong()
         }
@@ -242,5 +306,6 @@ class ProjectService(
 
     companion object {
         private const val TOP_ACTIVITY_TYPES_MAX = 5
+        const val MAX_ACTIVITY_PERIOD_DAYS = 366L
     }
 }

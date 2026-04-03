@@ -7,6 +7,8 @@ import type { Message, TimeLogEntry } from '../types'
 const props = defineProps<{
   messages: Message[]
   recentLogs?: TimeLogEntry[]
+  /** Heading for the initial recent-activity block (empty conversation). */
+  recentLogsTitle?: string
   isProcessing?: boolean
   /** When true, a message has isStreaming; hide "Processing..." and show the streaming bubble. */
   hasStreamingBubble?: boolean
@@ -132,7 +134,7 @@ defineExpose({
     >
       <template v-if="recentLogs?.length">
         <LogEntriesBlock
-          title="Dernières activités"
+          :title="recentLogsTitle ?? 'Recent activity'"
           :entries="recentLogs"
           @select-entry="emit('selectEntry', $event)"
           @edit-entry="emit('editEntry', $event)"

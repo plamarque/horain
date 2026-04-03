@@ -4,7 +4,10 @@ import { ref, provide } from 'vue'
 import ConversationView from './views/ConversationView.vue'
 import ProjectsView from './views/ProjectsView.vue'
 import ProjectEditModal from './components/ProjectEditModal.vue'
+import ActivityPeriodPicker from './components/ActivityPeriodPicker.vue'
 import type { ProjectDto } from './services/apiClient'
+import type { ActivityPeriodCustom, ActivityPeriodPreset } from './activityPeriod'
+import { computeActivityRange } from './activityPeriod'
 
 const MAX_CONTEXT_PROJECTS = 5
 
@@ -77,6 +80,17 @@ function onProjectSaved() {
 
 provide<string>('versionDisplay', versionDisplay)
 provide<() => void>('refreshApp', refreshApp)
+
+const activityPeriodPreset = ref<ActivityPeriodPreset>('rolling_28d')
+const activityPeriodCustom = ref<ActivityPeriodCustom>({ fromYmd: '', toYmd: '' })
+
+function getActivityRange(): { activityFrom: string; activityTo: string } {
+  return computeActivityRange(activityPeriodPreset.value, activityPeriodCustom.value)
+}
+
+provide<Ref<ActivityPeriodPreset>>('activityPeriodPreset', activityPeriodPreset)
+provide<Ref<ActivityPeriodCustom>>('activityPeriodCustom', activityPeriodCustom)
+provide('getActivityRange', getActivityRange)
 </script>
 
 <template>
@@ -93,6 +107,9 @@ provide<() => void>('refreshApp', refreshApp)
         >
           {{ versionDisplay }}
         </button>
+      </div>
+      <div class="header-center">
+        <ActivityPeriodPicker />
       </div>
       <div class="header-right">
         <button
@@ -185,6 +202,14 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+}
+
+.header-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .header-left {

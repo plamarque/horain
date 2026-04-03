@@ -21,6 +21,22 @@ interface TimeLogRepository : JpaRepository<TimeLog, UUID> {
         @Param("end") end: Instant
     ): List<TimeLog>
 
+    /** Same period as above, paginated (newest first). */
+    @Query("SELECT t FROM TimeLog t WHERE t.loggedAt >= :start AND t.loggedAt < :end ORDER BY t.loggedAt DESC")
+    fun findByLoggedAtBetweenOrderByLoggedAtDesc(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant,
+        pageable: Pageable
+    ): List<TimeLog>
+
+    @Query(
+        "SELECT DISTINCT t.projectId FROM TimeLog t WHERE t.loggedAt >= :start AND t.loggedAt < :end"
+    )
+    fun findDistinctProjectIdsByLoggedAtBetween(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant
+    ): List<UUID>
+
     @Query(
         "SELECT t FROM TimeLog t WHERE t.projectId = :projectId AND t.loggedAt >= :start AND t.loggedAt < :end ORDER BY t.loggedAt DESC"
     )
@@ -67,9 +83,26 @@ interface TimeLogRepository : JpaRepository<TimeLog, UUID> {
     )
     fun sumRevenueCentsByProject(): List<Array<Any>>
 
+    @Query(
+        "SELECT t.projectId, SUM((t.durationMinutes * at.dailyRateCents) / 480.0) FROM TimeLog t JOIN t.activityType at " +
+            "WHERE t.billable = true AND t.activityTypeCode IS NOT NULL AND t.loggedAt >= :start AND t.loggedAt < :end GROUP BY t.projectId"
+    )
+    fun sumRevenueCentsByProjectForPeriod(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant
+    ): List<Array<Any>>
+
     /** Count time logs per project. Returns (projectId, count). Projects with zero logs are not in the result. */
     @Query("SELECT t.projectId, COUNT(t) FROM TimeLog t GROUP BY t.projectId")
     fun countByProjectId(): List<Array<Any>>
+
+    @Query(
+        "SELECT t.projectId, COUNT(t) FROM TimeLog t WHERE t.loggedAt >= :start AND t.loggedAt < :end GROUP BY t.projectId"
+    )
+    fun countLogsByProjectForPeriod(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant
+    ): List<Array<Any>>
 
     /**
      * Count time logs per project and activity type (only entries with a type).
@@ -79,6 +112,16 @@ interface TimeLogRepository : JpaRepository<TimeLog, UUID> {
         "SELECT t.projectId, t.activityTypeCode, at.label, COUNT(t) FROM TimeLog t JOIN t.activityType at WHERE t.activityTypeCode IS NOT NULL GROUP BY t.projectId, t.activityTypeCode, at.label"
     )
     fun countByProjectIdAndActivityType(): List<Array<Any>>
+
+    @Query(
+        "SELECT t.projectId, t.activityTypeCode, at.label, COUNT(t) FROM TimeLog t JOIN t.activityType at " +
+            "WHERE t.activityTypeCode IS NOT NULL AND t.loggedAt >= :start AND t.loggedAt < :end " +
+            "GROUP BY t.projectId, t.activityTypeCode, at.label"
+    )
+    fun countByProjectIdAndActivityTypeForPeriod(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant
+    ): List<Array<Any>>
 
     /**
      * Search time logs by keyword: matches in note (case-insensitive contains) or project name.

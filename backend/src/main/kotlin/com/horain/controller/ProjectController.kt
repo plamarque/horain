@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -29,8 +32,29 @@ class ProjectController(
     }
 
     @GetMapping
-    fun list(): ResponseEntity<List<ProjectDto>> =
-        ResponseEntity.ok(projectService.findAll())
+    fun list(
+        @RequestParam(required = false) activityFrom: Instant?,
+        @RequestParam(required = false) activityTo: Instant?
+    ): ResponseEntity<List<ProjectDto>> {
+        val projects = when {
+            activityFrom == null && activityTo == null -> projectService.findAll()
+            activityFrom != null && activityTo != null -> {
+                if (!activityFrom.isBefore(activityTo)) {
+                    throw IllegalArgumentException("activityFrom must be before activityTo")
+                }
+                if (ChronoUnit.DAYS.between(activityFrom, activityTo) > ProjectService.MAX_ACTIVITY_PERIOD_DAYS) {
+                    throw IllegalArgumentException(
+                        "activity period must not exceed ${ProjectService.MAX_ACTIVITY_PERIOD_DAYS} days"
+                    )
+                }
+                projectService.findAllWithActivityInPeriod(activityFrom, activityTo)
+            }
+            else -> throw IllegalArgumentException(
+                "activityFrom and activityTo must both be set or both omitted"
+            )
+        }
+        return ResponseEntity.ok(projects)
+    }
 
     @PatchMapping("/{id}")
     fun update(@PathVariable id: UUID, @RequestBody patch: Map<String, Any?>): ResponseEntity<ProjectDto> {

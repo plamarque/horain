@@ -85,7 +85,7 @@ After the user confirms (e.g. "yes" or "I meant Horain"), the assistant logs the
 
 ## First Display
 
-When the user opens Horain with an empty conversation, the app displays the 8 most recent time-logged activities (project, duration, note, date). This is fetched directly via API (no agent/LLM call) to give immediate context. If there are no entries or the backend is unavailable, a placeholder with example phrasing is shown instead.
+When the user opens Horain with an empty conversation, the app displays time-logged activities in the **selected activity period** (default: last 28 rolling days), up to a capped number (API limit), with the same fields as elsewhere (project, duration, note, date). The period is shared with the Projects view and is chosen from the header (presets or custom local dates). Data is fetched directly via API (no agent/LLM call). If there are no entries in that period or the backend is unavailable, a placeholder with example phrasing is shown instead.
 
 ## Boundaries
 

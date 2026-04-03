@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Ref } from 'vue'
-import { ref, computed, onMounted, onUnmounted, inject, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import { getProjects } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
+import type { ActivityPeriodCustom, ActivityPeriodPreset } from '../activityPeriod'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
 
 const PULL_THRESHOLD = 72
@@ -48,6 +49,13 @@ const conversationApi = inject<Ref<ConversationApi | null>>('conversationApi', r
 const switchToConversationView = inject<() => void>('switchToConversationView', () => {})
 const isProcessing = computed(() => conversationApi.value?.isProcessing?.value ?? false)
 
+const getActivityRange = inject<() => { activityFrom: string; activityTo: string }>('getActivityRange', () => ({
+  activityFrom: new Date(Date.now() - 28 * 86400000).toISOString(),
+  activityTo: new Date().toISOString(),
+}))
+const activityPeriodPreset = inject<Ref<ActivityPeriodPreset>>('activityPeriodPreset')!
+const activityPeriodCustom = inject<Ref<ActivityPeriodCustom>>('activityPeriodCustom')!
+
 const projects = ref<ProjectDto[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -60,7 +68,11 @@ async function loadProjects() {
   loading.value = true
   error.value = ''
   try {
-    projects.value = await getProjects()
+    const range = getActivityRange()
+    projects.value = await getProjects({
+      activityFrom: range.activityFrom,
+      activityTo: range.activityTo,
+    })
   } catch {
     error.value = 'Failed to load projects'
     projects.value = []
@@ -141,11 +153,6 @@ function isInContext(project: ProjectDto): boolean {
   return selectedProjects.value.some((sp) => sp.id === project.id)
 }
 
-function truncate(s: string | undefined, maxLen: number): string {
-  if (!s) return '—'
-  return s.length <= maxLen ? s : s.slice(0, maxLen) + '…'
-}
-
 /** Format project revenue for display: "0 €" or "2 500 €" (space as thousands separator). */
 function formatRevenue(revenueCents: number | null | undefined): string {
   if (revenueCents == null || revenueCents === 0) return '0 €'
@@ -162,6 +169,8 @@ function activityCountLabel(count: number | null | undefined): string {
 function onProjectSaved() {
   loadProjects()
 }
+
+watch([activityPeriodPreset, activityPeriodCustom], () => loadProjects(), { deep: true })
 
 onMounted(() => {
   loadProjects()
@@ -251,8 +260,8 @@ onUnmounted(() => {
                 {{ at.code }} <span class="project-card-tag-count">{{ at.count }}</span>
               </span>
             </div>
-            <p v-if="p.description" class="project-card-desc">{{ isExpanded(p) ? p.description : truncate(p.description, 60) }}</p>
-            <span v-else class="project-card-desc project-card-desc--empty">—</span>
+            <p v-if="isExpanded(p) && p.description" class="project-card-desc">{{ p.description }}</p>
+            <span v-else-if="isExpanded(p)" class="project-card-desc project-card-desc--empty">—</span>
           </div>
           <button
             v-if="isExpanded(p)"
@@ -269,7 +278,9 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-      <p v-if="!loading && !error && projects.length === 0" class="projects-empty">No projects yet.</p>
+      <p v-if="!loading && !error && projects.length === 0" class="projects-empty">
+        No projects with activity in this period.
+      </p>
     </div>
     <div v-if="selectedProjects.length > 0" class="discussion-bar">
       <div class="discussion-bar-inner">
@@ -441,12 +452,18 @@ onUnmounted(() => {
   gap: 0.15rem;
 }
 
-/* Expanded: grid layout; name, meta, tags, description fills remaining space */
+/* Collapsed: title at top, revenue / meta anchored toward bottom */
+.project-card:not(.project-card--expanded) .project-card-meta {
+  margin-top: auto;
+}
+
+.project-card:not(.project-card--expanded) .project-card-name {
+  margin-bottom: 0;
+}
+
+/* Expanded: column flex; description grows into remaining space (tags optional) */
 .project-card--expanded .project-card-body {
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
   gap: 0.4rem 0;
-  align-content: space-between;
   padding-bottom: 0.25rem;
 }
 
