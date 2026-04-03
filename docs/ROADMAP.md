@@ -27,7 +27,7 @@ The first version includes (see [SPEC.md](SPEC.md)):
 | **Reports** | Time summaries by project, week, month; export |
 | **Multi-user** | Auth (e.g. Supabase Auth); per-user projects and logs |
 | **Offline** | Better PWA offline support; queue logs when offline |
-| **Integrations** | Export to calendar, invoicing, or external tools |
+| **Integrations** | Export to calendar and external tools. **Invoicing module (post-MVP):** designate billing client, pick period and billable activities, build invoice line items from daily rate (TJM) with editable hours and labels; **multiple outbound channels** behind one abstraction — e.g. Qonto API, Dougs API, or **in-app PDF generation** as fallback / export-only. Core domain stays provider-agnostic (canonical draft + line items + pricing rules in Horain); only adapters map to each API or PDF. |
 
 ## AI Playground
 

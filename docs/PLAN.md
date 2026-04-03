@@ -130,3 +130,4 @@ Voir [docs/ISSUES.md](ISSUES.md) :
 - Reasoning interne (o1, o3)
 - STT : migration Whisper
 - Waveform réaliste
+- Module facturation (fournisseurs multiples Qonto / Dougs / PDF in-app — voir [ROADMAP.md](ROADMAP.md) Integrations, détail [ISSUES.md](ISSUES.md))
