@@ -79,8 +79,27 @@ class ProjectActivityPeriodServiceTest {
         val list = projectService.findAllWithActivityInPeriod(windowStart, windowEnd)
         assertThat(list.map { it.id }).containsExactly(projectInWindowId)
         assertThat(list[0].timeLogCount).isEqualTo(1L)
+        assertThat(list[0].totalDurationMinutes).isEqualTo(480L)
         assertThat(list[0].revenueCents).isNotNull()
         assertThat(list[0].revenueCents!!).isGreaterThan(0L)
+    }
+
+    @Test
+    fun findAllWithActivityInPeriod_totalDurationMinutes_sumsMultipleLogsInWindow() {
+        timeLogService.create(
+            TimeLogDto.builder()
+                .projectId(projectInWindowId)
+                .durationMinutes(90)
+                .note("extra in window")
+                .billable(true)
+                .loggedAt(windowStart.plus(2, ChronoUnit.DAYS))
+                .activityTypeCode("DEV")
+                .build()
+        )
+        val list = projectService.findAllWithActivityInPeriod(windowStart, windowEnd)
+        assertThat(list).hasSize(1)
+        assertThat(list[0].timeLogCount).isEqualTo(2L)
+        assertThat(list[0].totalDurationMinutes).isEqualTo(570L)
     }
 
     @Test

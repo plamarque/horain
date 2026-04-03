@@ -102,6 +102,8 @@ export interface ProjectDto {
   revenueCents?: number | null
   /** Number of time log entries (activities) for this project. Set when listing projects. */
   timeLogCount?: number | null
+  /** Sum of time log durations in minutes; same scope as timeLogCount. Set when listing projects. */
+  totalDurationMinutes?: number | null
   /** Top activity types by count for this project (code, label, count). Set when listing projects. */
   topActivityTypes?: ProjectActivityTypeSummaryDto[] | null
 }

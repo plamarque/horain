@@ -20,6 +20,11 @@ class ProjectDto {
     var timeLogCount: Long? = null
     /** Top activity types by count for this project (e.g. for tags). Optional, set when listing projects. */
     var topActivityTypes: List<ProjectActivityTypeSummaryDto>? = null
+    /**
+     * Sum of time log durations in minutes for the same scope as [timeLogCount] (all-time when listing
+     * without activity window; otherwise [activityFrom, activityTo)).
+     */
+    var totalDurationMinutes: Long? = null
 
     fun id(id: UUID?) = apply { this.id = id }
     fun name(name: String?) = apply { this.name = name }
@@ -32,6 +37,10 @@ class ProjectDto {
     fun timeLogCount(timeLogCount: Long?) = apply { this.timeLogCount = timeLogCount }
     fun topActivityTypes(topActivityTypes: List<ProjectActivityTypeSummaryDto>?) = apply {
         this.topActivityTypes = topActivityTypes
+    }
+
+    fun totalDurationMinutes(totalDurationMinutes: Long?) = apply {
+        this.totalDurationMinutes = totalDurationMinutes
     }
 
     fun build(): ProjectDto = this

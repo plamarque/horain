@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY } from './e2eEnv'
+import { API_BASE, API_KEY, recentActivitiesTitleLocator } from './e2eEnv'
 
 /**
  * E2E: Recent activities displayed on launch.
- * When the conversation is empty, the app shows the 8 most recent logged activities
- * (fetched via API, no LLM call). If no data exists, a placeholder is shown.
+ * When the conversation is empty, the app shows recent logged activities in the selected
+ * activity period (fetched via API, no LLM call). If no data exists, a placeholder is shown.
  *
  * Uses dev seed API to populate data (no LLM) for reliability.
  */
@@ -30,11 +30,17 @@ test('recent activities displayed on launch when data exists', async ({
     throw new Error(`Seed API failed (${seedRes.status()}).${hint} Response: ${body}`)
   }
 
-  await page.goto('/')
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  await expect(page.getByText('Dernières activités')).toBeVisible({
+  await expect(recentActivitiesTitleLocator(page)).toBeVisible({
     timeout: 5000,
   })
   // At least one card; first card may be from seed or another test (order varies with parallel runs)
@@ -49,12 +55,18 @@ test('recent activities displayed on launch when data exists', async ({
 })
 
 test('empty state shows placeholder or recent activities', async ({ page }) => {
-  await page.goto('/')
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
-  // Empty state shows either: "Dernières activités" (with data) or "Say something like" (without)
+  // Empty state shows either activity block title (with data in period) or placeholder (without)
   await expect(
-    page.getByText('Dernières activités').or(page.getByText('Say something like'))
+    recentActivitiesTitleLocator(page).or(page.getByText('Say something like'))
   ).toBeVisible({ timeout: 5000 })
 })

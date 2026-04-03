@@ -5,6 +5,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import type { Page } from '@playwright/test'
 
 function loadApiKey(): string {
   if (process.env.VITE_API_KEY) return process.env.VITE_API_KEY
@@ -25,10 +26,17 @@ export const API_BASE = process.env.PLAYWRIGHT_API_URL || 'http://localhost:8080
 export const API_KEY = loadApiKey()
 
 /**
- * ISO instant for time log creation in e2e so the entry appears in "Dernières activités".
- * Seed data is for year 2026; /time-logs/recent returns top N by loggedAt DESC, so we use end of 2026.
+ * ISO instant for new time logs so they fall inside the app's default activity window (rolling ~28 days).
+ * A fixed future date (e.g. end of 2026) would be excluded once the UI filters /time-logs/recent by period.
  */
-export const RECENT_LOGGED_AT = '2026-12-31T12:00:00Z'
+export function recentLoggedAtIso(): string {
+  return new Date().toISOString()
+}
+
+/** Title above the home-screen activity cards (period-aware; was "Dernières activités"). */
+export function recentActivitiesTitleLocator(page: Page) {
+  return page.locator('.log-entries-block-title').filter({ hasText: /^(Activity ·|Recent activity)/ })
+}
 
 /** Unique project name for e2e to avoid 500 on duplicate name (backend enforces unique). */
 export function uniqueProjectName(prefix: string): string {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY, RECENT_LOGGED_AT, uniqueProjectName } from './e2eEnv'
+import { API_BASE, API_KEY, recentActivitiesTitleLocator, recentLoggedAtIso, uniqueProjectName } from './e2eEnv'
 
 /**
  * E2E: Activity type and value on card verso.
@@ -30,15 +30,20 @@ test('entry with activity type shows euro and amount on verso', async ({ page, r
       durationMinutes: 30,
       note: `e2e activity type value ${projectName}`,
       activityTypeCode: 'DEV',
-      loggedAt: RECENT_LOGGED_AT,
+      loggedAt: recentLoggedAtIso(),
     },
   })
   expect(timeLogRes.ok()).toBeTruthy()
 
-  await page.goto('/')
-  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
-  await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
+  await expect(recentActivitiesTitleLocator(page)).toBeVisible({ timeout: 5000 })
 
   const card = page
     .locator('.card-wrapper')

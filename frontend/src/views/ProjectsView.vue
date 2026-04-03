@@ -165,6 +165,36 @@ function activityCountLabel(count: number | null | undefined): string {
   return n <= 1 ? `${n} activité loggée` : `${n} activités loggées`
 }
 
+const MINUTES_PER_WORK_DAY = 480
+
+/** Same shape as LogEntriesBubble duration (minutes → h/min). */
+function formatDurationPart(minutes: number): string {
+  const m = Math.max(0, Math.floor(minutes))
+  if (m < 60) return `${m} min`
+  const h = Math.floor(m / 60)
+  const rest = m % 60
+  return rest > 0 ? `${h}h ${rest}min` : `${h}h`
+}
+
+/** Under 8 work hours: hours/minutes; from 8h up: days (8h) + remainder. */
+function formatProjectScopedDuration(totalMinutes: number | null | undefined): string {
+  const raw = totalMinutes ?? 0
+  const m = Math.max(0, Math.floor(raw))
+  if (m < MINUTES_PER_WORK_DAY) {
+    return formatDurationPart(m)
+  }
+  const days = Math.floor(m / MINUTES_PER_WORK_DAY)
+  const rem = m % MINUTES_PER_WORK_DAY
+  const dayLabel = days === 1 ? '1 j' : `${days} j`
+  if (rem === 0) return dayLabel
+  return `${dayLabel} ${formatDurationPart(rem)}`
+}
+
+function scopedDurationTitle(totalMinutes: number | null | undefined): string {
+  const m = Math.max(0, Math.floor(totalMinutes ?? 0))
+  return `${m} minute${m === 1 ? '' : 's'} sur la période sélectionnée`
+}
+
 // Refetch when a project is saved (e.g. from edit modal)
 function onProjectSaved() {
   loadProjects()
@@ -240,17 +270,21 @@ onUnmounted(() => {
             <span class="project-card-name">{{ p.name }}</span>
             <div class="project-card-meta">
               <span v-if="p.billable !== false" class="project-card-billable" :aria-label="`Revenue: ${formatRevenue(p.revenueCents)}`">{{ formatRevenue(p.revenueCents) }}</span>
-              <template v-if="isExpanded(p)">
-                <span v-if="p.billable !== false" class="project-card-meta-sep" aria-hidden="true">·</span>
-                <span class="project-card-activity-badge" :title="activityCountLabel(p.timeLogCount)">
-                  <svg class="project-card-activity-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
-                  </svg>
-                  <span class="project-card-activity-count">{{ p.timeLogCount ?? 0 }}</span>
-                </span>
-              </template>
+              <span v-if="p.billable !== false" class="project-card-meta-sep" aria-hidden="true">·</span>
+              <span class="project-card-activity-badge" :title="activityCountLabel(p.timeLogCount)">
+                <svg class="project-card-activity-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
+                </svg>
+                <span class="project-card-activity-count">{{ p.timeLogCount ?? 0 }}</span>
+              </span>
+              <span class="project-card-meta-sep" aria-hidden="true">·</span>
+              <span
+                class="project-card-duration"
+                :title="scopedDurationTitle(p.totalDurationMinutes)"
+                :aria-label="scopedDurationTitle(p.totalDurationMinutes)"
+              >{{ formatProjectScopedDuration(p.totalDurationMinutes) }}</span>
             </div>
-            <div v-if="isExpanded(p) && (p.topActivityTypes?.length ?? 0) > 0" class="project-card-tags">
+            <div v-if="(p.topActivityTypes?.length ?? 0) > 0" class="project-card-tags">
               <span
                 v-for="at in p.topActivityTypes"
                 :key="at.code"
@@ -475,11 +509,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.project-card:not(.project-card--expanded) .project-card-meta-sep,
-.project-card:not(.project-card--expanded) .project-card-activity-badge {
-  display: none;
-}
-
 .project-card-name {
   font-weight: 600;
   font-size: 1.2rem;
@@ -547,7 +576,7 @@ onUnmounted(() => {
   user-select: none;
 }
 
-/* Distinctive badge for activity count (volume) in expanded mode */
+/* Activity count badge (volume), all card states */
 .project-card-activity-badge {
   display: inline-flex;
   align-items: center;
@@ -569,7 +598,23 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
-/* Activity type tags (nature of work) in expanded mode */
+.project-card-duration {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Activity type tags (nature of work), all card states */
 .project-card-tags {
   display: flex;
   flex-wrap: wrap;

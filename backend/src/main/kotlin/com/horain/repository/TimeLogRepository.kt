@@ -104,6 +104,19 @@ interface TimeLogRepository : JpaRepository<TimeLog, UUID> {
         @Param("end") end: Instant
     ): List<Array<Any>>
 
+    /** Sum duration minutes per project. Returns (projectId, sum). */
+    @Query("SELECT t.projectId, COALESCE(SUM(t.durationMinutes), 0) FROM TimeLog t GROUP BY t.projectId")
+    fun sumDurationMinutesByProject(): List<Array<Any>>
+
+    @Query(
+        "SELECT t.projectId, COALESCE(SUM(t.durationMinutes), 0) FROM TimeLog t " +
+            "WHERE t.loggedAt >= :start AND t.loggedAt < :end GROUP BY t.projectId"
+    )
+    fun sumDurationMinutesByProjectForPeriod(
+        @Param("start") start: Instant,
+        @Param("end") end: Instant
+    ): List<Array<Any>>
+
     /**
      * Count time logs per project and activity type (only entries with a type).
      * Returns (projectId, activityTypeCode, label, count) for building top-activity-types per project.

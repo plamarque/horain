@@ -66,12 +66,14 @@ class ProjectService(
         val revenueByProject = sumRevenueCentsByProjectMap()
         val countByProject = countByProjectIdMap()
         val topActivityTypesByProject = topActivityTypesByProjectMap()
+        val durationByProject = sumDurationMinutesByProjectMap()
         return all.map { p ->
             toDto(
                 p,
                 revenueByProject[p.id],
                 countByProject[p.id],
-                topActivityTypesByProject[p.id]
+                topActivityTypesByProject[p.id],
+                durationByProject[p.id]
             )
         }
     }
@@ -95,12 +97,14 @@ class ProjectService(
         val revenueByProject = sumRevenueCentsByProjectMapForPeriod(start, end)
         val countByProject = countByProjectIdMapForPeriod(start, end)
         val topActivityTypesByProject = topActivityTypesByProjectMapForPeriod(start, end)
+        val durationByProject = sumDurationMinutesByProjectMapForPeriod(start, end)
         return projects.map { p ->
             toDto(
                 p,
                 revenueByProject[p.id],
                 countByProject[p.id],
-                topActivityTypesByProject[p.id]
+                topActivityTypesByProject[p.id],
+                durationByProject[p.id]
             )
         }
     }
@@ -168,6 +172,20 @@ class ProjectService(
         val rows = timeLogRepository.sumRevenueCentsByProjectForPeriod(start, end)
         return rows.associate { row ->
             toUuid(row[0]) to (row[1] as Number).toDouble().roundToLong()
+        }
+    }
+
+    private fun sumDurationMinutesByProjectMap(): Map<UUID, Long> {
+        val rows = timeLogRepository.sumDurationMinutesByProject()
+        return rows.associate { row ->
+            toUuid(row[0]) to (row[1] as Number).toLong()
+        }
+    }
+
+    private fun sumDurationMinutesByProjectMapForPeriod(start: Instant, end: Instant): Map<UUID, Long> {
+        val rows = timeLogRepository.sumDurationMinutesByProjectForPeriod(start, end)
+        return rows.associate { row ->
+            toUuid(row[0]) to (row[1] as Number).toLong()
         }
     }
 
@@ -283,13 +301,14 @@ class ProjectService(
         return prev[m]
     }
 
-    private fun toDto(p: Project): ProjectDto = toDto(p, null, null, null)
+    private fun toDto(p: Project): ProjectDto = toDto(p, null, null, null, null)
 
     private fun toDto(
         p: Project,
         revenueCents: Long?,
         timeLogCount: Long?,
-        topActivityTypes: List<ProjectActivityTypeSummaryDto>?
+        topActivityTypes: List<ProjectActivityTypeSummaryDto>?,
+        totalDurationMinutes: Long?
     ): ProjectDto =
         ProjectDto.builder()
             .id(p.id)
@@ -302,6 +321,7 @@ class ProjectService(
             .revenueCents(revenueCents)
             .timeLogCount(timeLogCount ?: 0L)
             .topActivityTypes(topActivityTypes ?: emptyList())
+            .totalDurationMinutes(totalDurationMinutes ?: 0L)
             .build()
 
     companion object {

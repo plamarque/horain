@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY, RECENT_LOGGED_AT, uniqueProjectName } from './e2eEnv'
+import {
+  API_BASE,
+  API_KEY,
+  recentActivitiesTitleLocator,
+  recentLoggedAtIso,
+  uniqueProjectName,
+} from './e2eEnv'
 
 /**
  * E2E: Edit a project via context menu on a log card.
@@ -33,16 +39,21 @@ test('edit project via context menu on card', async ({ page, request }) => {
       projectId: project.id,
       durationMinutes: 20,
       note: `e2e project modal test ${projectName}`,
-      loggedAt: RECENT_LOGGED_AT,
+      loggedAt: recentLoggedAtIso(),
     },
   })
   expect(timeLogRes.ok()).toBeTruthy()
 
-  await page.goto('/')
-  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
-  await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
+  await expect(recentActivitiesTitleLocator(page)).toBeVisible({ timeout: 5000 })
 
   // Find the card by note (visible when collapsed); project name is visible when expanded
   const cardWithProject = page
@@ -99,14 +110,19 @@ test('edit project via double-click on project name on card', async ({ page, req
       projectId: project.id,
       durationMinutes: 10,
       note: `e2e dblclick ${projectName}`,
-      loggedAt: RECENT_LOGGED_AT,
+      loggedAt: recentLoggedAtIso(),
     },
   })
 
-  await page.goto('/')
-  await page.waitForResponse((resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200, { timeout: 15000 })
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
-  await expect(page.getByText('Dernières activités')).toBeVisible({ timeout: 5000 })
+  await expect(recentActivitiesTitleLocator(page)).toBeVisible({ timeout: 5000 })
 
   // Find card by note, then expand (click) so project name is visible
   const cardWithProject = page
@@ -142,8 +158,29 @@ test('edit project via Projects view (cards + pen icon)', async ({ page, request
   if (!projectRes.ok()) {
     throw new Error(`Project API failed (${projectRes.status()}). Ensure backend is running and API key matches.`)
   }
+  const project = (await projectRes.json()) as { id: string }
 
-  await page.goto('/')
+  const anchorLogRes = await request.post(`${API_BASE}/time-logs`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: {
+      projectId: project.id,
+      durationMinutes: 15,
+      note: `e2e list edit anchor ${projectName}`,
+      loggedAt: recentLoggedAtIso(),
+    },
+  })
+  expect(anchorLogRes.ok()).toBeTruthy()
+
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Projects' }).click()
