@@ -44,9 +44,13 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 
 ## Tests backend (Maven)
 
-Depuis `backend/` : `mvn test` (H2 en mémoire). Après un run réussi, **JaCoCo** génère le rapport HTML et `jacoco.xml` dans `backend/target/site/jacoco/` (ouvrir `index.html`).
+Depuis `backend/` : **`mvn verify`** (H2 en mémoire) exécute les tests **et** le contrôle JaCoCo (non-régression de couverture). Un simple `mvn test` lance les tests et le rapport, mais **sans** le garde-fou `check` (réservé à la phase `verify`).
 
-**Résumé chiffré (lignes, branches, etc.) :** `python3 scripts/jacoco_summary.py` (depuis `backend/`, après `mvn test`). À la racine du dépôt : `npm run test:backend:coverage`.
+Après un run réussi, **JaCoCo** génère le rapport HTML et `jacoco.xml` dans `backend/target/site/jacoco/` (ouvrir `index.html`).
+
+**Planchers de couverture (ne pas baisser) :** les ratios minimums **LINE**, **BRANCH** et **INSTRUCTION** sont versionnés dans `backend/pom.xml` (`jacoco.*.minimum`). Si la couverture **augmente** de façon durable, relever ces propriétés dans le même commit / PR que les nouveaux tests pour verrouiller le nouveau plancher.
+
+**Résumé chiffré (lignes, branches, etc.) :** `python3 scripts/jacoco_summary.py` (depuis `backend/`, après `mvn verify`). À la racine du dépôt : `npm run test:backend:coverage`.
 
 ## Tests e2e
 
@@ -78,7 +82,7 @@ Playwright sert le `dist` existant sur 4173 (il ne rebuild pas). L’app doit av
 
 À chaque push sur `main`, le job `test` s'exécute avant le déploiement :
 
-1. **Tests backend :** `mvn test` (H2 en mémoire, pas de DB externe) — **toujours** exécutés
+1. **Tests backend :** `mvn verify` (H2 en mémoire, pas de DB externe ; JaCoCo **check**) — **toujours** exécutés
 2. **E2e (sauf bump de version seul) :** Si le push ne modifie **que** `package.json`, `frontend/package.json` et/ou `backend/pom.xml` (ex. commit « prepare next dev » après release), les étapes Playwright + e2e sont **ignorées** pour gagner du temps ; le déploiement repose sur la suite complète déjà passée sur le commit précédent.
 3. **Sinon :** build frontend pour e2e (`npm run build` avec `VITE_API_URL=http://localhost:8080`), backend + seed (`POST /dev/seed`), `serve` sur 4173, puis `npm run test:e2e`
 
@@ -96,7 +100,7 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 Par défaut, le script démarre le backend avant les e2e, attend `/health` puis lance Playwright. Pour que les tests passant par le chat (assistant) réussissent, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans `backend/.env` (voir section LLM ci-dessus).
 
-**Options :** `--fast` — `mvn test` + `npm run build` seulement (pas d’e2e locale ; l’e2e tourne sur le push `main` dans CI). `--skip-tests` — aucun test ni build local avant le bump (rare ; la CI reste le garde-fou).
+**Options :** `--fast` — `mvn verify` + `npm run build` seulement (pas d’e2e locale ; l’e2e tourne sur le push `main` dans CI). `--skip-tests` — aucun test ni build local avant le bump (rare ; la CI reste le garde-fou).
 
 ## Evals Promptfoo
 

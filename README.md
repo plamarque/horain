@@ -110,7 +110,7 @@ Operational/progress docs:
 
 ## Quality Gates
 
-- Backend tests: `cd backend && mvn test`
+- Backend tests (with JaCoCo non-regression): `cd backend && mvn verify`
 - Frontend e2e: `./scripts/run-tests.sh e2e`
 - Agent evals: `./scripts/run-promptfoo-eval.sh --deterministic-only`
 

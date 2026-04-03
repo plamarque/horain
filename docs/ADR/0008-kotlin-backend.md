@@ -8,7 +8,7 @@ Le backend était en Java 21 avec Spring Boot. On souhaite bénéficier de l’e
 
 - Le module `backend/` est entièrement en **Kotlin** (`src/main/kotlin`, `src/test/kotlin`).
 - **JDK 21** reste la cible JVM ; le build utilise **Maven** avec `kotlin-maven-plugin` (plugins `spring` et `jpa` pour l’interop Spring / JPA), `jackson-module-kotlin`, et `-Xjvm-default=all` pour les méthodes par défaut d’interfaces.
-- Les commandes opérationnelles restent **`mvn test`**, **`mvn spring-boot:run`**, **`mvn package`** ; le Dockerfile continue d’invoquer `mvn package`.
+- Les commandes opérationnelles restent **`mvn verify`** (tests + garde-fou JaCoCo), **`mvn spring-boot:run`**, **`mvn package`** ; le Dockerfile continue d’invoquer `mvn package`. Un run rapide sans contrôle de couverture reste possible avec **`mvn test`**.
 
 ## Conséquences
 

@@ -22,6 +22,10 @@
         <spring-ai.version>1.1.2</spring-ai.version>
         <kotlin.version>2.1.21</kotlin.version>
         <jacoco.version>0.8.12</jacoco.version>
+        <!-- Non-regression floors (COVEREDRATIO). Raise when coverage improves; CI runs `mvn verify`. -->
+        <jacoco.line.minimum>0.257</jacoco.line.minimum>
+        <jacoco.branch.minimum>0.076</jacoco.branch.minimum>
+        <jacoco.instruction.minimum>0.256</jacoco.instruction.minimum>
         <!-- JaCoCo prepare-agent appends the agent here; Surefire must use deferred @{argLine}. -->
         <argLine></argLine>
     </properties>
@@ -194,6 +198,37 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.line.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.branch.minimum}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.instruction.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

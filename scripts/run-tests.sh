@@ -12,7 +12,7 @@ Usage: $SCRIPT_NAME [MODE] [OPTIONS]
 Run tests: unit (backend), e2e (Playwright), Promptfoo evals (deterministic, scored), or all.
 
 MODE (optional, default: e2e):
-  unit           Backend unit tests (mvn test). No backend server needed.
+  unit           Backend unit tests (mvn verify, JaCoCo gate). No backend server needed.
   e2e            Playwright e2e tests. Starts backend on 8080 if needed, then runs frontend e2e.
   deterministic  Promptfoo deterministic evals only (no LLM-as-judge). Uses run-promptfoo-eval.sh --deterministic-only.
   scored         Promptfoo evals including scored (LLM-as-judge). Uses run-promptfoo-eval.sh --scored.
@@ -87,7 +87,7 @@ case "$MODE" in
   unit)
     echo "Running backend unit tests..."
     cd "$ROOT_DIR/backend"
-    mvn test
+    mvn verify
     exit $?
     ;;
   deterministic)

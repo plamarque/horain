@@ -21,3 +21,9 @@ Code quality requirements:
 - No deep nesting (max 2-3 levels)
 
 Before implementing, briefly consider if the approach violates any principles. If it does, refactor the design first.
+
+## Backend test coverage (Horain)
+
+- CI runs `mvn verify` with JaCoCo **check**; minimum LINE / BRANCH / INSTRUCTION ratios live in `backend/pom.xml` (`jacoco.*.minimum`).
+- Never lower those floors to green the build. Add or improve tests instead; when coverage meaningfully increases, raise the floors in the same change.
+- To inspect totals: `cd backend && mvn verify -q && python3 scripts/jacoco_summary.py` (or `npm run test:backend:coverage` from repo root).

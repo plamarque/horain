@@ -59,7 +59,7 @@ if [ "$SKIP_TESTS" = true ]; then
 elif [ "$FAST" = true ]; then
   echo "Running backend unit tests (--fast; skipping local e2e)..."
   cd "$ROOT_DIR/backend"
-  mvn test -q
+  mvn verify -q
   echo "Building frontend..."
   cd "$ROOT_DIR/frontend"
   npm run build
@@ -67,7 +67,7 @@ elif [ "$FAST" = true ]; then
 else
   echo "Running backend tests..."
   cd "$ROOT_DIR/backend"
-  mvn test -q
+  mvn verify -q
 
   # E2E require backend on 8080 (same as CI). Ensure port is free, then start and run Playwright.
   if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null | grep -q 200; then

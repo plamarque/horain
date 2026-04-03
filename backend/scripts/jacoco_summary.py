@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Read JaCoCo's jacoco.xml and print project-level coverage (root <report> counters).
-Run after: mvn test (report is generated in test phase).
+Run after: mvn test or mvn verify (report is generated in the test phase).
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def main() -> int:
 
     if not xml_path.is_file():
         print(
-            f"Missing {xml_path}. Run from backend: mvn test",
+            f"Missing {xml_path}. Run from backend: mvn verify",
             file=sys.stderr,
         )
         return 1

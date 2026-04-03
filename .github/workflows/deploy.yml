@@ -5,7 +5,7 @@
 # - If the backend deployed but the frontend build or Pages deploy fails, traffic is rolled back to the
 #   revision that was serving before this workflow run (see rollback-cloud-run-on-frontend-failure job)
 #
-# CI: mvn test always. E2e is skipped when the push only changes package.json / frontend/package.json /
+# CI: mvn verify always (unit tests + JaCoCo non-regression). E2e is skipped when the push only changes package.json / frontend/package.json /
 # backend/pom.xml (e.g. "prepare next dev" after a release). See docs/DEVELOPMENT.md.
 # E2E requires OPENAI_API_KEY secret when e2e runs.
 # GCP: Workload Identity Federation (secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT, etc.).
@@ -76,9 +76,9 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Run backend unit tests
+      - name: Run backend unit tests (JaCoCo gate)
         working-directory: backend
-        run: mvn test -q
+        run: mvn verify -q
 
       - name: Backend coverage summary (JaCoCo)
         working-directory: backend

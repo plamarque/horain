@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:backend:coverage": "cd backend && mvn test -q && python3 scripts/jacoco_summary.py",
+    "test:backend:coverage": "cd backend && mvn verify -q && python3 scripts/jacoco_summary.py",
     "release": "./scripts/release-version.sh",
     "eval": "cd promptfoo && npx promptfoo eval",
     "eval:deterministic": "npx promptfoo eval -c promptfoo/promptfooconfig.deterministic.yaml",

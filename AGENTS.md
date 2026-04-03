@@ -58,6 +58,8 @@ La conception des outils et du contexte suit [docs/AGENT_DESIGN.md](docs/AGENT_D
 
 - **Tests e2e :** Une suite de tests e2e (Playwright) doit exister et être maintenue dès le début du projet. Les nouvelles fonctionnalités doivent inclure ou adapter les tests e2e correspondants.
 
+- **Couverture backend (JaCoCo) :** La CI exécute `mvn verify` : les ratios minimums **LINE**, **BRANCH** et **INSTRUCTION** sont dans `backend/pom.xml` (`jacoco.*.minimum`). Ne **pas** les baisser pour faire passer le build ; ajouter des tests ou du code mieux couvert. Quand la couverture augmente durablement, **relever** ces seuils dans le même changement pour éviter toute régression. Pour un résumé chiffré : `python3 backend/scripts/jacoco_summary.py` depuis `backend/` après `mvn verify`, ou `npm run test:backend:coverage` à la racine.
+
 ## Règle evals
 
 - Les evals Promptfoo sont un **contrat produit** entre l'agent et ses utilisateurs.
