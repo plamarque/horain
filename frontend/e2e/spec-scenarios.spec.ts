@@ -8,6 +8,7 @@ import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
 
 test.describe('SPEC scenarios', () => {
   test('ambiguous project name - agent asks which one', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
 
@@ -21,12 +22,14 @@ test.describe('SPEC scenarios', () => {
     await expect(bubble1).toBeVisible({ timeout: 20000 })
     const text1 = await bubble1.textContent()
     if (/should i|create|don't know|couldn't find|not found|créer|inconnu|trouvé/i.test(text1 ?? '')) {
+      await waitForChatInputReady(input)
       await input.fill('yes')
       await page.getByRole('button', { name: 'Send' }).click()
     }
     await expect(
       page.locator('.bubble.assistant').last()
     ).toContainText(/logged|created|enregistré|enregistre|HatCast V1/i, { timeout: 10000 })
+    await waitForChatInputReady(input)
 
     await input.fill('Please log exactly 15 minutes on HatCast V2 (not HatCast V1)')
     await page.getByRole('button', { name: 'Send' }).click()
@@ -34,22 +37,21 @@ test.describe('SPEC scenarios', () => {
     await expect(bubble2).toBeVisible({ timeout: 10000 })
     const text2 = await bubble2.textContent()
     if (/should i|create|don't know|couldn't find|not found|créer|inconnu|trouvé/i.test(text2 ?? '')) {
+      await waitForChatInputReady(input)
       await input.fill('yes')
       await page.getByRole('button', { name: 'Send' }).click()
     }
     await expect(
       page.locator('.bubble.assistant').last()
     ).toContainText(/logged|created|enregistré|enregistre|HatCast V2/i, { timeout: 10000 })
-
-    // Wait for input to be enabled again (isProcessing false) before next message
-    await expect(input).toBeEnabled({ timeout: 15000 })
+    await waitForChatInputReady(input)
     // Ambiguous: "HatCast" matches both
     await input.fill('30 minutes on HatCast')
     await page.getByRole('button', { name: 'Send' }).click()
 
     // Assistant should mention both projects and ask which one
     const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 10000 })
+    await expect(assistantBubble).toBeVisible({ timeout: 25_000 })
     await expect(assistantBubble).toContainText(
       /HatCast V1|HatCast V2|similar|which one|which project|quel|laquelle|quelle|deux|both|projets?/i
     )
