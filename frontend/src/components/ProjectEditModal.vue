@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { getProjects, updateProject } from '../services/apiClient'
+import { nextCardColorIndex, projectCardBackgroundColor } from '../utils/projectCardColor'
 
 const props = defineProps<{
   projectId: string
@@ -14,8 +15,14 @@ const emit = defineEmits<{
 const name = ref('')
 const description = ref('')
 const billable = ref(true)
+const cardColorIndex = ref<number | null>(null)
 const saving = ref(false)
+const cyclingColor = ref(false)
 const error = ref('')
+
+const cycleButtonStyle = computed(() => ({
+  backgroundColor: projectCardBackgroundColor(props.projectId, name.value, cardColorIndex.value),
+}))
 
 async function loadProject() {
   if (!props.projectId) return
@@ -27,6 +34,7 @@ async function loadProject() {
       name.value = project.name
       description.value = project.description ?? ''
       billable.value = project.billable !== false
+      cardColorIndex.value = project.cardColorIndex ?? null
     } else {
       error.value = 'Project not found'
     }
@@ -48,16 +56,46 @@ async function save() {
   saving.value = true
   error.value = ''
   try {
-    await updateProject(props.projectId, {
+    const patch: {
+      name: string
+      description?: string
+      billable: boolean
+      cardColorIndex?: number
+    } = {
       name: name.value.trim(),
       description: description.value || undefined,
       billable: billable.value,
-    })
+    }
+    // Keep explicit palette index in the same PATCH as name/description so it is not dropped
+    // when merging saves (backend only updates card color when this field is present).
+    if (cardColorIndex.value != null) {
+      patch.cardColorIndex = cardColorIndex.value
+    }
+    const updated = await updateProject(props.projectId, patch)
+    if (updated.cardColorIndex !== undefined) {
+      cardColorIndex.value = updated.cardColorIndex ?? null
+    }
     emit('saved')
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Update failed'
   } finally {
     saving.value = false
+  }
+}
+
+async function cycleCardColor() {
+  if (!props.projectId || cyclingColor.value) return
+  cyclingColor.value = true
+  error.value = ''
+  try {
+    const next = nextCardColorIndex(props.projectId, name.value, cardColorIndex.value)
+    await updateProject(props.projectId, { cardColorIndex: next })
+    cardColorIndex.value = next
+    window.dispatchEvent(new CustomEvent('horain:projectUpdated'))
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Update failed'
+  } finally {
+    cyclingColor.value = false
   }
 }
 </script>
@@ -97,6 +135,21 @@ async function save() {
             />
             <span>Facturable</span>
           </label>
+        </div>
+        <div class="form-row form-row--color-cycle">
+          <label class="form-row-label" for="edit-project-card-color">Card color</label>
+          <button
+            id="edit-project-card-color"
+            type="button"
+            class="btn-color-cycle"
+            :class="{ 'btn-color-cycle--busy': cyclingColor }"
+            :style="cycleButtonStyle"
+            :disabled="cyclingColor || saving"
+            :aria-busy="cyclingColor"
+            aria-label="Cycle to next card color"
+            title="Cycle to next card color"
+            @click="cycleCardColor"
+          ></button>
         </div>
         <p v-if="error" class="form-error">{{ error }}</p>
         <div class="modal-actions">
@@ -172,6 +225,47 @@ async function save() {
 .form-row--checkbox {
   flex-direction: row;
   align-items: center;
+}
+
+.form-row--color-cycle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-row-label {
+  font-size: 1rem;
+  color: #8888a0;
+  min-width: 6rem;
+}
+
+.btn-color-cycle {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s, filter 0.1s, transform 0.1s;
+}
+
+.btn-color-cycle:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-color-cycle:focus-visible {
+  outline: 2px solid #4a6edb;
+  outline-offset: 2px;
+}
+
+.btn-color-cycle:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-color-cycle--busy {
+  opacity: 0.75;
 }
 
 .checkbox-label {

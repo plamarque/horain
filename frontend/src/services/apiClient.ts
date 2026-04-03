@@ -106,6 +106,8 @@ export interface ProjectDto {
   totalDurationMinutes?: number | null
   /** Top activity types by count for this project (code, label, count). Set when listing projects. */
   topActivityTypes?: ProjectActivityTypeSummaryDto[] | null
+  /** When set, card UI uses this index into the fixed palette; when absent/null, color is derived from project id. */
+  cardColorIndex?: number | null
 }
 
 export interface ProjectActivityTypeSummaryDto {
@@ -165,7 +167,7 @@ export async function createProjectViaApi(body: {
 /** PATCH /projects/:id - update a project (partial) */
 export async function updateProject(
   id: string,
-  patch: { name?: string; description?: string; billable?: boolean }
+  patch: { name?: string; description?: string; billable?: boolean; cardColorIndex?: number }
 ): Promise<ProjectDto> {
   return apiPatch<ProjectDto>(`/projects/${id}`, patch)
 }
@@ -232,6 +234,7 @@ export async function getRecentTimeLogs(
     id: string
     projectId: string
     projectName?: string
+    projectCardColorIndex?: number | null
     durationMinutes: number
     note?: string
     billable?: boolean

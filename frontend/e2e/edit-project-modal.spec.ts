@@ -199,3 +199,84 @@ test('edit project via Projects view (cards + pen icon)', async ({ page, request
 
   await expect(projectModal).not.toBeVisible()
 })
+
+/**
+ * E2E: From project edit modal, card color swatch PATCHes cardColorIndex and updates the activity card without closing the modal.
+ */
+test('cycle project card color from edit modal', async ({ page, request }) => {
+  const projectName = uniqueProjectName('CardColorCycleE2E')
+  const projectRes = await request.post(`${API_BASE}/projects`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: { name: projectName, description: 'e2e color cycle', billable: true },
+  })
+  if (!projectRes.ok()) {
+    throw new Error(`Project API failed (${projectRes.status()}). Ensure backend is running and API key matches.`)
+  }
+  const project = (await projectRes.json()) as { id: string }
+
+  const timeLogRes = await request.post(`${API_BASE}/time-logs`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    data: {
+      projectId: project.id,
+      durationMinutes: 10,
+      note: `e2e color cycle ${projectName}`,
+      loggedAt: recentLoggedAtIso(),
+    },
+  })
+  expect(timeLogRes.ok()).toBeTruthy()
+
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.goto('/'),
+  ])
+  await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
+  await expect(recentActivitiesTitleLocator(page)).toBeVisible({ timeout: 5000 })
+
+  const noteAnchor = `e2e color cycle ${projectName}`
+  const cardWithProject = page
+    .locator('.card-wrapper')
+    .filter({ has: page.locator('.card-note').filter({ hasText: noteAnchor }) })
+    .first()
+  await expect(cardWithProject).toBeVisible({ timeout: 15000 })
+
+  await cardWithProject.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Edit project' }).click()
+
+  const projectModal = page.locator('.modal').filter({ has: page.getByRole('heading', { name: 'Edit project' }) })
+  await expect(projectModal).toBeVisible()
+
+  const cardFace = cardWithProject.locator('.card-face').first()
+  const before = await cardFace.evaluate((el) => getComputedStyle(el).backgroundColor)
+
+  await Promise.all([
+    page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/projects/${project.id}`) &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200
+    ),
+    projectModal.getByRole('button', { name: 'Cycle to next card color' }).click(),
+  ])
+
+  await expect(projectModal).toBeVisible()
+  const after = await cardFace.evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(before).not.toEqual(after)
+
+  const listRes = await request.get(`${API_BASE}/projects`, {
+    headers: { Authorization: `Bearer ${API_KEY}` },
+  })
+  expect(listRes.ok()).toBeTruthy()
+  const projects = (await listRes.json()) as Array<{ id: string; cardColorIndex?: number | null }>
+  const updated = projects.find((p) => p.id === project.id)
+  expect(updated?.cardColorIndex).not.toBeNull()
+  expect(updated?.cardColorIndex).not.toBeUndefined()
+})

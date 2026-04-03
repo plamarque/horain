@@ -57,12 +57,16 @@ class TimeLogController(
     }
 
     private fun toTimeLogEntryDtos(logs: List<TimeLogDto>): List<TimeLogEntryDto> {
-        val projectNames = projectService.findAll().associate { it.id.toString() to it.name }
+        val projects = projectService.findAll()
+        val projectNames = projects.associate { it.id.toString() to it.name }
+        val projectCardColors = projects.associate { it.id.toString() to it.cardColorIndex }
         return logs.map { log ->
+            val pid = log.projectId.toString()
             TimeLogEntryDto(
                 log.id.toString(),
-                log.projectId.toString(),
-                projectNames[log.projectId.toString()] ?: "?",
+                pid,
+                projectNames[pid] ?: "?",
+                projectCardColors[pid],
                 log.durationMinutes ?: 0,
                 log.note,
                 log.billable == true,

@@ -772,6 +772,9 @@ class LlmChatService(
                 if (entry.has("activityTypeCode")) map["activityTypeCode"] = entry["activityTypeCode"].asText()
                 if (entry.has("activityTypeLabel")) map["activityTypeLabel"] = entry["activityTypeLabel"].asText()
                 if (entry.has("dailyRateCents")) map["dailyRateCents"] = entry["dailyRateCents"].asInt()
+                if (entry.has("projectCardColorIndex") && !entry["projectCardColorIndex"].isNull) {
+                    map["projectCardColorIndex"] = entry["projectCardColorIndex"].asInt()
+                }
                 entries.add(map)
             }
             if (entries.isEmpty()) null else entries
@@ -881,6 +884,9 @@ class LlmChatService(
                         if (entry.has("activityTypeCode")) map["activityTypeCode"] = entry["activityTypeCode"].asText()
                         if (entry.has("activityTypeLabel")) map["activityTypeLabel"] = entry["activityTypeLabel"].asText()
                         if (entry.has("dailyRateCents")) map["dailyRateCents"] = entry["dailyRateCents"].asInt()
+                        if (entry.has("projectCardColorIndex") && !entry["projectCardColorIndex"].isNull) {
+                            map["projectCardColorIndex"] = entry["projectCardColorIndex"].asInt()
+                        }
                         entries.add(map)
                     }
                     if (entries.isNotEmpty()) {
@@ -979,6 +985,9 @@ class LlmChatService(
                 if (timeLog.has("activityTypeCode")) map["activityTypeCode"] = timeLog["activityTypeCode"].asText()
                 if (timeLog.has("activityTypeLabel")) map["activityTypeLabel"] = timeLog["activityTypeLabel"].asText()
                 if (timeLog.has("dailyRateCents")) map["dailyRateCents"] = timeLog["dailyRateCents"].asInt()
+                if (timeLog.has("projectCardColorIndex") && !timeLog["projectCardColorIndex"].isNull) {
+                    map["projectCardColorIndex"] = timeLog["projectCardColorIndex"].asInt()
+                }
                 byId[id] = map
             } catch (e: Exception) {
                 log.debug("Failed to parse time_log from {} result: {}", tc.name, e.message)

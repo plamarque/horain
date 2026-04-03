@@ -8,6 +8,7 @@ data class TimeLogEntryDto(
     val id: String,
     val projectId: String,
     val projectName: String,
+    val projectCardColorIndex: Int?,
     val durationMinutes: Int,
     val note: String?,
     val billable: Boolean,

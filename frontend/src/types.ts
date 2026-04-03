@@ -24,6 +24,8 @@ export interface TimeLogEntry {
   id?: string
   projectId?: string
   projectName?: string
+  /** Server-provided palette index for card color; when absent, color is derived from project id. */
+  projectCardColorIndex?: number | null
   durationMinutes: number
   note?: string
   billable?: boolean

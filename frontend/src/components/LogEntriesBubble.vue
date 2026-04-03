@@ -1,33 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import type { TimeLogEntry } from '../types'
+import { projectCardBackgroundColor } from '../utils/projectCardColor'
 
 const INITIAL_SHOWN = 20
 const LONG_PRESS_MS = 500
 
-// Stable palette for project-based card background (readable with white text)
-const PROJECT_COLORS = [
-  '#4a6edb',
-  '#5a8a4a',
-  '#c9a227',
-  '#c45c3a',
-  '#7b5fa2',
-  '#00838f',
-  '#b91c1c',
-  '#047857',
-  '#b45309',
-  '#6d28d9',
-  '#be185d',
-  '#0e7490',
-]
-
 function projectColor(entry: TimeLogEntry): string {
-  const key = entry.projectId ?? entry.projectName ?? ''
-  if (!key) return 'rgba(0,0,0,0.25)'
-  let h = 0
-  for (let i = 0; i < key.length; i++) h = (h << 5) - h + key.charCodeAt(i)
-  const idx = Math.abs(h) % PROJECT_COLORS.length
-  return PROJECT_COLORS[idx]
+  return projectCardBackgroundColor(
+    entry.projectId,
+    entry.projectName,
+    entry.projectCardColorIndex ?? null
+  )
 }
 
 /** Entry value in euros when billable and activity type has daily rate (TJM 8h). */

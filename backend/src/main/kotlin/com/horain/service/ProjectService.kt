@@ -215,6 +215,10 @@ class ProjectService(
         if (patch.billable != null) {
             entity.billable = patch.billable
         }
+        if (patch.cardColorIndex != null) {
+            val idx = patch.cardColorIndex!!
+            entity.cardColorIndex = ((idx % CARD_PALETTE_SIZE) + CARD_PALETTE_SIZE) % CARD_PALETTE_SIZE
+        }
         return toDto(projectRepository.save(entity))
     }
 
@@ -322,10 +326,13 @@ class ProjectService(
             .timeLogCount(timeLogCount ?: 0L)
             .topActivityTypes(topActivityTypes ?: emptyList())
             .totalDurationMinutes(totalDurationMinutes ?: 0L)
+            .cardColorIndex(p.cardColorIndex)
             .build()
 
     companion object {
         private const val TOP_ACTIVITY_TYPES_MAX = 5
         const val MAX_ACTIVITY_PERIOD_DAYS = 366L
+        /** Must match frontend `PROJECT_CARD_COLORS.length`. */
+        const val CARD_PALETTE_SIZE = 12
     }
 }

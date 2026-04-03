@@ -142,7 +142,7 @@ async function handlePullRefresh() {
   }
 }
 
-function onProjectSaved() {
+function onProjectDataRefresh() {
   refetchRecentLogs()
 }
 
@@ -152,7 +152,8 @@ onMounted(async () => {
   mediaListener = (e: MediaQueryListEvent) => { isDesktop.value = e.matches }
   mediaQuery.addEventListener('change', mediaListener)
 
-  window.addEventListener('horain:projectSaved', onProjectSaved)
+  window.addEventListener('horain:projectSaved', onProjectDataRefresh)
+  window.addEventListener('horain:projectUpdated', onProjectDataRefresh)
 
   if (conversationApi) {
     const api: ConversationApi = {
@@ -174,7 +175,8 @@ onMounted(async () => {
 onUnmounted(() => {
   if (conversationApi) conversationApi.value = null
   if (mediaQuery && mediaListener) mediaQuery.removeEventListener('change', mediaListener)
-  window.removeEventListener('horain:projectSaved', onProjectSaved)
+  window.removeEventListener('horain:projectSaved', onProjectDataRefresh)
+  window.removeEventListener('horain:projectUpdated', onProjectDataRefresh)
 })
 
 watch(isProcessing, async (now, was) => {

@@ -15,6 +15,7 @@ Defines the database schema for Horain. Supabase (PostgreSQL) stores projects an
 | created_at | TIMESTAMPTZ | NOT NULL, default now() |
 | updated_at | TIMESTAMPTZ | NOT NULL, default now() |
 | user_id | VARCHAR(255) | nullable |
+| card_color_index | INTEGER | nullable — when set, UI uses this index into the fixed card color palette; when null, card color is derived from project id |
 
 ## Table: time_logs
 

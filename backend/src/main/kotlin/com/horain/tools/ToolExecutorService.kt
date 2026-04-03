@@ -328,7 +328,8 @@ class ToolExecutorService(
             dto.activityTypeCode = activityTypeCode.trim()
         }
         val created = timeLogService.create(dto)
-        val projectName = projectService.findById(created.projectId!!).map { it.name }.orElse("?")
+        val projectOpt = projectService.findById(created.projectId!!)
+        val projectName = projectOpt.map { it.name }.orElse("?")
         val timeLogMap = mutableMapOf<String, Any?>(
             "id" to created.id.toString(),
             "projectId" to created.projectId.toString(),
@@ -338,6 +339,7 @@ class ToolExecutorService(
             "billable" to (created.billable == true),
             "loggedAt" to created.loggedAt.toString()
         )
+        projectOpt.orElse(null)?.cardColorIndex?.let { timeLogMap["projectCardColorIndex"] = it }
         if (created.activityTypeCode != null) {
             timeLogMap["activityTypeCode"] = created.activityTypeCode
             timeLogMap["activityTypeLabel"] = created.activityTypeLabel ?: ""
@@ -350,17 +352,20 @@ class ToolExecutorService(
 
     private fun timeLogEntryMap(
         log: TimeLogDto,
-        projectMap: Map<String, String?>
+        projectMap: Map<String, String?>,
+        projectCardColorMap: Map<String, Int?>
     ): Map<String, Any?> {
+        val pid = log.projectId.toString()
         val e = mutableMapOf<String, Any?>(
             "id" to log.id.toString(),
-            "projectId" to log.projectId.toString(),
-            "projectName" to (projectMap[log.projectId.toString()] ?: "?"),
+            "projectId" to pid,
+            "projectName" to (projectMap[pid] ?: "?"),
             "durationMinutes" to log.durationMinutes,
             "note" to (log.note ?: ""),
             "billable" to (log.billable == true),
             "loggedAt" to log.loggedAt.toString()
         )
+        projectCardColorMap[pid]?.let { e["projectCardColorIndex"] = it }
         if (log.activityTypeCode != null) {
             e["activityTypeCode"] = log.activityTypeCode
             e["activityTypeLabel"] = log.activityTypeLabel ?: ""
@@ -375,7 +380,8 @@ class ToolExecutorService(
         val logs = timeLogService.findRecentLogs(limitVal)
         val projects = projectService.findAll()
         val projectMap = projects.associate { it.id.toString() to it.name }
-        val entries = logs.map { timeLogEntryMap(it, projectMap) }
+        val projectCardColorMap = projects.associate { it.id.toString() to it.cardColorIndex }
+        val entries = logs.map { timeLogEntryMap(it, projectMap, projectCardColorMap) }
         val llm = "## Recent logs (${entries.size})\n" +
             entries.take(15).joinToString("\n") { e ->
                 "- ${e["projectName"]}: ${e["durationMinutes"]} min" +
@@ -401,7 +407,8 @@ class ToolExecutorService(
         val logs = timeLogService.findLogsForPeriod(start, end, projectId)
         val projects = projectService.findAll()
         val projectMap = projects.associate { it.id.toString() to it.name }
-        val entries = logs.map { timeLogEntryMap(it, projectMap) }
+        val projectCardColorMap = projects.associate { it.id.toString() to it.cardColorIndex }
+        val entries = logs.map { timeLogEntryMap(it, projectMap, projectCardColorMap) }
         val llm = "## Time logs (${entries.size}) for period\n" +
             entries.take(10).joinToString("\n") { e -> "- ${e["projectName"]}: ${e["durationMinutes"]} min" } +
             if (entries.size > 10) "\n... and ${entries.size - 10} more" else ""
@@ -421,7 +428,8 @@ class ToolExecutorService(
         val logs = timeLogService.findLogsByKeyword(query.trim(), limitVal)
         val projects = projectService.findAll()
         val projectMap = projects.associate { it.id.toString() to it.name }
-        val entries = logs.map { timeLogEntryMap(it, projectMap) }
+        val projectCardColorMap = projects.associate { it.id.toString() to it.cardColorIndex }
+        val entries = logs.map { timeLogEntryMap(it, projectMap, projectCardColorMap) }
         val llm = "## Search results for \"${query.trim()}\" (${entries.size})\n" +
             entries.take(10).joinToString("\n") { e ->
                 val noteStr = e["note"] as? String ?: ""
@@ -585,7 +593,8 @@ class ToolExecutorService(
             patch.activityTypeCode = if (activityTypeCode.isBlank()) "" else activityTypeCode.trim()
         }
         val updated = timeLogService.update(id, patch)
-        val projectName = projectService.findById(updated.projectId!!).map { it.name }.orElse("?")
+        val projectOpt = projectService.findById(updated.projectId!!)
+        val projectName = projectOpt.map { it.name }.orElse("?")
         val timeLogMap = mutableMapOf<String, Any?>(
             "id" to updated.id.toString(),
             "projectId" to updated.projectId.toString(),
@@ -595,6 +604,7 @@ class ToolExecutorService(
             "billable" to (updated.billable == true),
             "loggedAt" to updated.loggedAt.toString()
         )
+        projectOpt.orElse(null)?.cardColorIndex?.let { timeLogMap["projectCardColorIndex"] = it }
         if (updated.activityTypeCode != null) {
             timeLogMap["activityTypeCode"] = updated.activityTypeCode
             timeLogMap["activityTypeLabel"] = updated.activityTypeLabel ?: ""

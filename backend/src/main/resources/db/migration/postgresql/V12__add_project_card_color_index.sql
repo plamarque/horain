@@ -1,0 +1,2 @@
+ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS card_color_index SMALLINT NULL;

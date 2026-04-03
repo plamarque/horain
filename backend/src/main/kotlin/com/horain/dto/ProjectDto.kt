@@ -25,6 +25,8 @@ class ProjectDto {
      * without activity window; otherwise [activityFrom, activityTo)).
      */
     var totalDurationMinutes: Long? = null
+    /** Index into the frontend card color palette; null means derive color from project id. */
+    var cardColorIndex: Int? = null
 
     fun id(id: UUID?) = apply { this.id = id }
     fun name(name: String?) = apply { this.name = name }
@@ -42,6 +44,8 @@ class ProjectDto {
     fun totalDurationMinutes(totalDurationMinutes: Long?) = apply {
         this.totalDurationMinutes = totalDurationMinutes
     }
+
+    fun cardColorIndex(cardColorIndex: Int?) = apply { this.cardColorIndex = cardColorIndex }
 
     fun build(): ProjectDto = this
 

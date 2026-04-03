@@ -5,34 +5,14 @@ import { getProjects } from '../services/apiClient'
 import type { ProjectDto } from '../services/apiClient'
 import type { ActivityPeriodCustom, ActivityPeriodPreset } from '../activityPeriod'
 import PushToTalkButton from '../components/PushToTalkButton.vue'
+import { projectCardBackgroundColor } from '../utils/projectCardColor'
 
 const PULL_THRESHOLD = 72
 const PULL_MAX = 100
 const PULL_RESISTANCE = 0.5
 
-// Same palette and hash as LogEntriesBubble so project cards match log entry card colors
-const PROJECT_COLORS = [
-  '#4a6edb',
-  '#5a8a4a',
-  '#c9a227',
-  '#c45c3a',
-  '#7b5fa2',
-  '#00838f',
-  '#b91c1c',
-  '#047857',
-  '#b45309',
-  '#6d28d9',
-  '#be185d',
-  '#0e7490',
-]
-
 function projectColor(project: ProjectDto): string {
-  const key = project.id ?? project.name ?? ''
-  if (!key) return 'rgba(0,0,0,0.25)'
-  let h = 0
-  for (let i = 0; i < key.length; i++) h = (h << 5) - h + key.charCodeAt(i)
-  const idx = Math.abs(h) % PROJECT_COLORS.length
-  return PROJECT_COLORS[idx]
+  return projectCardBackgroundColor(project.id, project.name, project.cardColorIndex ?? null)
 }
 
 const openProjectEdit = inject<((projectId: string) => void)>('openProjectEdit')
@@ -195,8 +175,8 @@ function scopedDurationTitle(totalMinutes: number | null | undefined): string {
   return `${m} minute${m === 1 ? '' : 's'} sur la période sélectionnée`
 }
 
-// Refetch when a project is saved (e.g. from edit modal)
-function onProjectSaved() {
+// Refetch when a project is saved or card color is cycled (edit modal)
+function onProjectDataRefresh() {
   loadProjects()
 }
 
@@ -204,7 +184,8 @@ watch([activityPeriodPreset, activityPeriodCustom], () => loadProjects(), { deep
 
 onMounted(() => {
   loadProjects()
-  window.addEventListener('horain:projectSaved', onProjectSaved)
+  window.addEventListener('horain:projectSaved', onProjectDataRefresh)
+  window.addEventListener('horain:projectUpdated', onProjectDataRefresh)
   nextTick(() => {
     const el = scrollEl.value
     if (el) {
@@ -215,7 +196,8 @@ onMounted(() => {
   })
 })
 onUnmounted(() => {
-  window.removeEventListener('horain:projectSaved', onProjectSaved)
+  window.removeEventListener('horain:projectSaved', onProjectDataRefresh)
+  window.removeEventListener('horain:projectUpdated', onProjectDataRefresh)
   const el = scrollEl.value
   if (el) {
     el.removeEventListener('touchstart', onTouchStart)

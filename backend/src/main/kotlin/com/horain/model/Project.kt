@@ -37,6 +37,10 @@ class Project {
     @Column(name = "user_id")
     var userId: String? = null
 
+    /** When set, UI card background uses this index into the fixed palette; when null, color is derived from project id. */
+    @Column(name = "card_color_index")
+    var cardColorIndex: Int? = null
+
     @PrePersist
     protected fun onCreate() {
         val now = Instant.now()

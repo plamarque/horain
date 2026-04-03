@@ -72,6 +72,14 @@ class ProjectController(
                 else -> v.toString().toBoolean()
             }
         }
+        if (patch.containsKey("cardColorIndex")) {
+            val v = patch["cardColorIndex"]
+            dto.cardColorIndex = when (v) {
+                is Number -> v.toInt()
+                is String -> v.toIntOrNull()
+                else -> null
+            }
+        }
         val updated = projectService.update(id, dto)
         return ResponseEntity.ok(updated)
     }
