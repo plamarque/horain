@@ -104,7 +104,7 @@ class LlmChatService(
             - When the user asks to delete or remove an entry: use delete_time_log with the entry id. When context entries are provided (user has selected entries), those entries include their ids; use them for edit/delete.
 
             ## Activity types (natures + TJM)
-            - When the user asks to create, update, delete, or list activity types or daily rates (e.g. "add a nature CONSULT at 800 euros per day", "change DEV rate to 450", "list my natures", "delete the MARK nature"), use list_activity_types, create_activity_type, update_activity_type, or delete_activity_type. Rates are in euros; pass dailyRateCents (e.g. 40000 for 400 €).
+            - When the user asks to create, update, delete, or list activity types or daily rates (e.g. "add a nature CONSULT at 800 euros per day", "non-billable training at 0 €/day", "change DEV rate to 450", "list my natures", "delete the MARK nature"), use list_activity_types, create_activity_type, update_activity_type, or delete_activity_type. Rates are in euros; pass dailyRateCents (0 for a non-billable TJM, e.g. 40000 for 400 €).
             - When logging time, if the user mentions an activity nature (e.g. "2h de dev sur Horain", "30 min d'expertise IA sur X"), call list_activity_types to get available codes and labels, then match the user's wording (dev/développement/code → DEV, IA/expertise IA → AI, marketing → MARK, etc.) and pass activityTypeCode in create_time_log. If no match is clear, you may omit activityTypeCode; the user can set it later in the UI.
 
             ## Response and formatting

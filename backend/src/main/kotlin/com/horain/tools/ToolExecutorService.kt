@@ -234,10 +234,10 @@ class ToolExecutorService(
                 mapOf("error" to "code is required")
             )
         }
-        if (dailyRateCents == null || dailyRateCents <= 0) {
+        if (dailyRateCents == null || dailyRateCents < 0) {
             return toDualResult(
-                "Error: dailyRateCents must be a positive integer (e.g. 40000 for 400 €).",
-                mapOf("error" to "dailyRateCents must be a positive integer")
+                "Error: dailyRateCents must be a non-negative integer (0 for non-billable TJM, e.g. 40000 for 400 €).",
+                mapOf("error" to "dailyRateCents must be a non-negative integer")
             )
         }
         val dto = ActivityTypeDto()

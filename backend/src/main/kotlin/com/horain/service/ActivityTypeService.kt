@@ -30,8 +30,8 @@ class ActivityTypeService(
         if (activityTypeRepository.existsById(dto.code!!.trim())) {
             throw IllegalArgumentException("Activity type already exists: ${dto.code}")
         }
-        if (dto.dailyRateCents == null || dto.dailyRateCents!! <= 0) {
-            throw IllegalArgumentException("dailyRateCents must be positive")
+        if (dto.dailyRateCents == null || dto.dailyRateCents!! < 0) {
+            throw IllegalArgumentException("dailyRateCents must be non-negative")
         }
         val entity = ActivityType()
         entity.code = dto.code!!.trim().uppercase()
@@ -50,8 +50,8 @@ class ActivityTypeService(
             entity.label = patch.label!!.trim()
         }
         if (patch.dailyRateCents != null) {
-            if (patch.dailyRateCents!! <= 0) {
-                throw IllegalArgumentException("dailyRateCents must be positive")
+            if (patch.dailyRateCents!! < 0) {
+                throw IllegalArgumentException("dailyRateCents must be non-negative")
             }
             entity.dailyRateCents = patch.dailyRateCents
         }

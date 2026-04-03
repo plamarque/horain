@@ -40,7 +40,7 @@ Activity natures with daily rate (TJM, 8h). Optional per time_log. Managed by th
 |--------|------|-------------|
 | code | VARCHAR(50) | PRIMARY KEY |
 | label | VARCHAR(255) | NOT NULL |
-| daily_rate_cents | INTEGER | NOT NULL, CHECK > 0 |
+| daily_rate_cents | INTEGER | NOT NULL, CHECK >= 0 (0 = non-billable TJM) |
 | description | VARCHAR(2000) | nullable |
 
 Canonical set (after V9): DEV (600 €), PROJ (300 €), PROD (500 €), MARK (700 €), PROSPECT (500 €), WEB3 (1000 €), AI (1000 €), INNO (700 €). The optional `description` helps the assistant match user wording (synonyms, typical phrases) when inferring activity type.

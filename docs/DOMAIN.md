@@ -16,7 +16,7 @@ Shared vocabulary and rules for Horain: projects, time logs, intent detection, a
 | **Transcription** | Text output from speech-to-text (STT) based on user voice input. |
 | **Source** | Origin of a time log; `"voice"` for voice-sourced entries. |
 | **Activity type** | A nature of work (e.g. DEV, AI, MARK) with a daily rate (TJM, 8h). Optional per time log. Managed by the assistant via MCP tools (create, update, delete, list). |
-| **TJM** | Taux journalier moyen: daily rate in euros for 8 hours. Stored in cents (e.g. 40000 = 400 €). Used to compute entry value: (duration_minutes / 480) × (daily_rate_cents / 100). |
+| **TJM** | Taux journalier moyen: daily rate in euros for 8 hours. Stored in cents (e.g. 40000 = 400 €; 0 = non-billable nature). Used to compute entry value: (duration_minutes / 480) × (daily_rate_cents / 100). |
 
 ## Entities and Relationships
 

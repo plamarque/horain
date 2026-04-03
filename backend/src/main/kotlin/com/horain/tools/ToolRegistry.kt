@@ -135,13 +135,13 @@ ToolDefinition(
                 ),
                 ToolDefinition(
                         CREATE_ACTIVITY_TYPE,
-                        "Create an activity type (nature + daily rate in cents). Use when the user asks to add a new nature or rate (e.g. 'add CONSULT at 800 euros per day').",
+                        "Create an activity type (nature + daily rate in cents). Use when the user asks to add a new nature or rate (e.g. 'add CONSULT at 800 euros per day', or 0 for non-billable training).",
                         mapOf(
                                 "type" to "object",
                                 "properties" to mapOf(
                                         "code" to mapOf("type" to "string", "description" to "Short code (e.g. DEV, AI, MARK)"),
                                         "label" to mapOf("type" to "string", "description" to "Human-readable label"),
-                                        "dailyRateCents" to mapOf("type" to "integer", "description" to "Daily rate in cents (e.g. 40000 for 400 €)"),
+                                        "dailyRateCents" to mapOf("type" to "integer", "description" to "Daily rate in cents (0 for non-billable TJM; e.g. 40000 for 400 €)"),
                                         "description" to mapOf("type" to "string", "description" to "Optional description or detection hints for the AI (e.g. synonyms, typical phrases)")
                                 ),
                                 "required" to listOf("code", "label", "dailyRateCents")
@@ -155,7 +155,7 @@ ToolDefinition(
                                 "properties" to mapOf(
                                         "code" to mapOf("type" to "string", "description" to "Code of the activity type to update"),
                                         "label" to mapOf("type" to "string", "description" to "New label (optional)"),
-                                        "dailyRateCents" to mapOf("type" to "integer", "description" to "New daily rate in cents (optional)"),
+                                        "dailyRateCents" to mapOf("type" to "integer", "description" to "New daily rate in cents (optional; 0 allowed for non-billable)"),
                                         "description" to mapOf("type" to "string", "description" to "Optional description or detection hints for the AI (e.g. synonyms, typical phrases)")
                                 ),
                                 "required" to listOf("code")
