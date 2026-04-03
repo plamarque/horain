@@ -60,7 +60,7 @@ class ReasoningSummarizerService(
                 .put("role", "user")
                 .put("content", toSend)
         )
-        body.put("messages", messages)
+        body.set<JsonNode>("messages", messages)
 
         return try {
             val responseBody = webClient.post()

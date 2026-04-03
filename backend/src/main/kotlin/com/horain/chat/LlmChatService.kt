@@ -133,12 +133,9 @@ class LlmChatService(
             messages.add(ChatMessage.system(systemPrompt))
             if (!history.isNullOrEmpty()) {
                 for (e in history) {
-                    if (e.role != null && e.content != null) {
-                        val role = e.role.lowercase()
-                        when (role) {
-                            "user" -> messages.add(ChatMessage.user(e.content))
-                            "assistant" -> messages.add(ChatMessage.assistant(e.content))
-                        }
+                    when (e.role.lowercase()) {
+                        "user" -> messages.add(ChatMessage.user(e.content))
+                        "assistant" -> messages.add(ChatMessage.assistant(e.content))
                     }
                 }
             }
@@ -362,8 +359,7 @@ class LlmChatService(
     private fun deriveStatus(assistantMessage: String?, toolCalls: List<ToolCallRecord>?, maxIterations: Boolean): String {
         if (maxIterations) return "max_iterations"
         toolCalls?.forEach { tc ->
-            val r = tc.result
-            if (r != null && r.contains("\"error\":")) {
+            if (tc.result.contains("\"error\":")) {
                 return "tool_error"
             }
         }
@@ -505,12 +501,9 @@ class LlmChatService(
         messages.add(ChatMessage.system(systemPrompt))
         if (!history.isNullOrEmpty()) {
             for (e in history) {
-                if (e.role != null && e.content != null) {
-                    val role = e.role.lowercase()
-                    when (role) {
-                        "user" -> messages.add(ChatMessage.user(e.content))
-                        "assistant" -> messages.add(ChatMessage.assistant(e.content))
-                    }
+                when (e.role.lowercase()) {
+                    "user" -> messages.add(ChatMessage.user(e.content))
+                    "assistant" -> messages.add(ChatMessage.assistant(e.content))
                 }
             }
         }
@@ -706,7 +699,7 @@ class LlmChatService(
                 break;
             }
         }
-        if (lastProposeChart == null || lastProposeChart.arguments == null) {
+        if (lastProposeChart == null) {
             return null
         }
         return try {
@@ -754,7 +747,7 @@ class LlmChatService(
      * Parses `time_logs` from a fetch tool result (search_time_logs, get_time_logs_for_period, get_recent_logs).
      */
     private fun parseTimeLogsFromFetchTool(tc: ToolCallRecord?): List<Map<String, Any?>>? {
-        if (tc == null || tc.result == null) {
+        if (tc == null) {
             return null
         }
         return try {
@@ -928,7 +921,6 @@ class LlmChatService(
             if (tc.name != ToolRegistry.CREATE_TIME_LOG && tc.name != ToolRegistry.UPDATE_TIME_LOG) {
                 continue
             }
-            if (tc.result == null) continue
             try {
                 val root = resultDataNode(tc.result)
                 if (root.has("error")) continue
@@ -968,7 +960,6 @@ class LlmChatService(
             if (tc.name != ToolRegistry.CREATE_TIME_LOG && tc.name != ToolRegistry.UPDATE_TIME_LOG) {
                 continue
             }
-            if (tc.result == null) continue
             try {
                 val root = resultDataNode(tc.result)
                 if (root.has("error")) continue

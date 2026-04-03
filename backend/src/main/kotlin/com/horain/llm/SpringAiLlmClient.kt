@@ -20,7 +20,7 @@ class SpringAiLlmClient(
 
     private val model: String = llmProperties?.resolvedModel() ?: DEFAULT_MODEL
 
-    override fun isConfigured(): Boolean = chatModel != null
+    override fun isConfigured(): Boolean = true
 
     override fun chat(messages: List<ChatMessage>, tools: List<ToolDefinition>): LlmResponse {
         val springMessages = toSpringMessages(messages)
@@ -105,7 +105,7 @@ class SpringAiLlmClient(
         val output = gen.output ?: return LlmResponse("", null, "stop")
         val content = output.text ?: ""
         var toolCalls: List<ToolCallRequest>? = null
-        if (output.hasToolCalls() && output.toolCalls != null) {
+        if (output.hasToolCalls()) {
             toolCalls = output.toolCalls!!.map { tc ->
                 ToolCallRequest(
                     tc.id ?: "",
@@ -114,14 +114,7 @@ class SpringAiLlmClient(
                 )
             }
         }
-        var finishReason = "stop"
-        if (gen.metadata != null && gen.metadata.finishReason != null) {
-            val reason = gen.metadata.finishReason
-            finishReason = when (reason) {
-                is Enum<*> -> reason.name.lowercase()
-                else -> reason.toString().lowercase()
-            }
-        }
+        val finishReason = gen.metadata.finishReason?.toString()?.lowercase() ?: "stop"
         return LlmResponse(content, toolCalls, finishReason)
     }
 

@@ -195,7 +195,7 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
                             "Responses API stream failed: model={} status={} body={}",
                             model,
                             err.statusCode,
-                            if (errorBody != null && errorBody.length > 500) errorBody.substring(0, 500) + "..." else errorBody
+                            if (errorBody.length > 500) errorBody.substring(0, 500) + "..." else errorBody
                         )
                     }
                     else -> log.warn("Responses API stream failed: model={} error={}", model, err.message, err)
@@ -259,10 +259,9 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
         val reasoning = objectMapper.createObjectNode()
         reasoning.put("effort", reasoningEffort)
         reasoning.put("summary", "auto")
-        body.put("reasoning", reasoning)
+        body.set<JsonNode>("reasoning", reasoning)
         val inputArray = objectMapper.createArrayNode()
         for (msg in messages) {
-            if (msg == null) continue
             val role = msg.role
             when {
                 role == "system" -> {
@@ -280,7 +279,7 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
                         textPart.put("type", "input_text")
                         textPart.put("text", msg.content)
                         contentParts.add(textPart)
-                        userMsg.put("content", contentParts)
+                        userMsg.set<JsonNode>("content", contentParts)
                     } else {
                         userMsg.put("content", "")
                     }
@@ -295,7 +294,7 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
                         textPart.put("type", "output_text")
                         textPart.put("text", msg.content)
                         contentParts.add(textPart)
-                        asstMsg.put("content", contentParts)
+                        asstMsg.set<JsonNode>("content", contentParts)
                     } else {
                         asstMsg.putArray("content")
                     }
@@ -320,7 +319,7 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
                 }
             }
         }
-        body.put("input", inputArray)
+        body.set<JsonNode>("input", inputArray)
         if (!tools.isNullOrEmpty()) {
             val toolsArray = objectMapper.createArrayNode()
             for (t in tools) {
@@ -329,13 +328,13 @@ class OpenAiResponsesLlmClient : StreamingLlmClient {
                 toolNode.put("name", t.name)
                 toolNode.put("description", t.description ?: "")
                 if (!t.parameters.isNullOrEmpty()) {
-                    toolNode.put("parameters", objectMapper.valueToTree(t.parameters))
+                    toolNode.set<JsonNode>("parameters", objectMapper.valueToTree(t.parameters))
                 } else {
                     toolNode.putObject("parameters")
                 }
                 toolsArray.add(toolNode)
             }
-            body.put("tools", toolsArray)
+            body.set<JsonNode>("tools", toolsArray)
         }
         return body
     }

@@ -125,7 +125,7 @@ class ProjectService(
             val projectId = toUuid(row[0])
             val code = row[1]?.toString() ?: ""
             val label = row[2]?.toString() ?: ""
-            val count = if (row[3] != null) (row[3] as Number).toLong() else 0L
+            val count = (row[3] as Number).toLong()
             byProject.getOrPut(projectId) { mutableListOf() }
                 .add(ProjectActivityTypeSummaryDto(code, label, count))
         }
@@ -159,7 +159,7 @@ class ProjectService(
             val projectId = toUuid(row[0])
             val code = row[1]?.toString() ?: ""
             val label = row[2]?.toString() ?: ""
-            val count = if (row[3] != null) (row[3] as Number).toLong() else 0L
+            val count = (row[3] as Number).toLong()
             byProject.getOrPut(projectId) { mutableListOf() }
                 .add(ProjectActivityTypeSummaryDto(code, label, count))
         }

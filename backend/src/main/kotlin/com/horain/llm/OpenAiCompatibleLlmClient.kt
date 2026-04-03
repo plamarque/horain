@@ -233,17 +233,17 @@ class OpenAiCompatibleLlmClient : StreamingLlmClient {
                     val fn = objectMapper.createObjectNode()
                     fn.put("name", tc.name)
                     fn.put("arguments", tc.arguments)
-                    tcNode.put("function", fn)
+                    tcNode.set<JsonNode>("function", fn)
                     toolCallsArray.add(tcNode)
                 }
-                m.put("tool_calls", toolCallsArray)
+                m.set<JsonNode>("tool_calls", toolCallsArray)
             }
             if (msg.toolCallId != null) {
                 m.put("tool_call_id", msg.toolCallId)
             }
             messagesArray.add(m)
         }
-        body.put("messages", messagesArray)
+        body.set<JsonNode>("messages", messagesArray)
         if (!tools.isNullOrEmpty()) {
             val toolsArray = objectMapper.createArrayNode()
             for (t in tools) {
@@ -253,14 +253,14 @@ class OpenAiCompatibleLlmClient : StreamingLlmClient {
                 fn.put("name", t.name)
                 fn.put("description", t.description)
                 if (!t.parameters.isNullOrEmpty()) {
-                    fn.put("parameters", objectMapper.valueToTree(t.parameters))
+                    fn.set<JsonNode>("parameters", objectMapper.valueToTree(t.parameters))
                 } else {
                     fn.putObject("parameters")
                 }
-                toolNode.put("function", fn)
+                toolNode.set<JsonNode>("function", fn)
                 toolsArray.add(toolNode)
             }
-            body.put("tools", toolsArray)
+            body.set<JsonNode>("tools", toolsArray)
         }
         return body
     }

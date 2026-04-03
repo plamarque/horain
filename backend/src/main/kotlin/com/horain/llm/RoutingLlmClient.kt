@@ -78,7 +78,7 @@ class RoutingLlmClient(
         if (messages == null) return ""
         for (i in messages.indices.reversed()) {
             val m = messages[i]
-            if (m != null && m.role.equals("user", ignoreCase = true)) {
+            if (m.role.equals("user", ignoreCase = true)) {
                 return m.content ?: ""
             }
         }
@@ -89,7 +89,7 @@ class RoutingLlmClient(
         if (messages == null) return ""
         for (i in messages.indices.reversed()) {
             val m = messages[i]
-            if (m != null && m.role.equals("assistant", ignoreCase = true)) {
+            if (m.role.equals("assistant", ignoreCase = true)) {
                 return m.content ?: ""
             }
         }
