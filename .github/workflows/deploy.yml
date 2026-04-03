@@ -80,6 +80,17 @@ jobs:
         working-directory: backend
         run: mvn test -q
 
+      - name: Backend coverage summary (JaCoCo)
+        working-directory: backend
+        run: python3 scripts/jacoco_summary.py
+
+      - name: Upload JaCoCo HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: warn
+
       - name: Set up Node.js
         if: needs.detect-version-only.outputs.skip_e2e != 'true'
         uses: actions/setup-node@v6

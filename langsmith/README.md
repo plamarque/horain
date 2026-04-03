@@ -9,6 +9,27 @@ This folder hosts an exploratory LangGraph replica of Horain's agentic core:
 
 This is a lab environment. It is not a production migration.
 
+## Dataset and experiment scripts
+
+`langsmith/scripts/` now contains the LangSmith operational pipeline used to mirror Promptfoo into Studio:
+
+- `diagnose-dataset-visibility.mjs`: diagnose endpoint/workspace mismatch and dataset visibility.
+- `import-promptfoo-to-langsmith.mjs`: import Promptfoo corpus into a LangSmith dataset.
+- `export-eval-to-langsmith.mjs`: push eval-candidates JSONL into a dataset.
+- `run-evaluation.mjs`: run `evaluate(...)` experiments against Horain backend.
+- `lib/*`: shared helpers for env loading, Promptfoo corpus parsing, and scored-judge mapping.
+
+From repo root:
+
+```bash
+npm run langsmith:dataset:diagnose
+npm run langsmith:dataset:import
+npm run langsmith:dataset:create-and-import
+npm run langsmith:experiment:run
+```
+
+Compatibility wrappers remain in `scripts/` for backward compatibility.
+
 ## Architecture
 
 `src/agent/graph.ts` contains a multi-node graph:

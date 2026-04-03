@@ -42,6 +42,12 @@ Pour que le chat réponde réellement, configurer `LLM_API_KEY` ou `OPENAI_API_K
 
 **HTTPS :** Le frontend tourne en HTTPS (mkcert) pour permettre l'accès au micro (reconnaissance vocale).
 
+## Tests backend (Maven)
+
+Depuis `backend/` : `mvn test` (H2 en mémoire). Après un run réussi, **JaCoCo** génère le rapport HTML et `jacoco.xml` dans `backend/target/site/jacoco/` (ouvrir `index.html`).
+
+**Résumé chiffré (lignes, branches, etc.) :** `python3 scripts/jacoco_summary.py` (depuis `backend/`, après `mvn test`). À la racine du dépôt : `npm run test:backend:coverage`.
+
 ## Tests e2e
 
 - **Obligation :** Mettre en place et maintenir une suite de tests e2e dès le début du projet.
@@ -153,10 +159,10 @@ Hors chemin critique du chat : créer un **dataset** dans LangSmith (UI), copier
 export LANGCHAIN_API_KEY=...
 export LANGSMITH_DATASET_ID=<uuid-du-dataset>
 curl -sS -H "Authorization: Bearer $HORAIN_API_KEY" "$EVAL_CANDIDATES_ENDPOINT" \
-  | node scripts/export-eval-to-langsmith.mjs
+  | npm run langsmith:dataset:export
 ```
 
-Le script lit du **JSONL** sur stdin (même format que `GET /admin/export-eval-candidates`) et envoie chaque ligne comme **example** via l’API LangSmith (`POST /examples`). Voir les variables en tête de [scripts/export-eval-to-langsmith.mjs](../scripts/export-eval-to-langsmith.mjs).
+Le script lit du **JSONL** sur stdin (même format que `GET /admin/export-eval-candidates`) et envoie chaque ligne comme **example** via l’API LangSmith (`POST /examples`). Script canonique : [langsmith/scripts/export-eval-to-langsmith.mjs](../langsmith/scripts/export-eval-to-langsmith.mjs) (wrappers de compatibilité conservés dans `scripts/`).
 
 ### Import du corpus Promptfoo vers LangSmith (dataset)
 
@@ -164,38 +170,60 @@ Pour aligner les **cas de test YAML** Promptfoo avec un dataset LangSmith (revue
 
 Par défaut, le script charge les variables de **[backend/.env](../backend/.env)** (sans écraser celles déjà définies dans le shell) : typiquement `LANGCHAIN_API_KEY` et, si besoin, `LANGSMITH_ENDPOINT`. Utiliser **`--no-backend-env`** pour ne pas lire ce fichier.
 
-- **`LANGSMITH_DATASET_ID`** : optionnel. S’il est absent, le script **crée un nouveau dataset** via l’API LangSmith (`POST /datasets` ou `POST /api/v1/datasets` selon la plateforme), puis y importe les exemples. Le nom par défaut est horodaté (`Horain-promptfoo-<iso>`) ; sinon **`--dataset-name "Mon corpus"`**.
+- **`LANGSMITH_DATASET_ID`** : requis par défaut (dataset existant).
+- **`--create-dataset`** : active explicitement la création d’un nouveau dataset puis import.
 - **`LANGCHAIN_API_KEY`** : requis pour l’upload (souvent déjà dans `backend/.env`).
 
 ```bash
 # Optionnel — région EU :
 # export LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
 
-node scripts/import-promptfoo-to-langsmith.mjs --dry-run
-# Import en utilisant la clé depuis backend/.env ; nouveau dataset si pas de LANGSMITH_DATASET_ID
-node scripts/import-promptfoo-to-langsmith.mjs
-# Dataset existant
+npm run langsmith:dataset:import -- --dry-run
+# Import dans un dataset existant (mode par défaut)
 export LANGSMITH_DATASET_ID=<uuid-du-dataset>
-node scripts/import-promptfoo-to-langsmith.mjs
+npm run langsmith:dataset:import
+# Dataset existant
+# ou création explicite + import
+npm run langsmith:dataset:create-and-import -- --dataset-name "Horain Promptfoo Seed v1"
 ```
 
-Le script lit [promptfoo/promptfooconfig.yaml](../promptfoo/promptfooconfig.yaml) par défaut (tests inline + références `file://`), extrait `vars.message` par cas et envoie un **example** par test (`inputs.user_message`, `metadata` avec `source: promptfoo`, fichier d’origine, `description`, `test_index`). Même forme d’`inputs` / `outputs` que [scripts/export-eval-to-langsmith.mjs](../scripts/export-eval-to-langsmith.mjs) pour cohérence.
+Le script lit [promptfoo/promptfooconfig.yaml](../promptfoo/promptfooconfig.yaml) par défaut (tests inline + références `file://`), extrait `vars.message` par cas et envoie un **example** par test (`inputs.user_message`, `metadata` avec `source: promptfoo`, fichier d’origine, `description`, `test_index`). Même forme d’`inputs` / `outputs` que [langsmith/scripts/export-eval-to-langsmith.mjs](../langsmith/scripts/export-eval-to-langsmith.mjs) pour cohérence.
 
 **Options utiles :** `--config promptfoo/promptfooconfig.deterministic.yaml` pour suivre la liste de tests du config déterministe (CI) ; `--skip-scored` pour exclure les fichiers sous `promptfoo/tests/scored/` lorsqu’on utilise le config principal ; `--only '<regex>'` pour ne traiter que certains chemins (ex. `clarification|analytics`) ; `--delay-ms 100` pour espacer les `POST /examples`. Prérequis npm : `yaml` (installé avec `npm install` à la racine du dépôt).
 
 ### Expérience LangSmith (`evaluate`) sur le dataset Promptfoo
 
-Après import des exemples, le script **[scripts/langsmith-eval/run-evaluation.mjs](../scripts/langsmith-eval/run-evaluation.mjs)** lance une **expérience** LangSmith : cible = API Horain (`POST /chat/message`, même idée que [promptfoo/providers/horain-api.mjs](../promptfoo/providers/horain-api.mjs)). Evaluateurs : `horain_ok`, `promptfoo_meta`, et si **`PROMPTFOO_JUDGE_MISTRAL_API_KEY`** est défini (souvent dans [promptfoo/.env](../promptfoo/.env), chargé automatiquement), les tests **scorés** Promptfoo sont rejoués via **Mistral** avec les mêmes rubrics que dans `promptfoo/tests/scored/*.yaml` (appariage sur `metadata.description`). Colonnes LangSmith : `promptfoo_llm_applied`, `promptfoo_llm_score`, `promptfoo_llm_pass`. Désactiver le juge : `--no-scored-judge`. Forcer le juge (erreur si clé absente) : `--with-scored-judge`. Avec juge, `maxConcurrency` passe à 1 pour limiter le débit Mistral.
+Après import des exemples, le script **[langsmith/scripts/run-evaluation.mjs](../langsmith/scripts/run-evaluation.mjs)** lance une **expérience** LangSmith : cible = API Horain (`POST /chat/message`, même idée que [promptfoo/providers/horain-api.mjs](../promptfoo/providers/horain-api.mjs)). Evaluateurs : `horain_ok`, `promptfoo_meta`, et si **`PROMPTFOO_JUDGE_MISTRAL_API_KEY`** est défini (souvent dans [promptfoo/.env](../promptfoo/.env), chargé automatiquement), les tests **scorés** Promptfoo sont rejoués via **Mistral** avec les mêmes rubrics que dans `promptfoo/tests/scored/*.yaml` (appariage sur `metadata.description`). Colonnes LangSmith : `promptfoo_llm_applied`, `promptfoo_llm_score`, `promptfoo_llm_pass`. Désactiver le juge : `--no-scored-judge`. Forcer le juge (erreur si clé absente) : `--with-scored-judge`. Avec juge, `maxConcurrency` passe à 1 pour limiter le débit Mistral.
 
 ```bash
 export LANGSMITH_DATASET_ID=<uuid>
 # Optionnel : HORAIN_API_URL, LANGSMITH_ENDPOINT (EU), clés dans backend/.env
 # Optionnel : PROMPTFOO_JUDGE_MISTRAL_API_KEY, PROMPTFOO_JUDGE_MODEL dans promptfoo/.env
-npm run langsmith:eval
-# ou : node scripts/langsmith-eval/run-evaluation.mjs
+npm run langsmith:experiment:run
 ```
 
-Mettre à jour le README du dossier : `node scripts/generate-langsmith-eval-from-promptfoo.mjs` (statistiques du corpus selon les mêmes filtres `--config` / `--skip-scored` / `--only`). Dépendance npm : `langsmith`. Catalogue des rubrics scorés : [scripts/lib/promptfoo-scored-catalog.mjs](../scripts/lib/promptfoo-scored-catalog.mjs).
+Mettre à jour le README des scripts : `node langsmith/scripts/generate-langsmith-eval-from-promptfoo.mjs` (statistiques du corpus selon les mêmes filtres `--config` / `--skip-scored` / `--only`). Dépendance npm : `langsmith`. Catalogue des rubrics scorés : [langsmith/scripts/lib/promptfoo-scored-catalog.mjs](../langsmith/scripts/lib/promptfoo-scored-catalog.mjs).
+
+### Dataset introuvable dans Studio
+
+Quand un dataset existe via API mais n’apparaît pas dans le bouton **Run Experiment** de Studio, vérifier d’abord le contexte endpoint/workspace :
+
+```bash
+npm run langsmith:dataset:diagnose
+# ou ciblé :
+npm run langsmith:dataset:diagnose -- --dataset-id <uuid>
+npm run langsmith:dataset:diagnose -- --dataset-name "Horain-promptfoo"
+```
+
+Checklist de remédiation :
+
+1. Vérifier la région (`LANGSMITH_ENDPOINT` US vs EU).
+2. Vérifier la clé API (workspace correspondant au compte ouvert dans le navigateur).
+3. Vérifier que le dataset ciblé a bien des examples (`example_count_exact` > 0).
+4. Si le dataset n’est pas visible dans ce contexte, recréer explicitement :
+   - `npm run langsmith:dataset:create-and-import -- --dataset-name "Horain-promptfoo-<date>"`,
+   - exporter `LANGSMITH_DATASET_ID` du nouveau dataset,
+   - relancer `npm run langsmith:experiment:run`.
 
 ## Evals Promptfoo — cibler un test
 

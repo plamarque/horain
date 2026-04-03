@@ -1,141 +1,117 @@
 # Horain
 
-**Voice-first time logging assistant** — a Progressive Web App that lets you log time by speaking naturally.
+Horain is a voice-first time journal assistant.
 
-Example: *"I just spent 30 minutes on HatCast working on the selection algorithm."*
+You speak (or type) naturally, and Horain turns it into structured time logs with project matching, clarifications, and conversational confirmations.
 
-The system uses an **LLM-driven tool-calling assistant** for intent detection and structured actions. Data lives on the server (Supabase via the backend); the frontend has no local storage and uses REST APIs for all data.
+## Why Horain
 
-## Architecture
+Most time tracking tools start with forms. Horain starts with language.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Frontend (Vue 3 + Vite PWA)                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                   │
-│  │ Conversation│  │ Chat Client  │  │ API Client  │                   │
-│  │ UI          │──│ POST/chat    │  │ GET/POST    │                   │
-│  └─────────────┘  └─────────────┘  │ /projects,  │                   │
-│                     └───────────────│ /time-logs  │                   │
-└─────────────────────────────────────────────┼─────────────────────────┘
-                                              │ HTTP
-                                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Backend (Spring Boot)                                                │
-│  ┌────────────┐  ┌─────────────┐  ┌──────────────┐                   │
-│  │ Chat       │  │ LLM         │  │ Tool         │   PostgreSQL       │
-│  │ Controller │──│ Orchestration│──│ Executor    │── (Supabase)      │
-│  └────────────┘  └─────────────┘  └──────────────┘                   │
-│  ┌──────────┐  ┌──────────┐                                            │
-│  │ /projects│  │ /time-   │                                            │
-│  │          │  │ logs     │                                            │
-│  └──────────┘  └──────────┘                                            │
-└─────────────────────────────────────────────────────────────────────┘
-```
+- Log work in plain sentences
+- Keep context through conversation
+- Track billable and non-billable time
+- Ask analytics questions without building reports manually
 
-### Tool-calling architecture
+Example:
 
-- User messages go to `POST /chat/message`.
-- Backend sends to an LLM with tool definitions (list_projects, search_project, create_project, create_time_log, get_recent_logs, get_time_logs_for_period, sum_time_by_project, sum_time_for_period, get_current_datetime).
-- **The LLM decides when to call tools. Tools perform all reads and writes**; the LLM never accesses storage directly.
-- Loop continues until the LLM produces a final assistant response.
-- Supports both **action requests** (log time, create project) and **analytics questions** (how many hours this week?, what did I do today?).
+> "I just spent 30 minutes on HatCast working on the selection algorithm."
 
-Data is always read from the server via REST (e.g. GET /projects, GET /time-logs/recent). After each chat response or after editing/deleting an entry, the client refetches recent activities to keep the UI in sync.
+## What You Can Do
 
-## Quick start
+- Capture activity from voice or text
+- Create, update, and find projects conversationally
+- Log time with note, date, billable flag, and activity type
+- Ask period questions (today, this week, this month)
+- Get chart-ready aggregations from the assistant flow
+- Review recent activity directly in the app on first load
+
+For exact functional behavior, use the normative spec: [docs/SPEC.md](docs/SPEC.md).
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- JDK 21+ (backend Kotlin / Spring Boot)
+- Node 20+
+- npm or pnpm
+- JDK 21+
 - Maven
 
-### Backend
+### Run locally
 
 ```bash
+./scripts/start-dev.sh
+```
+
+This starts:
+
+- Backend on `http://localhost:8080`
+- Frontend on `https://localhost:5173` (HTTPS dev server for microphone usage)
+
+You can also run services separately:
+
+```bash
+# Backend
 cd backend
 mvn spring-boot:run
-```
 
-Uses H2 in-memory by default (no PostgreSQL required). Runs at http://localhost:8080.
-
-For PostgreSQL (e.g. Supabase):
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=postgres
-# Or set SPRING_DATASOURCE_URL, etc. via env vars
-```
-
-Backend runs at `http://localhost:8080`.
-
-### Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`.
+### LLM setup (required for real assistant responses)
 
-### Environment
+Configure `backend/.env` from `backend/.env.example`, then set at least one key:
 
-Copy `frontend/.env.example` to `frontend/.env` for local dev. See [docs/ENV_SETUP.md](docs/ENV_SETUP.md) for the full configuration guide (Supabase, Cloud Run, GitHub Actions, OpenAI).
+- `LLM_API_KEY`, or
+- `OPENAI_API_KEY`
 
-**LLM integration** (required — the assistant requires an LLM):
+Optional: `LLM_MODEL`, `LLM_BASE_URL`, multi-model routing variables.
 
-| Variable      | Description                            | Default              |
-|---------------|----------------------------------------|----------------------|
-| `LLM_API_KEY` | API key for OpenAI-compatible API      | (required)           |
-| `LLM_BASE_URL`| Base URL for chat completions           | `https://api.openai.com/v1` |
-| `LLM_MODEL`   | Model name (e.g. gpt-4o-mini)           | `gpt-4o-mini`       |
+Full environment and deployment setup: [docs/ENV_SETUP.md](docs/ENV_SETUP.md).
 
-Without `LLM_API_KEY`, the backend returns a placeholder message instructing you to configure it.
+## Repo Layout
 
-## Project structure
-
-```
+```text
 horain/
-├── backend/           # Spring Boot API
-│   └── src/main/kotlin/com/horain/
-│       ├── chat/      # ChatController, LlmChatService
-│       ├── llm/       # LlmClient, OpenAI-compatible client
-│       ├── tools/     # ToolRegistry, ToolExecutorService
-│       ├── analytics/ # AnalyticsService
-│       ├── config/
-│       ├── controller/
-│       ├── service/
-│       ├── repository/
-│       ├── model/
-│       ├── dto/
-│       └── auth/
-├── frontend/          # Vue 3 + Vite PWA
-│   └── src/
-│       ├── components/
-│       ├── views/
-│       ├── services/   # apiClient, chatClient, speechRecognition
-│       └── pwa/
-└── docs/             # Specification, architecture
+├── backend/      # Spring Boot + Kotlin API, orchestration, tools
+├── frontend/     # Vue 3 + Vite PWA client
+├── docs/         # Product, architecture, data, UX, governance
+├── promptfoo/    # Agent eval suite
+├── scripts/      # Dev, test, release, eval automation
+└── langsmith/    # LangSmith export/import/evaluation tooling
 ```
 
-## API endpoints
+## Documentation Map
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /health | Health check (no auth) |
-| POST | /chat/message | Send message, get assistant response (LLM + tool calling) |
-| POST | /projects | Create project |
-| GET | /projects | List projects |
-| POST | /time-logs | Create time log |
-| GET | /time-logs | List time logs |
+This README is intentionally introductory.
 
-## Key documents
+Normative behavior and structure live in:
 
-| Document | Purpose |
-|----------|---------|
-| [docs/ENV_SETUP.md](docs/ENV_SETUP.md) | Environment setup (Supabase, Cloud Run, GitHub, OpenAI) |
-| [docs/SPEC.md](docs/SPEC.md) | Functional specification |
-| [docs/ARCH.md](docs/ARCH.md) | Architecture |
-| [docs/DOMAIN.md](docs/DOMAIN.md) | Domain model |
-| [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | Database schema |
-| [AGENTS.md](AGENTS.md) | Agent governance |
+- [docs/SPEC.md](docs/SPEC.md)
+- [docs/DOMAIN.md](docs/DOMAIN.md)
+- [docs/ARCH.md](docs/ARCH.md)
+- [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)
+- [docs/AGENT_DESIGN.md](docs/AGENT_DESIGN.md)
+- [docs/DATA_MODEL.md](docs/DATA_MODEL.md)
+- [docs/UX.md](docs/UX.md)
+- [docs/EVALS.md](docs/EVALS.md)
+- [docs/WORKFLOW.md](docs/WORKFLOW.md)
+- [docs/ADR/](docs/ADR/)
+- [AGENTS.md](AGENTS.md)
+
+Operational/progress docs:
+
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- [docs/PLAN.md](docs/PLAN.md)
+- [docs/ISSUES.md](docs/ISSUES.md)
+
+## Quality Gates
+
+- Backend tests: `cd backend && mvn test`
+- Frontend e2e: `./scripts/run-tests.sh e2e`
+- Agent evals: `./scripts/run-promptfoo-eval.sh --deterministic-only`
+
+See full testing and CI workflow in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and eval contract rules in [docs/EVALS.md](docs/EVALS.md).

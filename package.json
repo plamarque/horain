@@ -8,10 +8,16 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:backend:coverage": "cd backend && mvn test -q && python3 scripts/jacoco_summary.py",
     "release": "./scripts/release-version.sh",
     "eval": "cd promptfoo && npx promptfoo eval",
     "eval:deterministic": "npx promptfoo eval -c promptfoo/promptfooconfig.deterministic.yaml",
-    "langsmith:eval": "node scripts/langsmith-eval/run-evaluation.mjs"
+    "langsmith:dataset:diagnose": "node langsmith/scripts/diagnose-dataset-visibility.mjs",
+    "langsmith:dataset:import": "node langsmith/scripts/import-promptfoo-to-langsmith.mjs",
+    "langsmith:dataset:create-and-import": "node langsmith/scripts/import-promptfoo-to-langsmith.mjs --create-dataset",
+    "langsmith:dataset:export": "node langsmith/scripts/export-eval-to-langsmith.mjs",
+    "langsmith:experiment:run": "node langsmith/scripts/run-evaluation.mjs",
+    "langsmith:eval": "npm run langsmith:experiment:run"
   },
   "keywords": [],
   "author": "",
