@@ -268,8 +268,10 @@ test('cycle project card color from edit modal', async ({ page, request }) => {
   ])
 
   await expect(projectModal).toBeVisible()
-  const after = await cardFace.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(before).not.toEqual(after)
+  // Activity cards refetch after horain:projectUpdated; color updates asynchronously.
+  await expect
+    .poll(async () => cardFace.evaluate((el) => getComputedStyle(el).backgroundColor))
+    .not.toBe(before)
 
   const listRes = await request.get(`${API_BASE}/projects`, {
     headers: { Authorization: `Bearer ${API_KEY}` },

@@ -266,6 +266,45 @@ async function handleEntryDeleted(deletedEntry: TimeLogEntry) {
   }
 }
 
+/** Shown when the assistant turn has no visible text, tools, chart, or log cards (e.g. empty model output or truncated SSE). */
+const EMPTY_ASSISTANT_FALLBACK =
+  'No response was displayed. Please try again.'
+
+function needsAssistantTextFallback(payload: {
+  text: string
+  chart?: ChartSpec
+  timeLogs?: TimeLogEntry[]
+  segments?: AssistantMessageSegment[]
+  agentTrace?: AgentTrace | null
+}): boolean {
+  if ((payload.text ?? '').trim().length > 0) return false
+  if (payload.chart) return false
+  if ((payload.timeLogs?.length ?? 0) > 0) return false
+  if (payload.segments?.some((s) => s.type === 'text' && (s.text ?? '').trim().length > 0)) return false
+  if (payload.segments?.some((s) => s.type === 'tools' && (s.toolCalls?.length ?? 0) > 0)) return false
+  if ((payload.agentTrace?.toolCalls?.length ?? 0) > 0) return false
+  const phases = payload.agentTrace?.reasoningPhases?.length ?? 0
+  const reasoningLen = (payload.agentTrace?.reasoningText ?? '').trim().length
+  if (phases > 0 || reasoningLen > 0) return false
+  return true
+}
+
+function applyAssistantTextFallbackIfNeeded(msg: Message): void {
+  if (msg.role !== 'assistant') return
+  if (
+    !needsAssistantTextFallback({
+      text: msg.text ?? '',
+      chart: msg.chart,
+      timeLogs: msg.timeLogs,
+      segments: msg.segments,
+      agentTrace: msg.agentTrace ?? null,
+    })
+  ) {
+    return
+  }
+  msg.text = EMPTY_ASSISTANT_FALLBACK
+}
+
 function formatEntryChipLabel(entry: TimeLogEntry): string {
   const p = entry.projectName || '?'
   const mins = entry.durationMinutes
@@ -289,11 +328,21 @@ function addAssistantMessage(
   turnId?: string | null,
   agentTrace?: AgentTrace
 ) {
+  const traceForFallback = agentTrace ?? { toolCalls: [] }
+  const resolvedText = needsAssistantTextFallback({
+    text,
+    chart,
+    timeLogs,
+    segments: undefined,
+    agentTrace: traceForFallback,
+  })
+    ? EMPTY_ASSISTANT_FALLBACK
+    : text
   const wasAtBottom = timelineRef.value?.isUserAtBottom() ?? true
   messages.value.push({
     id: crypto.randomUUID(),
     role: 'assistant',
-    text,
+    text: resolvedText,
     timestamp: new Date(),
     ...(chart && { chart }),
     ...(timeLogs?.length && { timeLogs }),
@@ -591,6 +640,7 @@ async function handleSubmit(text: string, options?: { clearProjectsAfterSend?: b
               if (streamingSegments.value.length > 0) {
                 msg.segments = [...streamingSegments.value]
               }
+              applyAssistantTextFallbackIfNeeded(msg)
             }
           } else {
             const mergedTrace: AgentTrace | undefined = agentTrace

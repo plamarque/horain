@@ -139,10 +139,7 @@ jobs:
           done
           curl -s http://localhost:8080/health || true
 
-          echo "Seeding backend for e2e..."
-          curl -s -X POST http://localhost:8080/dev/seed \
-            -H "Authorization: Bearer ${HORAIN_API_KEY:-HORAIN_DEV_KEY}" \
-            -H "Content-Type: application/json" -d '{"fixedToday":"2025-03-10"}' || true
+          echo "E2E DB seed: Playwright global-setup runs POST /dev/seed/reset before tests."
 
           cd ../frontend
           echo "Starting frontend server for e2e..."

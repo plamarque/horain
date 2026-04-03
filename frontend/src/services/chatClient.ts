@@ -225,6 +225,7 @@ export async function sendChatMessageStream(
   let buffer = ''
   let currentEvent: string | null = null
   let currentData: string[] = []
+  const streamState = { sawDone: false, sawStreamError: false }
 
   try {
     while (true) {
@@ -238,7 +239,7 @@ export async function sendChatMessageStream(
         if (line.startsWith('event:')) {
           if (currentEvent !== null && currentData.length > 0) {
             const dataStr = currentData.join('\n').trim()
-            dispatchEvent(currentEvent, dataStr, callbacks)
+            dispatchEvent(currentEvent, dataStr, callbacks, streamState)
           }
           currentEvent = line.slice(6).trim()
           currentData = []
@@ -247,7 +248,7 @@ export async function sendChatMessageStream(
         } else if (line === '' && currentEvent !== null) {
           if (currentData.length > 0) {
             const dataStr = currentData.join('\n').trim()
-            dispatchEvent(currentEvent, dataStr, callbacks)
+            dispatchEvent(currentEvent, dataStr, callbacks, streamState)
           }
           currentEvent = null
           currentData = []
@@ -256,7 +257,7 @@ export async function sendChatMessageStream(
     }
     if (currentEvent !== null && currentData.length > 0) {
       const dataStr = currentData.join('\n').trim()
-      dispatchEvent(currentEvent, dataStr, callbacks)
+      dispatchEvent(currentEvent, dataStr, callbacks, streamState)
     }
   } catch (e) {
     if ((e as Error).name === 'AbortError') {
@@ -264,12 +265,21 @@ export async function sendChatMessageStream(
     }
     throw e
   }
+
+  if (!streamState.sawDone && !streamState.sawStreamError) {
+    callbacks.onDone({
+      assistantMessage:
+        'The chat stream ended before a reply was received. Please try again.',
+      toolCalls: [],
+    })
+  }
 }
 
 function dispatchEvent(
   event: string,
   dataStr: string,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  streamState: { sawDone: boolean; sawStreamError: boolean }
 ): void {
   if (!dataStr) return
   try {
@@ -279,9 +289,11 @@ function dispatchEvent(
         callbacks.onChunk(data.text)
       }
     } else if (event === 'done') {
+      streamState.sawDone = true
       const payload = JSON.parse(dataStr) as ChatMessageResponse
       callbacks.onDone(payload)
     } else if (event === 'error') {
+      streamState.sawStreamError = true
       const data = JSON.parse(dataStr) as { message?: string }
       const err = new Error(data.message ?? 'Stream error')
       callbacks.onError?.(err)
@@ -316,6 +328,7 @@ function dispatchEvent(
       }
     }
   } catch (e) {
+    streamState.sawStreamError = true
     callbacks.onError?.(e as Error)
   }
 }

@@ -1,35 +1,14 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, API_KEY, recentActivitiesTitleLocator } from './e2eEnv'
+import { recentActivitiesTitleLocator } from './e2eEnv'
 
 /**
  * E2E: Recent activities displayed on launch.
  * When the conversation is empty, the app shows recent logged activities in the selected
  * activity period (fetched via API, no LLM call). If no data exists, a placeholder is shown.
  *
- * Uses dev seed API to populate data (no LLM) for reliability.
+ * Data comes from Playwright global setup (POST /dev/seed/reset once per run).
  */
-test('recent activities displayed on launch when data exists', async ({
-  page,
-  request,
-}) => {
-  // Seed data via API (no LLM) — reliable, works in CI
-  // Prerequisite: backend must be running on port 8080 (e.g. ./scripts/start-dev.sh or mvn spring-boot:run)
-  const seedRes = await request.post(`${API_BASE}/dev/seed`, {
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    data: {},
-  })
-  if (!seedRes.ok()) {
-    const body = await seedRes.text()
-    const hint =
-      seedRes.status() === 401
-        ? ' API key mismatch: ensure backend/.env HORAIN_API_KEY matches (or set VITE_API_KEY).'
-        : ' Ensure backend is running on 8080.'
-    throw new Error(`Seed API failed (${seedRes.status()}).${hint} Response: ${body}`)
-  }
-
+test('recent activities displayed on launch when data exists', async ({ page }) => {
   await Promise.all([
     page.waitForResponse(
       (resp) => resp.url().includes('/time-logs/recent') && resp.status() === 200,

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { sendChatWithAssistantBubble } from './helpers/assistantResponse'
 import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
 
 /**
@@ -16,10 +17,9 @@ test.describe('SPEC scenarios', () => {
     await expect(input).toBeVisible()
 
     // Create two similar projects (agent may ask to create if not seeded; confirm then)
-    await input.fill('15 minutes on HatCast V1')
-    await page.getByRole('button', { name: 'Send' }).click()
-    const bubble1 = page.locator('.bubble.assistant').last()
-    await expect(bubble1).toBeVisible({ timeout: 20000 })
+    const bubble1 = await sendChatWithAssistantBubble(page, input, '15 minutes on HatCast V1', {
+      bubbleTimeoutMs: 25_000,
+    })
     const text1 = await bubble1.textContent()
     if (/should i|create|don't know|couldn't find|not found|créer|inconnu|trouvé/i.test(text1 ?? '')) {
       await waitForChatInputReady(input)
@@ -31,10 +31,12 @@ test.describe('SPEC scenarios', () => {
     ).toContainText(/logged|created|enregistré|enregistre|HatCast V1/i, { timeout: 10000 })
     await waitForChatInputReady(input)
 
-    await input.fill('Please log exactly 15 minutes on HatCast V2 (not HatCast V1)')
-    await page.getByRole('button', { name: 'Send' }).click()
-    const bubble2 = page.locator('.bubble.assistant').last()
-    await expect(bubble2).toBeVisible({ timeout: 10000 })
+    const bubble2 = await sendChatWithAssistantBubble(
+      page,
+      input,
+      'Please log exactly 15 minutes on HatCast V2 (not HatCast V1)',
+      { bubbleTimeoutMs: 25_000 }
+    )
     const text2 = await bubble2.textContent()
     if (/should i|create|don't know|couldn't find|not found|créer|inconnu|trouvé/i.test(text2 ?? '')) {
       await waitForChatInputReady(input)
@@ -46,12 +48,11 @@ test.describe('SPEC scenarios', () => {
     ).toContainText(/logged|created|enregistré|enregistre|HatCast V2/i, { timeout: 10000 })
     await waitForChatInputReady(input)
     // Ambiguous: "HatCast" matches both
-    await input.fill('30 minutes on HatCast')
-    await page.getByRole('button', { name: 'Send' }).click()
+    const assistantBubble = await sendChatWithAssistantBubble(page, input, '30 minutes on HatCast', {
+      bubbleTimeoutMs: 30_000,
+    })
 
     // Assistant should mention both projects and ask which one
-    const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 25_000 })
     await expect(assistantBubble).toContainText(
       /HatCast V1|HatCast V2|similar|which one|which project|quel|laquelle|quelle|deux|both|projets?/i
     )
@@ -67,12 +68,14 @@ test.describe('SPEC scenarios', () => {
 
     // Use a unique name that won't exist
     const uniqueName = `ZzzUnknown${Date.now()}`
-    await input.fill(`40 minutes on ${uniqueName}`)
-    await page.getByRole('button', { name: 'Send' }).click()
+    const assistantBubble = await sendChatWithAssistantBubble(
+      page,
+      input,
+      `40 minutes on ${uniqueName}`,
+      { bubbleTimeoutMs: 25_000 }
+    )
 
     await waitForChatInputReady(input)
-    const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 20_000 })
     await expect(assistantBubble).toContainText(
       /don't know|unknown|create|should i|couldn't find|not found|no project|doesn't exist|matching|failed|error|créer|projet|inconnu|existe|aucun|trouvé|trouve|souhaitez|voulez|nouveau|new project|désolé|sorry/i
     )
@@ -88,10 +91,10 @@ test.describe('SPEC scenarios', () => {
 
     // Unique prefix to avoid fuzzy match with other tests' projects
     const projectName = `ZzzDurEst${Date.now()}`
-    await input.fill(`15 minutes on ${projectName}`)
-    await page.getByRole('button', { name: 'Send' }).click()
+    await sendChatWithAssistantBubble(page, input, `15 minutes on ${projectName}`, {
+      bubbleTimeoutMs: 30_000,
+    })
     await waitForChatInputReady(input)
-    await expect(page.locator('.bubble.assistant').last()).toBeVisible({ timeout: 25_000 })
     await expect(
       page.locator('.bubble.assistant').last()
     ).toContainText(new RegExp(`logged|created|enregistr|${projectName}`, 'i'), {
@@ -99,12 +102,13 @@ test.describe('SPEC scenarios', () => {
     })
 
     // Missing duration: no minutes specified (use exact project name)
-    await input.fill(`I worked on ${projectName} all morning`)
-    await page.getByRole('button', { name: 'Send' }).click()
+    const assistantBubble = await sendChatWithAssistantBubble(
+      page,
+      input,
+      `I worked on ${projectName} all morning`,
+      { bubbleTimeoutMs: 30_000 }
+    )
 
-    await waitForChatInputReady(input)
-    const assistantBubble = page.locator('.bubble.assistant').last()
-    await expect(assistantBubble).toBeVisible({ timeout: 25_000 })
     await expect(assistantBubble).toContainText(
       /duration|estimate|how long|minutes|hours|combien|durée|temps|heures/i
     )
