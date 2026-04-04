@@ -82,8 +82,7 @@ test.describe('voice input', () => {
     await expect(input).toHaveValue('30 minutes on HatCast V1', { timeout: 5000 })
     await page.getByRole('button', { name: 'Send' }).click()
 
-    // First assistant bubble can appear ~8–14s after Send under parallel load; 25s timeout avoids flakiness
-    await expect(page.locator('.bubble.assistant').first()).toBeVisible({ timeout: 25000 })
+    await expect(page.locator('.bubble.assistant').first()).toBeVisible({ timeout: 12_000 })
     await expect(
       page.locator('.bubble.assistant').filter({ hasText: /logged|created|recorded|minutes|HatCast|enregistré/i }).last()
     ).toBeVisible({ timeout: 5000 })

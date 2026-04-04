@@ -1,6 +1,11 @@
 # Test profile: exclude all Spring AI OpenAI auto-configurations so the app context
 # can start without OPENAI_API_KEY / LLM_API_KEY (LlmConfig returns PlaceholderLlmClient).
 # Use only H2 migrations to avoid Flyway "more than one migration with version" (h2 + postgresql on classpath).
+#
+# Never use the e2e LLM stub in unit/integration tests (avoids HORAIN_E2E_CHAT_LLM_STUB leaking from the shell).
+horain:
+  e2e:
+    chat-llm-stub-enabled: false
 spring:
   autoconfigure:
     exclude:

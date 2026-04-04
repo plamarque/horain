@@ -19,7 +19,6 @@ import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
 test('agent trace shows natural-language descriptions and tool detail after response', async ({
   page,
 }) => {
-  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -30,12 +29,12 @@ test('agent trace shows natural-language descriptions and tool detail after resp
 
   await waitForChatInputReady(input)
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 25_000 })
+  await expect(lastBubble).toBeVisible({ timeout: 12_000 })
   await expect(lastBubble).not.toBeEmpty()
 
   // Trace region (aria-label "Agent execution trace"); then tool row button (single call or "N appels")
   const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
-  await expect(traceRegion).toBeVisible({ timeout: 30_000 })
+  await expect(traceRegion).toBeVisible({ timeout: 12_000 })
   const traceToggle = traceRegion.getByRole('button', {
     name: /Chargement de la liste|1 appel|\d+ appels/,
   }).first()
@@ -65,7 +64,6 @@ test('agent trace shows natural-language descriptions and tool detail after resp
 })
 
 test('agent trace block can be collapsed', async ({ page }) => {
-  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -75,10 +73,10 @@ test('agent trace block can be collapsed', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   await waitForChatInputReady(input)
-  await expect(page.locator('.bubble.assistant').last()).toBeVisible({ timeout: 25_000 })
+  await expect(page.locator('.bubble.assistant').last()).toBeVisible({ timeout: 12_000 })
 
   const traceRegion = page.getByRole('region', { name: 'Agent execution trace' })
-  await expect(traceRegion).toBeVisible({ timeout: 30_000 })
+  await expect(traceRegion).toBeVisible({ timeout: 12_000 })
   const traceToggle = traceRegion.getByRole('button', {
     name: /Chargement de la liste|1 appel|\d+ appels/,
   }).first()

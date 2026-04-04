@@ -19,10 +19,11 @@ test('log time via text input', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 25000 })
-  await expect(
-    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i)
-  ).toBeVisible({ timeout: 15000 })
+  await expect(lastBubble).toBeVisible({ timeout: 12_000 })
+  await expect(lastBubble.locator('.content')).toContainText(
+    /logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i,
+    { timeout: 8000 }
+  )
 })
 
 /**
@@ -47,10 +48,11 @@ test('send button appears when typing and submits on click', async ({ page }) =>
   await page.getByRole('button', { name: 'Send' }).click()
 
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 25000 })
-  await expect(
-    lastBubble.locator('.content').getByText(/logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i)
-  ).toBeVisible({ timeout: 15000 })
+  await expect(lastBubble).toBeVisible({ timeout: 12_000 })
+  await expect(lastBubble.locator('.content')).toContainText(
+    /logged|created|recorded|minutes|HatCast|added|saved|30|min|enregistré|fait|done/i,
+    { timeout: 8000 }
+  )
 })
 
 /**
@@ -58,7 +60,6 @@ test('send button appears when typing and submits on click', async ({ page }) =>
  * "J'ai passé 30 minutes sur HatCast à travailler sur l'algo"
  */
 test('log time via French phrase', async ({ page }) => {
-  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -70,9 +71,9 @@ test('log time via French phrase', async ({ page }) => {
 
   await waitForChatInputReady(input)
   const lastBubble = page.locator('.bubble.assistant').last()
-  await expect(lastBubble).toBeVisible({ timeout: 20_000 })
+  await expect(lastBubble).toBeVisible({ timeout: 12_000 })
   await expect(lastBubble.locator('.content')).toContainText(
     /logged|created|recorded|minutes|HatCast|enregistré|added|saved|30|min|fait|done|passé|travaill|créé|ajouté|temps|enregistre/i,
-    { timeout: 15_000 }
+    { timeout: 8000 }
   )
 })

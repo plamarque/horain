@@ -60,11 +60,11 @@ Après un run réussi, **JaCoCo** génère le rapport HTML et `jacoco.xml` dans 
 
 ### Exécution locale
 
-**Pour faire passer les e2e :** à la racine du dépôt, lancer `./scripts/run-tests.sh e2e`. Le script démarre le backend, build le frontend avec `VITE_API_URL=http://localhost:8080`, puis exécute Playwright. Lancer uniquement `npm run test:e2e` depuis `frontend/` sans backend ni build adapté fait échouer la plupart des tests.
+**Pour faire passer les e2e :** à la racine du dépôt, lancer `./scripts/run-tests.sh e2e`. Le script démarre le backend avec **`HORAIN_E2E_CHAT_LLM_STUB=true`** (client LLM scripté côté Spring ; pas d’appel OpenAI), build le frontend avec `VITE_API_URL=http://localhost:8080`, puis exécute Playwright. Lancer uniquement `npm run test:e2e` depuis `frontend/` sans backend ni build adapté fait échouer la plupart des tests.
 
 **Prérequis (si vous lancez les tests à la main) :**
 
-1. Backend lancé sur le port 8080 (ex. `./scripts/start-dev.sh` ou `cd backend && mvn spring-boot:run`)
+1. Backend lancé sur le port 8080 avec **`export HORAIN_E2E_CHAT_LLM_STUB=true`** (recommandé pour les scénarios chat) **et** `horain.dev.seed-enabled=true` (défaut en local). Sans stub, il faut un vrai fournisseur LLM (`OPENAI_API_KEY` / `LLM_API_KEY`) et les e2e restent sensibles à la latence et au non-déterminisme du modèle.
 2. Clé API : les tests lisent `HORAIN_API_KEY` depuis `backend/.env` (ou `VITE_API_KEY` / `HORAIN_API_KEY` en env). La clé doit correspondre à celle du backend pour éviter les 401.
 
 ```bash
@@ -84,7 +84,7 @@ Playwright sert le `dist` existant sur 4173 (il ne rebuild pas). L’app doit av
 
 1. **Tests backend :** `mvn verify` (H2 en mémoire, pas de DB externe ; JaCoCo **check**) — **toujours** exécutés
 2. **E2e (sauf bump de version seul) :** Si le push ne modifie **que** `package.json`, `frontend/package.json` et/ou `backend/pom.xml` (ex. commit « prepare next dev » après release), les étapes Playwright + e2e sont **ignorées** pour gagner du temps ; le déploiement repose sur la suite complète déjà passée sur le commit précédent.
-3. **Sinon :** build frontend pour e2e (`npm run build` avec `VITE_API_URL=http://localhost:8080`), backend + seed (`POST /dev/seed`), `serve` sur 4173, puis `npm run test:e2e`
+3. **Sinon :** build frontend pour e2e (`npm run build` avec `VITE_API_URL=http://localhost:8080`), backend avec `HORAIN_E2E_CHAT_LLM_STUB=true` + seed (`POST /dev/seed` via global-setup Playwright), `serve` sur 4173, puis `npm run test:e2e`
 
 Les evals **scorés** (LLM-as-judge) s'exécutent **une fois** lorsqu'une **GitHub Release est publiée** (workflow `.github/workflows/evals-scored.yml`, événement `release: published`, plus `workflow_dispatch`). Secret requis : `PROMPTFOO_JUDGE_MISTRAL_API_KEY`.
 
@@ -94,11 +94,11 @@ Le frontend est buildé avec `VITE_API_URL=http://localhost:8080` pour que les t
 
 **Ordre prod :** après les tests, le backend (Cloud Run) et le build front tournent en parallèle ; la **publication GitHub Pages** ne s’exécute qu’une fois le déploiement Cloud Run réussi pour ce commit. Si le **build front** ou le **déploiement Pages** échoue alors que le backend a bien été déployé, le workflow **remet le trafic** Cloud Run sur la révision qui servait avant ce run (évite une API neuve avec une UI encore à l’ancienne version).
 
-**Secret requis :** `OPENAI_API_KEY` (ou `LLM_API_KEY`). Les tests e2e envoient des messages à l'agent ; sans clé LLM, le backend utilise un placeholder et les tests échouent. Ajouter le secret dans Settings → Secrets and variables → Actions.
+**E2e et LLM :** la CI active `HORAIN_E2E_CHAT_LLM_STUB=true` pour les e2e : **aucun secret OpenAI n’est requis** pour cette étape. La qualité du modèle reste couverte par les **evals Promptfoo** (localement ou sur release). Pour tester manuellement le chat avec un vrai LLM, ne pas définir `HORAIN_E2E_CHAT_LLM_STUB` et configurer `OPENAI_API_KEY` ou `LLM_API_KEY` dans `backend/.env`.
 
 ### Release locale (scripts/release-version.sh)
 
-Par défaut, le script démarre le backend avant les e2e, attend `/health` puis lance Playwright. Pour que les tests passant par le chat (assistant) réussissent, configurer `LLM_API_KEY` ou `OPENAI_API_KEY` dans `backend/.env` (voir section LLM ci-dessus).
+Par défaut, le script démarre le backend avant les e2e avec **`HORAIN_E2E_CHAT_LLM_STUB=true`**, attend `/health` puis lance Playwright. Aucune clé LLM n’est nécessaire pour ces e2e ; pour valider contre un modèle réel, lancer le backend sans ce flag et avec `LLM_API_KEY` ou `OPENAI_API_KEY` (voir section LLM ci-dessus).
 
 **Options :** `--fast` — `mvn verify` + `npm run build` seulement (pas d’e2e locale ; l’e2e tourne sur le push `main` dans CI). `--skip-tests` — aucun test ni build local avant le bump (rare ; la CI reste le garde-fou).
 

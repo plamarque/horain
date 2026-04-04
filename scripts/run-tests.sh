@@ -115,9 +115,11 @@ case "$MODE" in
 
     if backend_ready; then
       echo "Backend already running on 8080."
+      echo "Note: for deterministic chat e2e, restart it with HORAIN_E2E_CHAT_LLM_STUB=true (see docs/DEVELOPMENT.md)."
     else
       echo "Starting backend for e2e..."
       cd "$ROOT_DIR/backend"
+      export HORAIN_E2E_CHAT_LLM_STUB=true
       mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
       BACKEND_PID=$!
       trap cleanup_backend EXIT

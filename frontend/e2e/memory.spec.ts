@@ -7,7 +7,6 @@ import { waitForChatInputReady } from './helpers/waitForChatRoundTrip'
  * We only assert that the conversation completes and that the trace may show memory tools.
  */
 test('user can ask to remember a preference and get a response', async ({ page }) => {
-  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -23,12 +22,11 @@ test('user can ask to remember a preference and get a response', async ({ page }
 
   await expect(lastBubble.locator('.content')).toContainText(
     /remember|saved|stored|ok|got it|noted|will|sure|preference|HatCast/i,
-    { timeout: 10000 }
+    { timeout: 8000 }
   )
 })
 
 test('user can ask to forget and get a response', async ({ page }) => {
-  test.setTimeout(120_000)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Horain' })).toBeVisible()
@@ -45,6 +43,6 @@ test('user can ask to forget and get a response', async ({ page }) => {
   // Match EN/FR success wording; include oublié/effacé/projet (markdown may split nodes — toContainText is more reliable than getByText on .content)
   await expect(lastBubble.locator('.content')).toContainText(
     /forgot|forgotten|forget|oublier|oublié|effacé|cleared|removed|memory|souvenir|default|project|projet|défaut|preference|understood|longer|won't|don't|any more|anymore|ok|done|noted|\bplus\b/i,
-    { timeout: 20000 }
+    { timeout: 8000 }
   )
 })

@@ -30,11 +30,11 @@ test('update project - rename via natural language', async ({ page, request }) =
   await page.getByRole('button', { name: 'Send' }).click()
 
   const renameBubble = page.locator('.bubble.assistant').last()
-  await expect(renameBubble).toBeVisible({ timeout: 20000 })
+  await expect(renameBubble).toBeVisible({ timeout: 12_000 })
   // Success wording: English or French (LLM may reply in either language).
   const renameSuccessPattern =
     /renamed|updated|changed|saved|done|name is now|now called|renommé|renomme|mis à jour|modifié|modifie|enregistré|enregistre/i
-  await expect(renameBubble).toContainText(renameSuccessPattern, { timeout: 10000 })
+  await expect(renameBubble).toContainText(renameSuccessPattern, { timeout: 8000 })
   await expect(renameBubble).toContainText(newName)
 })
 
@@ -81,7 +81,7 @@ test('delete project via natural language', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   const turn1Bubble = page.locator('.bubble.assistant').last()
-  await expect(turn1Bubble).toBeVisible({ timeout: 20000 })
+  await expect(turn1Bubble).toBeVisible({ timeout: 12_000 })
   await expect(turn1Bubble).toContainText(
     /(entry|entries|entrée|entrées)|cannot|can't|ne peux|pas supprimer|would you|voulez-vous|delete.*first|d'abord|confirm|confirmer|first|need to|don't have|not found|different project|let me know|unable to delete|associées|entrées de temps/i
   )
@@ -95,7 +95,7 @@ test('delete project via natural language', async ({ page, request }) => {
     await expect(async () => {
       const count = await page.locator('.bubble.assistant').count()
       expect(count).toBeGreaterThanOrEqual(countBefore + 1)
-    }).toPass({ timeout: 25000 })
+    }).toPass({ timeout: 15_000 })
     const lastBubble = page.locator('.bubble.assistant').last()
     await expect(lastBubble).toContainText(
       /deleted|removed|done|finished|completed|don't have|not found|nothing to delete|proceed to delete|shall I go ahead|no time log entries|entry has been deleted|deleted the entry|removed the entry|supprimé|supprime|effacé|retiré/i,

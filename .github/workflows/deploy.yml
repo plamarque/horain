@@ -121,7 +121,7 @@ jobs:
         if: needs.detect-version-only.outputs.skip_e2e != 'true'
         working-directory: frontend
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HORAIN_E2E_CHAT_LLM_STUB: 'true'
           HORAIN_API_KEY: ${{ secrets.HORAIN_API_KEY || 'HORAIN_DEV_KEY' }}
           PROMPTFOO_DISABLE_WAL_MODE: 'true'
         run: |

@@ -82,6 +82,7 @@ else
   fi
 
   echo "Starting backend for e2e..."
+  export HORAIN_E2E_CHAT_LLM_STUB=true
   mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0" &
   BACKEND_PID=$!
   cleanup_backend() { kill $BACKEND_PID 2>/dev/null || true; }

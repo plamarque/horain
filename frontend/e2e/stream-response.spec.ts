@@ -15,7 +15,7 @@ test('stream response shows assistant message', async ({ page }) => {
 
   // With streaming, the assistant bubble appears as chunks arrive (or at once if fallback).
   const assistantBubble = page.locator('.bubble.assistant').last()
-  await expect(assistantBubble).toBeVisible({ timeout: 15000 })
+  await expect(assistantBubble).toBeVisible({ timeout: 10_000 })
   await expect(assistantBubble).not.toBeEmpty()
 
   // Final content should be substantive (e.g. time or a short reply)

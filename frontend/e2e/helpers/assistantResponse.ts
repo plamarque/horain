@@ -13,8 +13,7 @@ export function isAssistantFallbackOrEmptyReply(text: string | null | undefined)
 }
 
 /**
- * Sends a message and waits for a visible assistant bubble. Retries the same prompt when the reply
- * is empty or a known fallback (reduces flake when the streaming API returns no content).
+ * Sends a message and waits for a visible assistant bubble after the stream completes.
  */
 export async function sendChatWithAssistantBubble(
   page: Page,
@@ -22,8 +21,8 @@ export async function sendChatWithAssistantBubble(
   message: string,
   options?: { bubbleTimeoutMs?: number; maxAttempts?: number }
 ): Promise<Locator> {
-  const bubbleTimeout = options?.bubbleTimeoutMs ?? 25_000
-  const maxAttempts = options?.maxAttempts ?? 2
+  const bubbleTimeout = options?.bubbleTimeoutMs ?? 12_000
+  const maxAttempts = options?.maxAttempts ?? 1
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await input.fill(message)

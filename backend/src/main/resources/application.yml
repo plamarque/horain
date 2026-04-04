@@ -9,6 +9,9 @@ horain:
   mass-delete-limit: 5  # Max delete_time_log calls per turn; ask user to confirm before more
   dev:
     seed-enabled: true  # Enable POST /dev/seed for local dev; set false in postgres profile
+  # Deterministic LLM for Playwright e2e; requires horain.dev.seed-enabled=true (see LlmConfig).
+  e2e:
+    chat-llm-stub-enabled: ${HORAIN_E2E_CHAT_LLM_STUB:false}
   # Optional: export agent traces to LangSmith (none | langsmith). Built-in agent_turn persistence is unchanged.
   observability:
     provider: ${HORAIN_OBSERVABILITY_PROVIDER:none}

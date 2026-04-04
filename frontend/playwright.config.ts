@@ -8,6 +8,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  /** Default per-test timeout; chat is fast when backend uses HORAIN_E2E_CHAT_LLM_STUB=true */
+  timeout: 60_000,
   reporter: 'html',
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4173',

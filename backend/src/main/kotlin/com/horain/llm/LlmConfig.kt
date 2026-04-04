@@ -1,8 +1,11 @@
 package com.horain.llm
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.horain.service.ProjectService
+import com.horain.service.TimeLogService
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestTemplate
@@ -32,9 +35,19 @@ class LlmConfig {
         restTemplate: RestTemplate,
         webClient: WebClient,
         objectMapper: ObjectMapper,
+        timeLogService: TimeLogService,
+        projectService: ProjectService,
         @Autowired(required = false) chatModel: ChatModel?,
-        @org.springframework.beans.factory.annotation.Value("\${llm.client:}") clientChoice: String
+        @Value("\${llm.client:}") clientChoice: String,
+        @Value("\${horain.e2e.chat-llm-stub-enabled:false}") chatLlmStubEnabled: Boolean,
+        @Value("\${horain.dev.seed-enabled:false}") devSeedEnabled: Boolean
     ): LlmClient {
+        if (chatLlmStubEnabled) {
+            check(devSeedEnabled) {
+                "horain.e2e.chat-llm-stub-enabled is true but horain.dev.seed-enabled is false; refusing E2E LLM stub."
+            }
+            return E2eStubStreamingLlmClient(objectMapper, timeLogService, projectService)
+        }
         val chatModelOpt = Optional.ofNullable(chatModel)
         if (llmProperties.apiKey.isNullOrBlank()) {
             return PlaceholderLlmClient()
